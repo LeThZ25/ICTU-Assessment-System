@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hệ Thống Khảo Thí & AI Agent Đánh Giá Sinh Viên - ICTU</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    body { font-family: 'Inter', sans-serif; }
+    .pulse-alert { animation: pulse-red 1.5s infinite; }
+    @keyframes pulse-red { 0%, 100% { background-color: #fee2e2; } 50% { background-color: #fca5a5; } }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+  <!-- Top Navbar -->
+  <header class="bg-indigo-900 text-white shadow-lg sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center text-white font-black text-xl shadow-md">
+          ICTU
+        </div>
+        <div>
+          <h1 class="text-base font-bold tracking-tight">HỆ THỐNG QUẢN LÝ & AI AGENT ĐÁNH GIÁ CHUẨN ĐẦU RA</h1>
+          <p class="text-xs text-blue-200">Đề tài NCKH Sinh viên • Phân hệ Giảng viên & Giám sát Chống gian lận</p>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-3">
+        <!-- Engine Status Badge -->
+        <span class="hidden md:inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500 text-white shadow">
+          <span class="w-2 h-2 rounded-full bg-white mr-1.5 animate-pulse"></span>
+          Động Cơ AI: Sẵn Sàng Phục Vụ
+        </span>
+
+        <!-- Current User Profile Pill -->
+        <div class="flex items-center space-x-2 bg-indigo-800/80 border border-indigo-700 px-3 py-1.5 rounded-xl cursor-pointer hover:bg-indigo-700/80 transition" onclick="openLoginModal()">
+          <div class="w-7 h-7 rounded-full bg-amber-400 text-indigo-950 font-bold flex items-center justify-center text-xs">
+            GV
+          </div>
+          <div class="text-left hidden sm:block">
+            <p class="text-xs font-bold leading-none" id="navUserName">TS. Nguyễn Văn A</p>
+            <p class="text-[10px] text-blue-200 leading-tight mt-0.5" id="navUserEmail">gv_nguyenvana@ictu.edu.vn</p>
+          </div>
+          <i class="fa-solid fa-chevron-down text-[10px] text-blue-300 ml-1"></i>
+        </div>
+
+        <a href="/student_web.html" target="_blank" class="text-xs bg-blue-600 hover:bg-blue-500 px-3 py-2 rounded-xl border border-blue-400 font-semibold transition flex items-center shadow">
+          <i class="fa-solid fa-graduation-cap mr-1.5"></i> Cổng Sinh Viên
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Navigation Tabs -->
+  <nav class="bg-white border-b border-slate-200 shadow-sm sticky top-[62px] z-40">
+    <div class="max-w-7xl mx-auto px-4 flex space-x-1 overflow-x-auto" id="tabNav">
+      <button onclick="switchTab('dashboard')" class="tab-btn active px-4 py-3 text-sm font-semibold border-b-2 border-indigo-600 text-indigo-600 flex items-center whitespace-nowrap">
+        <i class="fa-solid fa-chart-pie mr-2"></i> Tổng Quan
+      </button>
+      <button onclick="switchTab('documents')" class="tab-btn px-4 py-3 text-sm font-semibold border-b-2 border-transparent text-slate-600 hover:text-indigo-600 flex items-center whitespace-nowrap">
+        <i class="fa-solid fa-file-pdf mr-2"></i> Nạp Tài Liệu (RAG)
+      </button>
+      <button onclick="switchTab('ai-generator')" class="tab-btn px-4 py-3 text-sm font-semibold border-b-2 border-transparent text-slate-600 hover:text-indigo-600 flex items-center whitespace-nowrap">
+        <i class="fa-solid fa-wand-magic-sparkles mr-2 text-amber-500"></i> AI Sinh Đề Tự Động
+      </button>
+      <button onclick="switchTab('question-bank')" class="tab-btn px-4 py-3 text-sm font-semibold border-b-2 border-transparent text-slate-600 hover:text-indigo-600 flex items-center whitespace-nowrap">
+        <i class="fa-solid fa-boxes-stacked mr-2"></i> Ngân Hàng Câu Hỏi
+      </button>
+      <button onclick="switchTab('exams')" class="tab-btn px-4 py-3 text-sm font-semibold border-b-2 border-transparent text-slate-600 hover:text-indigo-600 flex items-center whitespace-nowrap">
+        <i class="fa-solid fa-clipboard-question mr-2"></i> Quản Lý Đề Thi
+      </button>
+      <button onclick="switchTab('monitoring')" class="tab-btn px-4 py-3 text-sm font-semibold border-b-2 border-transparent text-slate-600 hover:text-indigo-600 flex items-center whitespace-nowrap">
+        <i class="fa-solid fa-shield-halved mr-2 text-rose-500"></i> Giám Sát Chống Gian Lận
+        <span id="cheatBadge" class="hidden ml-2 px-1.5 py-0.5 text-xs bg-rose-500 text-white rounded-full">0</span>
+      </button>
+      <button onclick="switchTab('reports')" class="tab-btn px-4 py-3 text-sm font-semibold border-b-2 border-transparent text-slate-600 hover:text-indigo-600 flex items-center whitespace-nowrap">
+        <i class="fa-solid fa-square-poll-vertical mr-2"></i> Báo Cáo & Phổ Điểm
+      </button>
+    </div>
+  </nav>
+
+  <!-- Main Container -->
+  <main class="max-w-7xl mx-auto px-4 py-6 flex-1 w-full">
+
+    <!-- TAB 1: DASHBOARD -->
+    <section id="tab-dashboard" class="tab-content block space-y-6">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
+          <div>
+            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Môn Học Quản Lý</p>
+            <h3 class="text-2xl font-bold text-slate-800 mt-1" id="statSubjects">2</h3>
+            <p class="text-xs text-indigo-600 font-medium mt-1">CSDL & Trí Tuệ Nhân Tạo</p>
+          </div>
+          <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl">
+            <i class="fa-solid fa-book-open"></i>
+          </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
+          <div>
+            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Ngân Hàng Câu Hỏi</p>
+            <h3 class="text-2xl font-bold text-slate-800 mt-1" id="statQuestions">4</h3>
+            <p class="text-xs text-emerald-600 font-medium mt-1">Đã kiểm duyệt</p>
+          </div>
+          <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl">
+            <i class="fa-solid fa-circle-check"></i>
+          </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
+          <div>
+            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Lượt Thí Sinh Nộp Bài</p>
+            <h3 class="text-2xl font-bold text-slate-800 mt-1" id="statSubmissions">0</h3>
+            <p class="text-xs text-blue-600 font-medium mt-1">Chấm điểm tự động</p>
+          </div>
+          <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl">
+            <i class="fa-solid fa-user-graduate"></i>
+          </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
+          <div>
+            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Cảnh Báo Gian Lận</p>
+            <h3 class="text-2xl font-bold text-rose-600 mt-1" id="statCheats">0</h3>
+            <p class="text-xs text-rose-500 font-medium mt-1">Alt+Tab, Copy/Paste</p>
+          </div>
+          <div class="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-xl">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Action Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-2xl p-6 text-white shadow-md">
+          <div class="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center text-lg mb-4">
+            <i class="fa-solid fa-upload"></i>
+          </div>
+          <h4 class="text-lg font-bold">1. Nạp Giáo Trình Học Phần</h4>
+          <p class="text-sm text-indigo-100 mt-2 mb-4 leading-relaxed">
+            Tải giáo trình PDF, bài giảng DOCX lên hệ thống. AI Agent sẽ tự động băm nhỏ và lập chỉ mục Vector RAG.
+          </p>
+          <button onclick="switchTab('documents')" class="bg-white text-indigo-700 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-indigo-50 transition shadow">
+            Tải Tài Liệu Ngay &rarr;
+          </button>
+        </div>
+
+        <div class="bg-gradient-to-br from-amber-500 to-amber-700 rounded-2xl p-6 text-white shadow-md">
+          <div class="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center text-lg mb-4">
+            <i class="fa-solid fa-bolt"></i>
+          </div>
+          <h4 class="text-lg font-bold">2. Sinh Đề Thi Tự Động Bằng AI</h4>
+          <p class="text-sm text-amber-100 mt-2 mb-4 leading-relaxed">
+            Hệ thống tự động sinh trắc nghiệm và tự luận phân cấp độ theo chuẩn thang đo Bloom và chuẩn đầu ra CLO.
+          </p>
+          <button onclick="switchTab('ai-generator')" class="bg-white text-amber-800 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-amber-50 transition shadow">
+            Cấu Hình Ma Trận &rarr;
+          </button>
+        </div>
+
+        <div class="bg-gradient-to-br from-rose-500 to-rose-700 rounded-2xl p-6 text-white shadow-md">
+          <div class="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center text-lg mb-4">
+            <i class="fa-solid fa-desktop"></i>
+          </div>
+          <h4 class="text-lg font-bold">3. Giám Sát Chống Gian Lận</h4>
+          <p class="text-sm text-rose-100 mt-2 mb-4 leading-relaxed">
+            Giám sát phòng thi thời gian thực qua SignalR. Phát hiện tức thì các hành vi chuyển cửa sổ, Alt+Tab, Copy/Paste từ Desktop App.
+          </p>
+          <button onclick="switchTab('monitoring')" class="bg-white text-rose-800 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-rose-50 transition shadow">
+            Xem Giám Sát Realtime &rarr;
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: NẠP TÀI LIỆU RAG -->
+    <section id="tab-documents" class="tab-content hidden space-y-6">
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+        <h3 class="text-lg font-bold text-slate-800 mb-2">Tải Lên Tài Liệu & Tri Thức Cho AI (Module 1 &rarr; Module 3)</h3>
+        <p class="text-sm text-slate-500 mb-6">Hệ thống chấp nhận các định dạng tài liệu học phần (.pdf, .txt, .docx). Module 3 AI Agent sẽ trích xuất văn bản, băm chunk và tạo bộ chỉ mục RAG.</p>
+
+        <form id="uploadDocForm" onsubmit="handleUploadDoc(event)" class="space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Môn Học Áp Dụng</label>
+              <select id="docSubjectSelect" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="1">CS301 - Cơ sở dữ liệu & Hệ phân tán</option>
+                <option value="2">AI402 - Trí tuệ nhân tạo và Ứng dụng</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Chọn Tệp Tài Liệu</label>
+              <input type="file" id="docFileInput" accept=".pdf,.txt,.docx" required class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer">
+            </div>
+          </div>
+
+          <div class="flex justify-end pt-2">
+            <button type="submit" id="btnUploadDoc" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm px-6 py-2.5 rounded-xl shadow transition flex items-center">
+              <i class="fa-solid fa-cloud-arrow-up mr-2"></i> Tải Lên & Chuyển Sang AI Học
+            </button>
+          </div>
+        </form>
+
+        <div id="uploadStatusBox" class="mt-4 hidden p-4 rounded-xl text-sm"></div>
+      </div>
+    </section>
+
+    <!-- TAB 3: AI SINH ĐỀ THI -->
+    <section id="tab-ai-generator" class="tab-content hidden space-y-6">
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="text-lg font-bold text-slate-800">Thiết Lập Ma Trận Đề & Sinh Câu Hỏi Tự Động Bằng AI</h3>
+            <p class="text-sm text-slate-500">Tối ưu hóa ngân hàng đề, sinh câu hỏi phân loại theo chuẩn Bloom (Nhận biết, Thông hiểu, Vận dụng) và chuẩn đầu ra CLO.</p>
+          </div>
+          <span class="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-lg text-xs font-semibold flex items-center">
+            <i class="fa-solid fa-microchip mr-1.5"></i> Động Cơ Khảo Thí: Sẵn Sàng
+          </span>
+        </div>
+
+        <form id="aiMatrixForm" onsubmit="handleGenerateQuestions(event)" class="space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Môn Học</label>
+              <select id="matrixSubjectSelect" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500">
+                <option value="1">Cơ sở dữ liệu & Hệ phân tán</option>
+                <option value="2">Trí tuệ nhân tạo và Ứng dụng</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Số Câu Trắc Nghiệm (MCQ)</label>
+              <input type="number" id="matrixNumMcq" value="5" min="1" max="20" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Số Câu Tự Luận/Vấn Đáp</label>
+              <input type="number" id="matrixNumEssay" value="1" min="1" max="5" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Mức Độ Thang Bloom</label>
+              <select id="matrixDifficulty" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm">
+                <option value="Easy">Nhận biết & Thông hiểu</option>
+                <option value="Medium" selected>Vận dụng trung bình</option>
+                <option value="Hard">Vận dụng cao & Phân tích</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="flex justify-end pt-3">
+            <button type="submit" id="btnGenAI" class="bg-gradient-to-r from-emerald-600 to-indigo-600 hover:from-emerald-700 hover:to-indigo-700 text-white font-medium text-sm px-6 py-2.5 rounded-xl shadow transition flex items-center">
+              <i class="fa-solid fa-wand-magic-sparkles mr-2"></i> Kích Hoạt Tác Tử AI Sinh Đề Thi
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- AI Generation Result & Review Screen -->
+      <div id="aiResultCard" class="hidden bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+        <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+          <div>
+            <h4 class="text-base font-bold text-slate-800">Danh Sách Câu Hỏi Do AI Agent Vừa Sinh Ra</h4>
+            <p class="text-xs text-slate-500">Giảng viên có thể xem xét, chỉnh sửa trước khi bấm Duyệt vào Ngân hàng Đề.</p>
+          </div>
+          <button onclick="approveAllGeneratedQuestions()" id="btnApproveAll" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-4 py-2 rounded-xl shadow transition flex items-center">
+            <i class="fa-solid fa-check-double mr-1.5"></i> Duyệt Tất Cả Vào Ngân Hàng
+          </button>
+        </div>
+
+        <div id="generatedQuestionsList" class="space-y-4"></div>
+      </div>
+    </section>
+
+    <!-- TAB 4: NGÂN HÀNG CÂU HỎI -->
+    <section id="tab-question-bank" class="tab-content hidden space-y-6">
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-bold text-slate-800">Ngân Hàng Câu Hỏi Đã Duyệt</h3>
+          <button onclick="loadQuestionBank()" class="text-xs font-medium text-indigo-600 hover:underline">
+            <i class="fa-solid fa-rotate-right mr-1"></i> Làm mới
+          </button>
+        </div>
+        <div id="questionBankContainer" class="space-y-3">
+          <p class="text-sm text-slate-400">Đang tải câu hỏi...</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 5: QUẢN LÝ ĐỀ THI -->
+    <section id="tab-exams" class="tab-content hidden space-y-6">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Create Exam Card -->
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+          <h3 class="text-base font-bold text-slate-800 mb-4">Tạo Đề Thi Mới</h3>
+          <form id="createExamForm" onsubmit="handleCreateExam(event)" class="space-y-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Môn Học</label>
+              <select id="examSubjectSelect" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm">
+                <option value="1">Cơ sở dữ liệu & Hệ phân tán</option>
+                <option value="2">Trí tuệ nhân tạo và Ứng dụng</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Tiêu Đề Đề Thi</label>
+              <input type="text" id="examTitle" value="Kiểm tra Đánh giá Chuẩn đầu ra CSDL - ICTU" required class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Thời Gian Làm Bài (Phút)</label>
+              <input type="number" id="examDuration" value="20" min="5" max="180" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Mã Truy Cập Phòng Thi</label>
+              <input type="text" id="examAccessCode" value="ICTU2026" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm font-mono font-bold text-indigo-700">
+            </div>
+            <button type="submit" class="w-full mt-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm py-2.5 rounded-xl shadow transition">
+              <i class="fa-solid fa-plus-circle mr-1"></i> Khởi Tạo Đề Thi
+            </button>
+          </form>
+        </div>
+
+        <!-- Exam List -->
+        <div class="md:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+          <h3 class="text-base font-bold text-slate-800 mb-4">Danh Sách Đề Thi Hoạt Động</h3>
+          <div id="examsListContainer" class="space-y-3"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 6: GIÁM SÁT CHỐNG GIAN LẬN REALTIME -->
+    <section id="tab-monitoring" class="tab-content hidden space-y-6">
+      <div class="flex items-center justify-between bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+        <div class="flex items-center space-x-3">
+          <div class="w-3 h-3 rounded-full bg-rose-500 animate-ping"></div>
+          <div>
+            <h3 class="text-base font-bold text-slate-800">Giám Sát Phòng Thi Trực Tiếp (Realtime Anti-Cheat Feed)</h3>
+            <p class="text-xs text-slate-500">Kết nối SignalR Hub: Lắng nghe tín hiệu vi phạm từ Desktop App & Web Sinh viên</p>
+          </div>
+        </div>
+        <div class="flex items-center space-x-2">
+          <span class="text-xs px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg font-semibold">
+            <i class="fa-solid fa-satellite-dish mr-1"></i> SignalR Connected
+          </span>
+          <button onclick="clearViolationLogs()" class="text-xs px-3 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600">
+            Xóa bảng tin
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Live Violations Feed -->
+        <div class="md:col-span-2 bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+          <h4 class="text-sm font-bold text-slate-800 mb-3 flex items-center">
+            <i class="fa-solid fa-bell text-rose-500 mr-2"></i> Nhật Ký Cảnh Báo Gian Lận Thời Gian Thực
+          </h4>
+          <div class="overflow-y-auto max-h-[450px]">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 text-slate-500 border-b">
+                <tr>
+                  <th class="py-2.5 px-3">Thời gian</th>
+                  <th class="py-2.5 px-3">Mã SV</th>
+                  <th class="py-2.5 px-3">Họ Tên</th>
+                  <th class="py-2.5 px-3">Hành Vi Vi Phạm</th>
+                  <th class="py-2.5 px-3">Mức Độ</th>
+                </tr>
+              </thead>
+              <tbody id="violationTableBody" class="divide-y divide-slate-100 font-medium">
+                <tr id="emptyViolationRow">
+                  <td colspan="5" class="py-8 text-center text-slate-400">Chưa ghi nhận hành vi vi phạm nào. Phòng thi an toàn.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Active Examinees -->
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+          <h4 class="text-sm font-bold text-slate-800 mb-3 flex items-center">
+            <i class="fa-solid fa-users text-indigo-500 mr-2"></i> Thí Sinh Đang Thi
+          </h4>
+          <div id="activeExamineesList" class="space-y-2 max-h-[450px] overflow-y-auto">
+            <p class="text-xs text-slate-400 py-4 text-center">Chưa có thí sinh kết nối.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 7: BÁO CÁO & PHỔ ĐIỂM + XUẤT FILE -->
+    <section id="tab-reports" class="tab-content hidden space-y-6">
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+        <div class="flex items-center justify-between mb-6">
+          <div>
+            <h3 class="text-lg font-bold text-slate-800">Báo Cáo Tổng Hợp Kết Quả & Phân Tích Năng Lực</h3>
+            <p class="text-xs text-slate-500">Đánh giá theo chuẩn đầu ra (Bloom's Taxonomy) và trích xuất dữ liệu đào tạo</p>
+          </div>
+          <div class="flex space-x-2">
+            <button onclick="exportReportCsv()" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-3 py-1.5 rounded-lg shadow flex items-center">
+              <i class="fa-solid fa-file-excel mr-1.5"></i> Xuất Báo Cáo (CSV/Excel)
+            </button>
+            <button onclick="loadReport(1)" class="text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold px-3 py-1.5 rounded-lg border border-indigo-200">
+              <i class="fa-solid fa-arrows-rotate mr-1"></i> Tải dữ liệu Đề 1
+            </button>
+          </div>
+        </div>
+
+        <div id="reportSummaryBox" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6"></div>
+
+        <!-- CLO & Bloom's Taxonomy Distribution Card -->
+        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6">
+          <h4 class="text-xs font-bold text-slate-700 uppercase mb-3 flex items-center">
+            <i class="fa-solid fa-layer-group text-indigo-600 mr-2"></i> Đánh Giá Chuẩn Đầu Ra Môn Học (CLO Matrix & Bloom's Taxonomy)
+          </h4>
+          <div id="cloAchievementGrid" class="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
+            <div class="bg-white p-3 rounded-lg border">
+              <p class="text-[11px] text-slate-500 font-medium">CLO 1 (Kiến thức cơ sở)</p>
+              <h5 class="text-lg font-bold text-indigo-700 mt-1">85%</h5>
+              <span class="text-[10px] text-emerald-600 font-semibold">Đạt chuẩn đầu ra</span>
+            </div>
+            <div class="bg-white p-3 rounded-lg border">
+              <p class="text-[11px] text-slate-500 font-medium">CLO 2 (Thiết kế & Phân tích)</p>
+              <h5 class="text-lg font-bold text-blue-700 mt-1">80%</h5>
+              <span class="text-[10px] text-emerald-600 font-semibold">Đạt chuẩn đầu ra</span>
+            </div>
+            <div class="bg-white p-3 rounded-lg border">
+              <p class="text-[11px] text-slate-500 font-medium">CLO 3 (Vận dụng thực tiễn)</p>
+              <h5 class="text-lg font-bold text-amber-700 mt-1">72%</h5>
+              <span class="text-[10px] text-blue-600 font-semibold">Khá tốt</span>
+            </div>
+            <div class="bg-white p-3 rounded-lg border">
+              <p class="text-[11px] text-slate-500 font-medium">CLO 4 (Tư duy phản biện)</p>
+              <h5 class="text-lg font-bold text-purple-700 mt-1">68%</h5>
+              <span class="text-[10px] text-amber-600 font-semibold">Cần bổ trợ</span>
+            </div>
+          </div>
+        </div>
+
+        <h4 class="text-sm font-bold text-slate-800 mb-3">Danh Sách Kết Quả & Nhận Xét AI Từng Thí Sinh</h4>
+        <div id="reportTableContainer" class="overflow-x-auto">
+          <table class="w-full text-left text-xs" id="reportTable">
+            <thead class="bg-slate-50 text-slate-500 border-b">
+              <tr>
+                <th class="py-2.5 px-3">Mã SV</th>
+                <th class="py-2.5 px-3">Họ Tên</th>
+                <th class="py-2.5 px-3">Điểm Số</th>
+                <th class="py-2.5 px-3">Số Lần Cảnh Báo</th>
+                <th class="py-2.5 px-3">Đánh Giá & Nhận Xét AI Agent</th>
+                <th class="py-2.5 px-3 text-right">Phúc Khảo (Giảng viên)</th>
+              </tr>
+            </thead>
+            <tbody id="reportBody" class="divide-y divide-slate-100">
+              <tr><td colspan="6" class="py-6 text-center text-slate-400">Nhấn nút Tải dữ liệu để xem báo cáo.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- SSO LOGIN MODAL -->
+  <div id="loginModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b">
+        <h3 class="text-base font-bold text-slate-800">Đăng Nhập Cổng Quản Lý ICTU</h3>
+        <button onclick="closeLoginModal()" class="text-slate-400 hover:text-slate-600 text-lg">&times;</button>
+      </div>
+
+      <p class="text-xs text-slate-500">Hệ thống chấp nhận tài khoản Google (@ictu.edu.vn) và Microsoft 365 (@ms.ictu.edu.vn).</p>
+
+      <div class="space-y-2 pt-1">
+        <button onclick="mockSso('Google', 'Lecturer')" class="w-full flex items-center justify-center space-x-2 py-2.5 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-sm transition">
+          <span class="text-red-500 font-black">G</span>
+          <span>Đăng nhập Giảng viên (@ictu.edu.vn)</span>
+        </button>
+        <button onclick="mockSso('Google', 'Student')" class="w-full flex items-center justify-center space-x-2 py-2.5 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-sm transition">
+          <span class="text-red-500 font-black">G</span>
+          <span>Đăng nhập Sinh viên Google (masv@ictu.edu.vn)</span>
+        </button>
+        <button onclick="mockSso('Microsoft', 'Student')" class="w-full flex items-center justify-center space-x-2 py-2.5 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-sm transition">
+          <i class="fa-brands fa-microsoft text-blue-600"></i>
+          <span>Đăng nhập Sinh viên Microsoft (masv@ms.ictu.edu.vn)</span>
+        </button>
+      </div>
+
+      <div class="relative py-2">
+        <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-200"></div></div>
+        <div class="relative flex justify-center text-[10px] uppercase"><span class="bg-white px-2 text-slate-400">Hoặc nhập email trực tiếp</span></div>
+      </div>
+
+      <form onsubmit="handleDirectLogin(event)" class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Email trường</label>
+          <input type="text" id="directEmail" placeholder="ví dụ: gv_nguyenvana@ictu.edu.vn" required class="w-full px-3 py-2 border rounded-xl text-xs">
+        </div>
+        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl text-xs shadow">
+          Xác Nhận Đăng Nhập
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Notification Audio & Logic Script -->
+  <script>
+    let currentReportSessions = [];
+
+    function playBeep() {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'triangle';
+        osc.frequency.value = 660;
+        gain.gain.setValueAtTime(0.2, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.35);
+      } catch (e) {}
+    }
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('border-indigo-600', 'text-indigo-600');
+        btn.classList.add('border-transparent', 'text-slate-600');
+      });
+
+      const activeSection = document.getElementById(`tab-${tabId}`);
+      if (activeSection) activeSection.classList.remove('hidden');
+
+      const clickedBtn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick')?.includes(tabId));
+      if (clickedBtn) {
+        clickedBtn.classList.remove('border-transparent', 'text-slate-600');
+        clickedBtn.classList.add('border-indigo-600', 'text-indigo-600');
+      }
+
+      if (tabId === 'question-bank') loadQuestionBank();
+      if (tabId === 'exams') loadExams();
+      if (tabId === 'reports') loadReport(1);
+    }
+
+    // Modal SSO
+    function openLoginModal() { document.getElementById('loginModal').classList.remove('hidden'); }
+    function closeLoginModal() { document.getElementById('loginModal').classList.add('hidden'); }
+
+    async function mockSso(provider, role) {
+      try {
+        const res = await fetch("/api/auth/sso-mock", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ provider, role })
+        });
+        const text = await res.text();
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch(e) {
+          throw new Error(text || "Lỗi giao tiếp máy chủ");
+        }
+        if (data.success) {
+          applyUserSession(data.user);
+          closeLoginModal();
+        } else {
+          alert(data.message || "Không thể đăng nhập");
+        }
+      } catch (e) {
+        alert("Thông báo đăng nhập: " + e.message);
+      }
+    }
+
+    async function handleDirectLogin(e) {
+      e.preventDefault();
+      const email = document.getElementById('directEmail').value.trim();
+      try {
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email })
+        });
+        const data = await res.json();
+        if (data.success) {
+          applyUserSession(data.user);
+          closeLoginModal();
+        } else {
+          alert(data.message || "Không thể đăng nhập");
+        }
+      } catch (err) {
+        alert("Lỗi: " + err.message);
+      }
+    }
+
+    function applyUserSession(user) {
+      document.getElementById('navUserName').innerText = user.fullName;
+      document.getElementById('navUserEmail').innerText = `${user.email} (${user.authProvider})`;
+      localStorage.setItem('ictu_user', JSON.stringify(user));
+    }
+
+    // Export CSV Report
+    function exportReportCsv() {
+      if (!currentReportSessions || currentReportSessions.length === 0) {
+        alert("Chưa có dữ liệu bài nộp để xuất file!");
+        return;
+      }
+      let csv = "Mã Sinh Viên,Họ Tên,Điểm Số,Số Lần Cảnh Báo,Đánh Giá & Nhận Xét AI Agent\n";
+      currentReportSessions.forEach(s => {
+        const cleanFeedback = (s.aiFeedback || "").replace(/"/g, '""');
+        csv += `"${s.studentCode}","${s.studentName}","${s.score}","${s.cheatingCount}","${cleanFeedback}"\n`;
+      });
+
+      const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Bao_Cao_Diem_Chuan_Dau_Ra_ICTU_${new Date().toISOString().slice(0,10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+
+    // SignalR Client
+    let connection = null;
+    let violationCount = 0;
+
+    function initSignalR() {
+      connection = new signalR.HubConnectionBuilder()
+        .withUrl("/examHub")
+        .withAutomaticReconnect()
+        .build();
+
+      connection.on("OnViolationAlert", function (data) {
+        playBeep();
+        violationCount++;
+        const badge = document.getElementById('cheatBadge');
+        badge.innerText = violationCount;
+        badge.classList.remove('hidden');
+        document.getElementById('statCheats').innerText = violationCount;
+
+        const tableBody = document.getElementById('violationTableBody');
+        const emptyRow = document.getElementById('emptyViolationRow');
+        if (emptyRow) emptyRow.remove();
+
+        const tr = document.createElement('tr');
+        tr.className = "pulse-alert font-medium";
+        setTimeout(() => tr.classList.remove('pulse-alert'), 4000);
+
+        tr.innerHTML = `
+          <td class="py-2.5 px-3 text-slate-500">${data.timestamp || new Date().toLocaleTimeString()}</td>
+          <td class="py-2.5 px-3 font-mono font-bold text-indigo-700">${data.studentCode}</td>
+          <td class="py-2.5 px-3">${data.studentName || 'Sinh viên'}</td>
+          <td class="py-2.5 px-3 text-rose-600 font-semibold">
+            <i class="fa-solid fa-shield-virus mr-1"></i> ${data.violationType} (${data.details || ''})
+          </td>
+          <td class="py-2.5 px-3">
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700">NGHIÊM TRỌNG</span>
+          </td>
+        `;
+        tableBody.insertBefore(tr, tableBody.firstChild);
+      });
+
+      connection.on("OnStudentSubmitted", function(data) {
+        showToastNotification(`Thí sinh ${data.studentName} (${data.studentCode}) vừa hoàn thành bài thi! Điểm: ${data.score}/10`);
+        loadExams();
+      });
+
+      connection.start()
+        .then(() => {
+          connection.invoke("JoinLecturerMonitor");
+        })
+        .catch(err => console.error("SignalR Connection Error: ", err));
+    }
+
+    function clearViolationLogs() {
+      document.getElementById('violationTableBody').innerHTML = `
+        <tr id="emptyViolationRow"><td colspan="5" class="py-8 text-center text-slate-400">Chưa ghi nhận hành vi vi phạm nào.</td></tr>
+      `;
+      violationCount = 0;
+      document.getElementById('cheatBadge').classList.add('hidden');
+      document.getElementById('statCheats').innerText = "0";
+    }
+
+    function showToastNotification(msg) {
+      const toast = document.createElement('div');
+      toast.className = "fixed bottom-5 right-5 bg-indigo-900 text-white px-5 py-3 rounded-2xl shadow-2xl border border-indigo-700 flex items-center space-x-3 z-50 text-xs font-semibold animate-bounce";
+      toast.innerHTML = `<i class="fa-solid fa-bell text-amber-400 text-sm"></i> <span>${msg}</span>`;
+      document.body.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.5s ease';
+        setTimeout(() => toast.remove(), 500);
+      }, 5000);
+    }
+
+    // Upload Document
+    async function handleUploadDoc(e) {
+      e.preventDefault();
+      const subjectId = document.getElementById('docSubjectSelect').value;
+      const fileInput = document.getElementById('docFileInput');
+      const btn = document.getElementById('btnUploadDoc');
+      const box = document.getElementById('uploadStatusBox');
+
+      if (!fileInput.files || fileInput.files.length === 0) return;
+
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Đang tải và băm nhỏ tài liệu (RAG)...`;
+      box.className = "mt-4 p-4 rounded-xl text-sm bg-blue-50 text-blue-700 block border border-blue-200";
+      box.innerHTML = `Đang gửi file sang Module 3 Python AI Service để xử lý trích xuất văn bản...`;
+
+      const formData = new FormData();
+      formData.append("subjectId", subjectId);
+      formData.append("file", fileInput.files[0]);
+
+      try {
+        const res = await fetch("/api/lecturer/upload-document", { method: "POST", body: formData });
+        const data = await res.json();
+        if (data.success) {
+          box.className = "mt-4 p-4 rounded-xl text-sm bg-emerald-50 text-emerald-800 block border border-emerald-200";
+          box.innerHTML = `
+            <strong><i class="fa-solid fa-check-circle mr-1"></i> Tải lên thành công!</strong><br>
+            Tệp: <b>${data.document.filename}</b> | Chunks RAG: <b>${data.document.chunksCount}</b> | Số từ: <b>${data.document.wordCount}</b><br>
+            <span class="text-xs text-slate-600 mt-1 block">Trích xuất tri thức: "${data.aiPreview}"</span>
+          `;
+          fileInput.value = "";
+        }
+      } catch (err) {
+        box.className = "mt-4 p-4 rounded-xl text-sm bg-rose-50 text-rose-800 block border border-rose-200";
+        box.innerHTML = `<i class="fa-solid fa-circle-exclamation mr-1"></i> Lỗi: ${err.message}`;
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up mr-2"></i> Tải Lên & Chuyển Sang AI Học`;
+      }
+    }
+
+    // AI Question Generation
+    let tempGeneratedQuestions = [];
+    async function handleGenerateQuestions(e) {
+      e.preventDefault();
+      const subjectId = parseInt(document.getElementById('matrixSubjectSelect').value);
+      const numMcq = parseInt(document.getElementById('matrixNumMcq').value);
+      const numEssay = parseInt(document.getElementById('matrixNumEssay').value);
+      const difficulty = document.getElementById('matrixDifficulty').value;
+      const btn = document.getElementById('btnGenAI');
+
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Tác tử AI Đang Xử Lý & Sinh Đề...`;
+
+      try {
+        const res = await fetch("/api/lecturer/generate-questions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ subjectId, numMcq, numEssay, difficulty })
+        });
+        const text = await res.text();
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch(e) {
+          throw new Error(text || "Máy chủ AI chưa phản hồi. Vui lòng kiểm tra cổng 8000.");
+        }
+        if (data.success) {
+          tempGeneratedQuestions = data.questions;
+          renderGeneratedQuestions(tempGeneratedQuestions);
+        } else {
+          alert("Lỗi sinh đề: " + (data.message || "Không xác định"));
+        }
+      } catch (err) {
+        alert("Thông báo hệ thống: " + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles mr-2"></i> Kích Hoạt Tác Tử AI Sinh Đề Thi`;
+      }
+    }
+
+    function renderGeneratedQuestions(questions) {
+      const container = document.getElementById('generatedQuestionsList');
+      const card = document.getElementById('aiResultCard');
+      card.classList.remove('hidden');
+      container.innerHTML = "";
+
+      questions.forEach((q, idx) => {
+        const div = document.createElement('div');
+        div.className = "p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2";
+        const clo = q.clo_code || "CLO2";
+        const bloom = q.bloom_level || q.difficulty || "Vận dụng";
+
+        if (q.type === 'mcq') {
+          div.innerHTML = `
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-2">
+                <span class="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-xs font-bold rounded">Câu ${idx+1} [Trắc nghiệm]</span>
+                <span class="px-2 py-0.5 bg-slate-200 text-slate-700 text-[10px] font-bold rounded">Chuẩn: ${clo}</span>
+                <span class="px-2 py-0.5 bg-blue-50 text-blue-700 text-[10px] font-bold rounded">Bloom: ${bloom}</span>
+              </div>
+              <span class="text-xs text-emerald-700 font-bold">Đáp án đúng: ${q.correct_Option || q.correct_option}</span>
+            </div>
+            <textarea onchange="updateTempQ(${idx}, 'question', this.value)" rows="2" class="w-full font-semibold text-sm text-slate-800 p-2 border rounded-lg bg-white">${q.question}</textarea>
+            <div class="grid grid-cols-2 gap-2 text-xs text-slate-600 pt-1">
+              <input type="text" value="${q.option_a || q.option_A || ''}" onchange="updateTempQ(${idx}, 'option_a', this.value)" class="p-1.5 border rounded bg-white">
+              <input type="text" value="${q.option_b || q.option_B || ''}" onchange="updateTempQ(${idx}, 'option_b', this.value)" class="p-1.5 border rounded bg-white">
+              <input type="text" value="${q.option_c || q.option_C || ''}" onchange="updateTempQ(${idx}, 'option_c', this.value)" class="p-1.5 border rounded bg-white">
+              <input type="text" value="${q.option_d || q.option_D || ''}" onchange="updateTempQ(${idx}, 'option_d', this.value)" class="p-1.5 border rounded bg-white">
+            </div>
+            <p class="text-xs text-slate-500 italic bg-white p-2 rounded border">💡 Lời giải / Cơ sở trích xuất: ${q.explanation || 'Được đối sánh từ tri thức giáo trình môn học'}</p>
+          `;
+        } else {
+          div.innerHTML = `
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-2">
+                <span class="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-bold rounded">Câu ${idx+1} [Tự luận]</span>
+                <span class="px-2 py-0.5 bg-slate-200 text-slate-700 text-[10px] font-bold rounded">Chuẩn: ${clo}</span>
+                <span class="px-2 py-0.5 bg-purple-50 text-purple-700 text-[10px] font-bold rounded">Bloom: ${bloom}</span>
+              </div>
+            </div>
+            <textarea onchange="updateTempQ(${idx}, 'question', this.value)" rows="2" class="w-full font-semibold text-sm text-slate-800 p-2 border rounded-lg bg-white">${q.question}</textarea>
+            <input type="text" value="${q.key_points || q.key_Points || ''}" onchange="updateTempQ(${idx}, 'key_points', this.value)" placeholder="Barem chấm điểm" class="w-full text-xs text-slate-600 bg-white p-2 rounded border">
+          `;
+        }
+        container.appendChild(div);
+      });
+    }
+
+    function updateTempQ(idx, field, val) {
+      if (tempGeneratedQuestions[idx]) {
+        tempGeneratedQuestions[idx][field] = val;
+        if (field === 'option_a') tempGeneratedQuestions[idx]['option_A'] = val;
+        if (field === 'option_b') tempGeneratedQuestions[idx]['option_B'] = val;
+        if (field === 'option_c') tempGeneratedQuestions[idx]['option_C'] = val;
+        if (field === 'option_d') tempGeneratedQuestions[idx]['option_D'] = val;
+      }
+    }
+
+    async function approveAllGeneratedQuestions() {
+      const subjectId = parseInt(document.getElementById('matrixSubjectSelect').value);
+      const btn = document.getElementById('btnApproveAll');
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1.5"></i> Đang lưu...`;
+
+      try {
+        const res = await fetch("/api/lecturer/approve-questions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ subjectId, questions: tempGeneratedQuestions })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert(`Đã phê duyệt thành công ${data.addedCount} câu hỏi vào Ngân hàng Đề!`);
+          document.getElementById('aiResultCard').classList.add('hidden');
+          loadQuestionBank();
+        }
+      } catch (err) {
+        alert("Lỗi duyệt câu hỏi: " + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fa-solid fa-check-double mr-1.5"></i> Duyệt Tất Cả Vào Ngân Hàng`;
+      }
+    }
+
+    // Load Question Bank
+    async function loadQuestionBank() {
+      try {
+        const res = await fetch("/api/lecturer/questions");
+        const list = await res.json();
+        document.getElementById('statQuestions').innerText = list.length;
+        const container = document.getElementById('questionBankContainer');
+        if (list.length === 0) {
+          container.innerHTML = `<p class="text-sm text-slate-400 py-4 text-center">Ngân hàng câu hỏi đang trống.</p>`;
+          return;
+        }
+        container.innerHTML = list.map((q) => `
+          <div class="p-4 bg-slate-50 border border-slate-200 rounded-xl">
+            <div class="flex items-center justify-between text-xs font-bold mb-1">
+              <span class="text-indigo-700">#${q.id} • ${q.type === 'mcq' ? 'Trắc nghiệm' : 'Tự luận'}</span>
+              <span class="text-slate-500">${q.difficulty}</span>
+            </div>
+            <p class="text-sm font-semibold text-slate-800">${q.questionText}</p>
+            ${q.type === 'mcq' ? `
+              <div class="grid grid-cols-2 gap-2 text-xs text-slate-600 mt-2">
+                <div class="${q.correctOption === 'A' ? 'font-bold text-emerald-700' : ''}">A: ${q.optionA}</div>
+                <div class="${q.correctOption === 'B' ? 'font-bold text-emerald-700' : ''}">B: ${q.optionB}</div>
+                <div class="${q.correctOption === 'C' ? 'font-bold text-emerald-700' : ''}">C: ${q.optionC}</div>
+                <div class="${q.correctOption === 'D' ? 'font-bold text-emerald-700' : ''}">D: ${q.optionD}</div>
+              </div>
+            ` : `<p class="text-xs text-slate-500 mt-2"><b>Barem:</b> ${q.keyPoints || ''}</p>`}
+          </div>
+        `).join("");
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    // Exam Management
+    async function handleCreateExam(e) {
+      e.preventDefault();
+      const subjectId = parseInt(document.getElementById('examSubjectSelect').value);
+      const title = document.getElementById('examTitle').value;
+      const durationMinutes = parseInt(document.getElementById('examDuration').value);
+      const accessCode = document.getElementById('examAccessCode').value;
+
+      try {
+        const res = await fetch("/api/lecturer/create-exam", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ subjectId, title, durationMinutes, accessCode })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert("Đã khởi tạo đề thi mới thành công!");
+          loadExams();
+        }
+      } catch (err) {
+        alert("Lỗi tạo đề thi: " + err.message);
+      }
+    }
+
+    async function loadExams() {
+      try {
+        const res = await fetch("/api/lecturer/exams");
+        const exams = await res.json();
+        const container = document.getElementById('examsListContainer');
+        if (exams.length === 0) {
+          container.innerHTML = `<p class="text-sm text-slate-400 py-4 text-center">Chưa có đề thi nào.</p>`;
+          return;
+        }
+
+        let totalSub = 0;
+        container.innerHTML = exams.map(e => {
+          totalSub += e.totalSubmissions;
+          return `
+            <div class="p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
+              <div>
+                <h4 class="text-sm font-bold text-slate-800">${e.title}</h4>
+                <p class="text-xs text-slate-500 mt-0.5">
+                  Môn: <b>${e.subjectName}</b> | Thời gian: <b>${e.durationMinutes} phút</b> | Câu hỏi: <b>${e.totalQuestions}</b>
+                </p>
+                <div class="mt-2 flex items-center space-x-2">
+                  <span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-700 text-xs font-mono font-bold">Mã phòng: ${e.accessCode}</span>
+                  <span class="text-xs text-slate-500">Đã nộp: <b>${e.totalSubmissions}</b> bài</span>
+                </div>
+              </div>
+              <button onclick="loadReport(${e.id}); switchTab('reports');" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-1.5 rounded-lg shadow font-medium">
+                Xem Báo Cáo
+              </button>
+            </div>
+          `;
+        }).join("");
+
+        document.getElementById('statSubmissions').innerText = totalSub;
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    // Reports
+    async function loadReport(examId) {
+      try {
+        const res = await fetch(`/api/lecturer/report/${examId}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        currentReportSessions = data.sessions || [];
+
+        const box = document.getElementById('reportSummaryBox');
+        box.innerHTML = `
+          <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-100">
+            <span class="text-xs text-indigo-600 font-semibold uppercase">Điểm Trung Bình</span>
+            <h4 class="text-2xl font-bold text-indigo-900 mt-1">${data.averageScore} / 10</h4>
+          </div>
+          <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
+            <span class="text-xs text-emerald-600 font-semibold uppercase">Điểm Cao Nhất</span>
+            <h4 class="text-2xl font-bold text-emerald-900 mt-1">${data.maxScore} / 10</h4>
+          </div>
+          <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
+            <span class="text-xs text-blue-600 font-semibold uppercase">Tổng Số Bài Thi</span>
+            <h4 class="text-2xl font-bold text-blue-900 mt-1">${data.totalSubmissions}</h4>
+          </div>
+          <div class="bg-rose-50 p-4 rounded-xl border border-rose-100">
+            <span class="text-xs text-rose-600 font-semibold uppercase">Tổng Cảnh Báo Gian Lận</span>
+            <h4 class="text-2xl font-bold text-rose-900 mt-1">${data.totalCheatingAlerts}</h4>
+          </div>
+        `;
+
+        // Dynamic CLO Achievement Grid
+        if (data.cloAchievement) {
+          const grid = document.getElementById('cloAchievementGrid');
+          const clos = Object.values(data.cloAchievement);
+          if (clos.length > 0) {
+            grid.innerHTML = clos.map((c, i) => `
+              <div class="bg-white p-3 rounded-lg border">
+                <p class="text-[11px] text-slate-500 font-medium">${c.cloCode || ('CLO ' + (i+1))}</p>
+                <h5 class="text-lg font-bold ${c.passRate >= 80 ? 'text-indigo-700' : c.passRate >= 70 ? 'text-blue-700' : 'text-amber-700'} mt-1">${c.passRate}%</h5>
+                <span class="text-[10px] ${c.passRate >= 75 ? 'text-emerald-600' : 'text-amber-600'} font-semibold">${c.passRate >= 75 ? 'Đạt chuẩn đầu ra' : 'Cần bổ trợ'}</span>
+              </div>
+            `).join("");
+          }
+        }
+
+        const body = document.getElementById('reportBody');
+        if (!data.sessions || data.sessions.length === 0) {
+          body.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-slate-400">Chưa có thí sinh nộp bài cho đề thi này.</td></tr>`;
+          return;
+        }
+
+        body.innerHTML = data.sessions.map(s => `
+          <tr class="hover:bg-slate-50">
+            <td class="py-2.5 px-3 font-mono font-bold text-indigo-700">${s.studentCode}</td>
+            <td class="py-2.5 px-3">${s.studentName}</td>
+            <td class="py-2.5 px-3 font-bold text-emerald-600 text-sm" id="score_cell_${s.id}">${s.score}</td>
+            <td class="py-2.5 px-3">
+              <span class="px-2 py-0.5 rounded text-xs font-semibold ${s.cheatingCount > 0 ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-600'}">
+                ${s.cheatingCount} lần
+              </span>
+            </td>
+            <td class="py-2.5 px-3 text-slate-600 max-w-md" id="feedback_cell_${s.id}">${s.aiFeedback || 'Không có nhận xét'}</td>
+            <td class="py-2.5 px-3 text-right">
+              <button onclick="handleOverrideScore(${s.id}, ${s.score})" class="text-xs bg-slate-100 hover:bg-indigo-50 text-indigo-700 border border-slate-200 hover:border-indigo-300 px-2 py-1 rounded font-medium transition">
+                <i class="fa-solid fa-pen-to-square mr-1"></i> Phúc khảo
+              </button>
+            </td>
+          </tr>
+        `).join("");
+
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function handleOverrideScore(sessionId, currentScore) {
+      const newScoreInput = prompt("Nhập điểm số mới của giảng viên (thang 10):", currentScore);
+      if (newScoreInput === null) return;
+      const newScore = parseFloat(newScoreInput);
+      if (isNaN(newScore) || newScore < 0 || newScore > 10) {
+        alert("Điểm số không hợp lệ. Vui lòng nhập từ 0.0 đến 10.0.");
+        return;
+      }
+      const feedback = prompt("Nhập lý do hoặc nhận xét phúc khảo của giảng viên:", "Đã đối chiếu luận điểm thực tiễn của sinh viên.");
+      
+      try {
+        const res = await fetch("/api/lecturer/override-score", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId, newScore, lecturerFeedback: feedback })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert("Đã cập nhật điểm số thành công!");
+          const scoreCell = document.getElementById(`score_cell_${sessionId}`);
+          if (scoreCell) scoreCell.innerText = data.newScore;
+          const fbCell = document.getElementById(`feedback_cell_${sessionId}`);
+          if (fbCell && feedback) fbCell.innerText = `[Giảng viên]: ${feedback}`;
+        } else {
+          alert("Lỗi: " + (data.message || "Không thể cập nhật"));
+        }
+      } catch (err) {
+        alert("Lỗi kết nối: " + err.message);
+      }
+    }
+
+    // Init
+    window.addEventListener('DOMContentLoaded', () => {
+      initSignalR();
+      loadQuestionBank();
+      loadExams();
+    });
+  </script>
+</body>
+</html>

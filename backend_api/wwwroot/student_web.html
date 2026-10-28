@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Phòng Thi Trực Tuyến & AI Đánh Giá - ICTU</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    body { font-family: 'Inter', sans-serif; user-select: none; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col justify-between">
+
+  <!-- Top Bar -->
+  <header class="bg-slate-900 text-white shadow py-3 px-6 flex items-center justify-between">
+    <div class="flex items-center space-x-3">
+      <div class="w-8 h-8 rounded-lg bg-blue-500 font-bold flex items-center justify-center text-white text-sm">ICTU</div>
+      <div>
+        <h2 class="text-sm font-bold tracking-tight" id="headerExamTitle">CỔNG ÔN TẬP & ĐÁNH GIÁ CHUẨN ĐẦU RA (BLENDED LEARNING)</h2>
+        <p class="text-[11px] text-slate-400" id="headerStudentInfo">Phân hệ Khảo thí Trực tuyến Thường xuyên (Formative Assessment)</p>
+      </div>
+    </div>
+    <div id="examTimerBox" class="hidden flex items-center space-x-2 bg-rose-600/20 border border-rose-500/40 px-3 py-1.5 rounded-lg text-rose-300 font-mono text-sm font-bold">
+      <i class="fa-regular fa-clock"></i>
+      <span id="examTimer">20:00</span>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto w-full p-4 flex-1 flex flex-col justify-center">
+
+    <!-- STEP 1: LOGIN & START EXAM -->
+    <div id="stepLogin" class="bg-white p-8 rounded-2xl shadow-md border border-slate-200 max-w-md mx-auto w-full">
+      <div class="text-center mb-5">
+        <div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto text-xl mb-2">
+          <i class="fa-solid fa-graduation-cap"></i>
+        </div>
+        <h3 class="text-xl font-bold text-slate-800">Đăng Nhập Phòng Thi ICTU</h3>
+        <p class="text-xs text-slate-500 mt-1">Đăng nhập tài khoản trường để nhận đề và kích hoạt AI</p>
+      </div>
+
+      <!-- Quick SSO Buttons -->
+      <div class="grid grid-cols-2 gap-2 mb-4">
+        <button type="button" onclick="quickFillStudent('dtc205122001@ictu.edu.vn', 'Nguyễn Văn An')" class="p-2 border border-slate-200 hover:bg-slate-50 rounded-xl text-left transition flex items-center space-x-2">
+          <span class="text-red-500 font-bold text-sm">G</span>
+          <div class="truncate">
+            <p class="text-[11px] font-bold text-slate-700 leading-tight">Google ICTU</p>
+            <p class="text-[9px] text-slate-400 truncate">@ictu.edu.vn</p>
+          </div>
+        </button>
+        <button type="button" onclick="quickFillStudent('dtc205122002@ms.ictu.edu.vn', 'Trần Thị Bình')" class="p-2 border border-slate-200 hover:bg-slate-50 rounded-xl text-left transition flex items-center space-x-2">
+          <i class="fa-brands fa-microsoft text-blue-600 text-sm"></i>
+          <div class="truncate">
+            <p class="text-[11px] font-bold text-slate-700 leading-tight">Microsoft 365</p>
+            <p class="text-[9px] text-slate-400 truncate">@ms.ictu.edu.vn</p>
+          </div>
+        </button>
+      </div>
+
+      <form onsubmit="handleStartExam(event)" class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Email Trường / Mã Sinh Viên</label>
+          <input type="text" id="inpStudentCode" required value="dtc205122001@ictu.edu.vn" oninput="detectDomain(this.value)" class="w-full px-4 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 font-medium">
+          <span id="detectedDomainBadge" class="text-[11px] text-emerald-600 font-semibold mt-1 block">✓ Đăng nhập Google Workspace ICTU</span>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Họ Và Tên</label>
+          <input type="text" id="inpStudentName" required value="Nguyễn Văn An" class="w-full px-4 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Chọn Đề Thi</label>
+          <select id="inpExamId" class="w-full px-4 py-2 rounded-xl border border-slate-200 text-sm">
+            <option value="1">Đánh giá Kiểm tra Chuẩn đầu ra CSDL - ICTU 2026</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Mã Phòng Thi (Access Code)</label>
+          <input type="text" id="inpAccessCode" required value="ICTU2026" class="w-full px-4 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 font-mono font-bold">
+        </div>
+
+        <div class="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-800 flex items-start space-x-2">
+          <i class="fa-solid fa-triangle-exclamation text-amber-600 mt-0.5"></i>
+          <span>Khi bắt đầu, trình duyệt sẽ khóa toàn màn hình. Mọi thao tác Alt+Tab, chuyển tab, Copy/Paste đều được gửi log vi phạm đến Giảng viên.</span>
+        </div>
+
+        <button type="submit" id="btnStart" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-xl shadow transition text-sm flex items-center justify-center">
+          <i class="fa-solid fa-lock mr-2"></i> Bật Chế Độ Thi An Toàn & Làm Bài
+        </button>
+      </form>
+    </div>
+
+    <!-- STEP 2: EXAM WORKSPACE -->
+    <div id="stepExam" class="hidden space-y-4">
+      <div class="bg-rose-50 border border-rose-200 p-3 rounded-xl flex items-center justify-between text-xs text-rose-800 font-medium">
+        <span class="flex items-center"><i class="fa-solid fa-shield-halved mr-1.5 text-rose-600"></i> Cơ chế Anti-Cheat Đang Hoạt Động (Cấm Copy, Paste, Chuyển Tab)</span>
+        <span id="antiCheatWarnCount" class="font-bold text-rose-700">0 Lần Vi Phạm</span>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- Question Area -->
+        <div class="md:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+          <div class="flex items-center justify-between border-b pb-3">
+            <span class="text-xs font-bold text-indigo-600 uppercase" id="currentQType">Câu hỏi</span>
+            <span class="text-xs text-slate-400" id="currentQIndex">1 / 5</span>
+          </div>
+
+          <p class="text-base font-semibold text-slate-800 leading-relaxed" id="currentQText"></p>
+
+          <!-- MCQ Options Container -->
+          <div id="mcqOptionsContainer" class="space-y-2.5 pt-2"></div>
+
+          <!-- Essay Container -->
+          <div id="essayContainer" class="hidden space-y-2 pt-2">
+            <textarea id="essayInput" rows="6" placeholder="Nhập câu trả lời tự luận tại đây (AI sẽ chấm điểm ngữ nghĩa tự động)..." class="w-full p-3 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500"></textarea>
+          </div>
+
+          <div class="flex items-center justify-between pt-4 border-t">
+            <button onclick="prevQuestion()" id="btnPrev" class="px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50">
+              &larr; Câu trước
+            </button>
+            <button onclick="nextQuestion()" id="btnNext" class="px-4 py-2 rounded-xl bg-indigo-50 text-indigo-600 text-xs font-semibold hover:bg-indigo-100">
+              Câu tiếp &rarr;
+            </button>
+          </div>
+        </div>
+
+        <!-- Sidebar: Navigator & AI Oral Chat -->
+        <div class="space-y-4">
+          <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+            <h4 class="text-xs font-bold text-slate-700 uppercase mb-3">Danh sách câu hỏi</h4>
+            <div id="questionPalette" class="grid grid-cols-5 gap-2"></div>
+            <button onclick="submitExam()" class="w-full mt-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl shadow text-xs transition">
+              <i class="fa-solid fa-paper-plane mr-1.5"></i> Nộp Bài Thi
+            </button>
+          </div>
+
+          <!-- AI Oral Exam Mini-Chat -->
+          <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col h-[280px]">
+            <div class="flex items-center space-x-2 pb-2 border-b mb-2">
+              <div class="w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center text-[10px]">AI</div>
+              <h5 class="text-xs font-bold text-slate-800">Vấn Đáp Trực Tiếp AI</h5>
+            </div>
+            <div id="oralChatBox" class="flex-1 overflow-y-auto space-y-2 text-xs p-1">
+              <div class="bg-purple-50 p-2.5 rounded-xl text-purple-900">
+                AI Giám Khảo: Chào bạn, hãy làm bài cẩn thận. Nếu có thắc mắc lý thuyết hoặc cần vấn đáp giải thích hãy nhắn vào đây.
+              </div>
+            </div>
+            <div class="flex space-x-1 pt-2">
+              <input type="text" id="oralInput" placeholder="Nhắn tin với AI..." class="flex-1 px-3 py-1.5 rounded-lg border text-xs focus:ring-1 focus:ring-purple-500">
+              <button onclick="sendOralMessage()" class="bg-purple-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium">Gửi</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 3: RESULT SCREEN -->
+    <div id="stepResult" class="hidden bg-white p-8 rounded-2xl shadow-md border border-slate-200 max-w-lg mx-auto w-full text-center space-y-6">
+      <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-3xl">
+        <i class="fa-solid fa-check"></i>
+      </div>
+      <div>
+        <h3 class="text-2xl font-bold text-slate-800">Hoàn Thành Bài Kiểm Tra!</h3>
+        <p class="text-xs text-slate-500 mt-1">Kết quả được tính toán tự động kết hợp AI Chấm điểm</p>
+      </div>
+
+      <div class="bg-slate-50 p-6 rounded-2xl border border-slate-100 space-y-3">
+        <span class="text-xs text-slate-400 uppercase font-bold tracking-wider">Điểm Số Đạt Được</span>
+        <h2 class="text-5xl font-black text-indigo-600" id="resScore">8.5</h2>
+        <span class="text-xs font-semibold text-emerald-600">Thang điểm 10</span>
+      </div>
+
+      <div class="text-left bg-purple-50 p-4 rounded-xl border border-purple-100">
+        <h5 class="text-xs font-bold text-purple-900 mb-1 flex items-center">
+          <i class="fa-solid fa-brain mr-1.5"></i> Nhận Xét Năng Lực & Đánh Giá AI Agent:
+        </h5>
+        <p class="text-xs text-purple-800 leading-relaxed" id="resFeedback"></p>
+      </div>
+
+      <button onclick="location.reload()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-medium py-2.5 rounded-xl text-xs transition">
+        Về Trang Đăng Nhập
+      </button>
+    </div>
+
+  </main>
+
+  <footer class="py-3 text-center text-xs text-slate-400 border-t bg-white">
+    Đại Học Công Nghệ Thông Tin & Truyền Thông (ICTU) • Đề tài Nghiên cứu Khoa học Sinh viên
+  </footer>
+
+  <script>
+    let currentSessionId = 0;
+    let questionsList = [];
+    let currentIndex = 0;
+    let studentAnswers = {}; // qId -> { selectedOption, essayAnswer }
+    let violationCount = 0;
+    let timerSeconds = 20 * 60;
+    let timerInterval = null;
+    let currentStudentCode = "";
+    let currentStudentName = "";
+    let currentExamId = 1;
+
+    // Anti-cheat detection handlers
+    function setupAntiCheat() {
+      // 1. Detect Alt+Tab / Window Blur
+      window.addEventListener('blur', () => {
+        if (currentSessionId > 0 && !document.getElementById('stepExam').classList.contains('hidden')) {
+          logViolation("WindowBlur / Alt+Tab", "Thí sinh rời khỏi cửa sổ làm bài hoặc bấm phím chuyển đổi ứng dụng");
+        }
+      });
+
+      // 2. Prevent right-click context menu
+      document.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        logViolation("RightClickForbidden", "Cố ý mở chuột phải để sao chép dữ liệu");
+      });
+
+      // 3. Block Copy & Cut
+      document.addEventListener('copy', (e) => {
+        e.preventDefault();
+        logViolation("ClipboardCopy", "Cố ý sao chép đề thi");
+      });
+      document.addEventListener('cut', (e) => {
+        e.preventDefault();
+        logViolation("ClipboardCut", "Cố ý cắt đề thi");
+      });
+
+      // 4. Block Paste
+      document.addEventListener('paste', (e) => {
+        e.preventDefault();
+        logViolation("ClipboardPaste", "Cố ý dán văn bản từ ngoài vào bài làm");
+      });
+
+      // 5. Block F12, Ctrl+U, Ctrl+Shift+I
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J')) || (e.ctrlKey && e.key === 'u')) {
+          e.preventDefault();
+          logViolation("DevToolsAttempt", "Cố gắng mở công cụ lập trình DevTools");
+        }
+      });
+    }
+
+    async function logViolation(type, details) {
+      violationCount++;
+      document.getElementById('antiCheatWarnCount').innerText = `${violationCount} Lần Vi Phạm`;
+
+      try {
+        await fetch("/api/anticheat/log-violation", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId: currentSessionId,
+            studentCode: currentStudentCode,
+            studentName: currentStudentName,
+            violationType: type,
+            details: details
+          })
+        });
+      } catch (err) {
+        console.error("AntiCheat log error:", err);
+      }
+    }
+
+    function quickFillStudent(email, name) {
+      document.getElementById('inpStudentCode').value = email;
+      document.getElementById('inpStudentName').value = name;
+      detectDomain(email);
+    }
+
+    function detectDomain(val) {
+      const b = document.getElementById('detectedDomainBadge');
+      const v = (val || '').toLowerCase().trim();
+      if (v.endsWith('@ms.ictu.edu.vn')) {
+        b.innerText = "✓ Nhận diện: Microsoft 365 ICTU (@ms.ictu.edu.vn)";
+        b.className = "text-[11px] text-blue-600 font-semibold mt-1 block";
+      } else if (v.endsWith('@ictu.edu.vn')) {
+        b.innerText = "✓ Nhận diện: Google Workspace ICTU (@ictu.edu.vn)";
+        b.className = "text-[11px] text-emerald-600 font-semibold mt-1 block";
+      } else {
+        b.innerText = "• Nhập mã SV hoặc email trường";
+        b.className = "text-[11px] text-slate-400 font-medium mt-1 block";
+      }
+    }
+
+    // Start Exam
+    async function handleStartExam(e) {
+      e.preventDefault();
+      let rawInput = document.getElementById('inpStudentCode').value.trim();
+      // Extract StudentCode if email was passed
+      currentStudentCode = rawInput.includes('@') ? rawInput.split('@')[0].toUpperCase() : rawInput.toUpperCase();
+      currentStudentName = document.getElementById('inpStudentName').value.trim();
+      currentExamId = parseInt(document.getElementById('inpExamId').value);
+      const accessCode = document.getElementById('inpAccessCode').value.trim();
+      const btn = document.getElementById('btnStart');
+
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Đang tải đề thi...`;
+
+      try {
+        // Request Fullscreen
+        if (document.documentElement.requestFullscreen) {
+          try { await document.documentElement.requestFullscreen(); } catch (fse) {}
+        }
+
+        const res = await fetch("/api/student/start-exam", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            examId: currentExamId,
+            studentCode: currentStudentCode,
+            studentName: currentStudentName,
+            accessCode: accessCode
+          })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          currentSessionId = data.sessionId;
+          questionsList = data.questions;
+          timerSeconds = (data.durationMinutes || 20) * 60;
+
+          document.getElementById('headerExamTitle').innerText = data.examTitle;
+          document.getElementById('headerStudentInfo').innerText = `Thí sinh: ${currentStudentName} (${currentStudentCode})`;
+          document.getElementById('stepLogin').classList.add('hidden');
+          document.getElementById('stepExam').classList.remove('hidden');
+          document.getElementById('examTimerBox').classList.remove('hidden');
+
+          startTimer();
+          renderQuestionPalette();
+          renderQuestion(0);
+          setupAntiCheat();
+        } else {
+          alert("Không thể vào phòng thi: " + (data.message || data.detail || "Sai mã phòng"));
+        }
+      } catch (err) {
+        alert("Lỗi kết nối phòng thi: " + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fa-solid fa-lock mr-2"></i> Bật Chế Độ Thi An Toàn & Làm Bài`;
+      }
+    }
+
+    function startTimer() {
+      timerInterval = setInterval(() => {
+        timerSeconds--;
+        const m = Math.floor(timerSeconds / 60);
+        const s = timerSeconds % 60;
+        document.getElementById('examTimer').innerText = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        if (timerSeconds <= 0) {
+          clearInterval(timerInterval);
+          alert("Hết giờ làm bài! Hệ thống tự động nộp bài.");
+          submitExam();
+        }
+      }, 1000);
+    }
+
+    function renderQuestionPalette() {
+      const p = document.getElementById('questionPalette');
+      p.innerHTML = questionsList.map((q, idx) => `
+        <button onclick="renderQuestion(${idx})" id="palBtn_${idx}" class="py-1.5 rounded-lg border text-xs font-bold text-slate-600 hover:bg-indigo-50">
+          ${idx + 1}
+        </button>
+      `).join("");
+    }
+
+    function renderQuestion(idx) {
+      if (idx < 0 || idx >= questionsList.length) return;
+      saveCurrentAnswer();
+      currentIndex = idx;
+      const q = questionsList[idx];
+
+      document.getElementById('currentQIndex').innerText = `${idx + 1} / ${questionsList.length}`;
+      document.getElementById('currentQType').innerText = q.type === 'mcq' ? `Câu Trắc Nghiệm [${q.difficulty}]` : `Câu Tự Luận / Vấn Đáp [${q.difficulty}]`;
+      document.getElementById('currentQText').innerText = q.questionText;
+
+      // Update palette active
+      questionsList.forEach((_, i) => {
+        const b = document.getElementById(`palBtn_${i}`);
+        if (b) {
+          if (i === idx) {
+            b.className = "py-1.5 rounded-lg border-2 border-indigo-600 bg-indigo-600 text-white text-xs font-bold shadow";
+          } else if (studentAnswers[questionsList[i].id]) {
+            b.className = "py-1.5 rounded-lg border border-emerald-400 bg-emerald-50 text-emerald-800 text-xs font-bold";
+          } else {
+            b.className = "py-1.5 rounded-lg border text-xs font-bold text-slate-600 hover:bg-indigo-50";
+          }
+        }
+      });
+
+      const mcqBox = document.getElementById('mcqOptionsContainer');
+      const essayBox = document.getElementById('essayContainer');
+
+      if (q.type === 'mcq') {
+        mcqBox.classList.remove('hidden');
+        essayBox.classList.add('hidden');
+        const saved = studentAnswers[q.id]?.selectedOption || "";
+
+        mcqBox.innerHTML = `
+          <label class="flex items-center p-3 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer space-x-3 text-sm">
+            <input type="radio" name="opt" value="A" ${saved === 'A' ? 'checked' : ''} onchange="markAnswered('${q.id}', 'A')" class="text-indigo-600">
+            <span><b>A.</b> ${q.optionA}</span>
+          </label>
+          <label class="flex items-center p-3 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer space-x-3 text-sm">
+            <input type="radio" name="opt" value="B" ${saved === 'B' ? 'checked' : ''} onchange="markAnswered('${q.id}', 'B')" class="text-indigo-600">
+            <span><b>B.</b> ${q.optionB}</span>
+          </label>
+          <label class="flex items-center p-3 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer space-x-3 text-sm">
+            <input type="radio" name="opt" value="C" ${saved === 'C' ? 'checked' : ''} onchange="markAnswered('${q.id}', 'C')" class="text-indigo-600">
+            <span><b>C.</b> ${q.optionC}</span>
+          </label>
+          <label class="flex items-center p-3 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer space-x-3 text-sm">
+            <input type="radio" name="opt" value="D" ${saved === 'D' ? 'checked' : ''} onchange="markAnswered('${q.id}', 'D')" class="text-indigo-600">
+            <span><b>D.</b> ${q.optionD}</span>
+          </label>
+        `;
+      } else {
+        mcqBox.classList.add('hidden');
+        essayBox.classList.remove('hidden');
+        document.getElementById('essayInput').value = studentAnswers[q.id]?.essayAnswer || "";
+        document.getElementById('essayInput').oninput = (e) => {
+          if (!studentAnswers[q.id]) studentAnswers[q.id] = {};
+          studentAnswers[q.id].essayAnswer = e.target.value;
+          const b = document.getElementById(`palBtn_${idx}`);
+          if (b && e.target.value.length > 5) b.classList.add('bg-emerald-50', 'text-emerald-800');
+        };
+      }
+    }
+
+    function saveCurrentAnswer() {
+      const q = questionsList[currentIndex];
+      if (!q) return;
+      if (q.type === 'essay') {
+        const val = document.getElementById('essayInput').value;
+        if (!studentAnswers[q.id]) studentAnswers[q.id] = {};
+        studentAnswers[q.id].essayAnswer = val;
+      }
+    }
+
+    function markAnswered(qId, val) {
+      if (!studentAnswers[qId]) studentAnswers[qId] = {};
+      studentAnswers[qId].selectedOption = val;
+      const b = document.getElementById(`palBtn_${currentIndex}`);
+      if (b) b.classList.add('bg-emerald-50', 'text-emerald-800');
+    }
+
+    function prevQuestion() {
+      if (currentIndex > 0) renderQuestion(currentIndex - 1);
+    }
+    function nextQuestion() {
+      if (currentIndex < questionsList.length - 1) renderQuestion(currentIndex + 1);
+    }
+
+    // Submit Exam
+    async function submitExam() {
+      saveCurrentAnswer();
+      if (!confirm("Bạn có chắc chắn muốn nộp bài thi?")) return;
+      clearInterval(timerInterval);
+
+      const answersPayload = questionsList.map(q => ({
+        questionId: q.id,
+        selectedOption: studentAnswers[q.id]?.selectedOption || null,
+        essayAnswer: studentAnswers[q.id]?.essayAnswer || null
+      }));
+
+      try {
+        const res = await fetch("/api/student/submit-exam", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId: currentSessionId,
+            answers: answersPayload
+          })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          document.getElementById('stepExam').classList.add('hidden');
+          document.getElementById('examTimerBox').classList.add('hidden');
+          document.getElementById('stepResult').classList.remove('hidden');
+          document.getElementById('resScore').innerText = data.score;
+          document.getElementById('resFeedback').innerText = data.aiFeedback;
+          if (document.exitFullscreen) {
+            try { document.exitFullscreen(); } catch (e) {}
+          }
+        }
+      } catch (err) {
+        alert("Lỗi nộp bài: " + err.message);
+      }
+    }
+
+    // AI Oral Chat
+    async function sendOralMessage() {
+      const inp = document.getElementById('oralInput');
+      const msg = inp.value.trim();
+      if (!msg) return;
+      inp.value = "";
+
+      const currentQ = questionsList[currentIndex] ? questionsList[currentIndex].questionText : "";
+      const box = document.getElementById('oralChatBox');
+      box.innerHTML += `<div class="bg-indigo-100 p-2 rounded-xl text-indigo-900 text-right ml-4"><b>Bạn:</b> ${msg}</div>`;
+      box.scrollTop = box.scrollHeight;
+
+      try {
+        const res = await fetch("/api/student/oral-chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            studentId: currentStudentCode,
+            examId: currentExamId,
+            message: msg,
+            currentQuestion: currentQ
+          })
+        });
+        const data = await res.json();
+        box.innerHTML += `<div class="bg-purple-50 p-2 rounded-xl text-purple-900 mr-4"><b>AI Giám Khảo:</b> ${data.reply}</div>`;
+        box.scrollTop = box.scrollHeight;
+      } catch (e) {
+        box.innerHTML += `<div class="text-rose-500">Lỗi gửi tin nhắn AI.</div>`;
+      }
+    }
+  </script>
+</body>
+</html>
+

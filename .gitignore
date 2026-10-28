@@ -1,0 +1,45 @@
+# ========================================================
+# ICTU Assessment System - .gitignore
+# ========================================================
+
+# 1. Tai lieu danh gia noi bo (Khong dua len kho public theo yeu cau)
+REVIEW_NCKH_ICTU.md
+REVIEW*.md
+*review*.md
+
+# 2. Bao ve bi mat, API Keys va bien moi truong
+*.env
+.env
+.env.*
+!.env.example
+
+# 3. .NET Build outputs
+[Bb]in/
+[Oo]bj/
+*.user
+*.suo
+.vs/
+TestResults/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+
+# 4. Python runtime artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ai_service/uploads/
+uploads/
+
+# 5. OS and Temporary files
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+tests/test_remote_module3.py
