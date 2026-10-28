@@ -246,10 +246,14 @@ namespace backend_api.Controllers
             string context = exam?.Subject?.Name ?? "Hệ thống CNTT";
 
             var reply = await _aiClient.OralChatAsync(dto.StudentId, dto.ExamId, dto.Message, context, dto.CurrentQuestion ?? "");
+            string cleanReply = (reply ?? "Hãy đối chiếu lại với các yêu cầu cốt lõi của đề bài để hoàn thiện câu trả lời nhé.")
+                .Replace("AI Giám Khảo:", "")
+                .Replace("AI Giám khảo:", "")
+                .Trim();
             return Ok(new
             {
                 Success = true,
-                Reply = reply ?? "Hãy tiếp tục trình bày luận điểm của bạn nhé."
+                Reply = cleanReply
             });
         }
 

@@ -514,7 +514,8 @@
           })
         });
         const data = await res.json();
-        box.innerHTML += `<div class="bg-purple-50 p-2 rounded-xl text-purple-900 mr-4"><b>AI Giám Khảo:</b> ${data.reply}</div>`;
+        let replyText = (data.reply || "Hãy tiếp tục hoàn thiện câu trả lời của bạn.").replace(/^(AI Giám Khảo|Giám khảo AI|AI)\s*:\s*/gi, '').trim();
+        box.innerHTML += `<div class="bg-purple-50 p-2 rounded-xl text-purple-900 mr-4"><b>AI Giám Khảo:</b> ${replyText}</div>`;
         box.scrollTop = box.scrollHeight;
       } catch (e) {
         box.innerHTML += `<div class="text-rose-500">Lỗi gửi tin nhắn AI.</div>`;
