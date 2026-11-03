@@ -156,9 +156,17 @@ namespace backend_api.Controllers
         [HttpPost("create-exam")]
         public async Task<IActionResult> CreateExam([FromBody] CreateExamDto dto)
         {
+            int subjectId = dto.SubjectId;
+            if (subjectId <= 0 && dto.CourseClassId.HasValue)
+            {
+                var cc = await _db.CourseClasses.FindAsync(dto.CourseClassId.Value);
+                if (cc != null) subjectId = cc.SubjectId;
+            }
+
             var exam = new Exam
             {
-                SubjectId = dto.SubjectId,
+                SubjectId = subjectId,
+                CourseClassId = dto.CourseClassId,
                 Title = dto.Title,
                 DurationMinutes = dto.DurationMinutes,
                 AccessCode = dto.AccessCode,
@@ -185,7 +193,7 @@ namespace backend_api.Controllers
             {
                 // Auto pick all approved questions for this subject
                 var subjectQuestions = await _db.Questions
-                    .Where(q => q.SubjectId == dto.SubjectId && q.IsApproved)
+                    .Where(q => q.SubjectId == subjectId && q.IsApproved)
                     .Take(15)
                     .ToListAsync();
 
@@ -208,6 +216,7 @@ namespace backend_api.Controllers
         {
             var exams = await _db.Exams
                 .Include(e => e.Subject)
+                .Include(e => e.CourseClass)
                 .Include(e => e.ExamQuestions)
                 .Include(e => e.Sessions)
                 .OrderByDescending(e => e.Id)
@@ -216,6 +225,8 @@ namespace backend_api.Controllers
                     e.Id,
                     e.Title,
                     SubjectName = e.Subject != null ? e.Subject.Name : "N/A",
+                    CourseClassCode = e.CourseClass != null ? e.CourseClass.ClassCode : null,
+                    CourseClassName = e.CourseClass != null ? e.CourseClass.ClassName : null,
                     e.DurationMinutes,
                     e.AccessCode,
                     e.IsActive,
@@ -227,6 +238,155 @@ namespace backend_api.Controllers
                 .ToListAsync();
 
             return Ok(exams);
+        }
+
+        // --- COURSE CLASS & ROSTER MANAGEMENT ---
+        [HttpGet("classes")]
+        public async Task<IActionResult> GetClasses()
+        {
+            var classes = await _db.CourseClasses
+                .Include(c => c.Subject)
+                .Include(c => c.Enrollments)
+                .Include(c => c.Exams)
+                .OrderByDescending(c => c.Id)
+                .Select(c => new
+                {
+                    c.Id,
+                    c.ClassCode,
+                    c.ClassName,
+                    c.SubjectId,
+                    SubjectCode = c.Subject != null ? c.Subject.Code : "",
+                    SubjectName = c.Subject != null ? c.Subject.Name : "",
+                    c.LecturerName,
+                    c.LecturerEmail,
+                    c.Semester,
+                    c.AcademicYear,
+                    c.Room,
+                    TotalStudents = c.Enrollments.Count,
+                    TotalExams = c.Exams.Count,
+                    c.CreatedAt
+                })
+                .ToListAsync();
+
+            return Ok(classes);
+        }
+
+        [HttpGet("classes/{id}")]
+        public async Task<IActionResult> GetClassDetails(int id)
+        {
+            var cls = await _db.CourseClasses
+                .Include(c => c.Subject)
+                .Include(c => c.Enrollments)
+                .Include(c => c.Exams)
+                .ThenInclude(e => e.Sessions)
+                .FirstOrDefaultAsync(c => c.Id == id);
+
+            if (cls == null)
+                return NotFound(new { success = false, message = "Không tìm thấy lớp học phần." });
+
+            var classExams = cls.Exams.ToList();
+            var students = cls.Enrollments.Select(en =>
+            {
+                // Check exam submissions for this student across exams of this class
+                var studentSessions = classExams.SelectMany(e => e.Sessions)
+                    .Where(s => s.StudentCode.Equals(en.StudentCode, StringComparison.OrdinalIgnoreCase) && s.Status == "Submitted")
+                    .ToList();
+
+                double? latestScore = studentSessions.Any() ? studentSessions.OrderByDescending(s => s.EndTime).First().Score : null;
+
+                return new
+                {
+                    en.Id,
+                    en.StudentCode,
+                    en.StudentName,
+                    en.AdministrativeClass,
+                    en.StudentEmail,
+                    HasSubmittedExam = studentSessions.Any(),
+                    ExamCount = studentSessions.Count,
+                    LatestScore = latestScore
+                };
+            }).ToList();
+
+            return Ok(new
+            {
+                cls.Id,
+                cls.ClassCode,
+                cls.ClassName,
+                SubjectName = cls.Subject != null ? cls.Subject.Name : "",
+                cls.LecturerName,
+                cls.LecturerEmail,
+                cls.Semester,
+                cls.AcademicYear,
+                cls.Room,
+                TotalStudents = students.Count,
+                Exams = classExams.Select(e => new { e.Id, e.Title, e.DurationMinutes, e.AccessCode, e.IsActive }),
+                Students = students
+            });
+        }
+
+        [HttpPost("classes")]
+        public async Task<IActionResult> CreateClass([FromBody] CreateCourseClassDto dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.ClassCode) || string.IsNullOrWhiteSpace(dto.ClassName))
+                return BadRequest(new { success = false, message = "Mã lớp và tên lớp học phần không được để trống." });
+
+            var courseClass = new CourseClass
+            {
+                ClassCode = dto.ClassCode.Trim().ToUpper(),
+                ClassName = dto.ClassName.Trim(),
+                SubjectId = dto.SubjectId,
+                LecturerName = string.IsNullOrWhiteSpace(dto.LecturerName) ? "TS. Nguyễn Văn A" : dto.LecturerName.Trim(),
+                LecturerEmail = string.IsNullOrWhiteSpace(dto.LecturerEmail) ? "gv_nguyenvana@ictu.edu.vn" : dto.LecturerEmail.Trim(),
+                Semester = dto.Semester ?? "Học kỳ 1",
+                AcademicYear = dto.AcademicYear ?? "2026-2027",
+                Room = dto.Room ?? "Phòng Lab 302 - C1",
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _db.CourseClasses.Add(courseClass);
+            await _db.SaveChangesAsync();
+
+            return Ok(new { success = true, classId = courseClass.Id, message = "Đã khởi tạo lớp học phần thành công." });
+        }
+
+        [HttpPost("classes/{id}/enroll")]
+        public async Task<IActionResult> EnrollStudent(int id, [FromBody] EnrollStudentDto dto)
+        {
+            var cls = await _db.CourseClasses.FindAsync(id);
+            if (cls == null)
+                return NotFound(new { success = false, message = "Không tìm thấy lớp học phần." });
+
+            string studentCode = dto.StudentCode.Trim().ToUpper();
+            var existing = await _db.ClassEnrollments.FirstOrDefaultAsync(e => e.CourseClassId == id && e.StudentCode == studentCode);
+            if (existing != null)
+                return BadRequest(new { success = false, message = "Sinh viên đã có tên trong danh sách lớp này." });
+
+            var enrollment = new ClassEnrollment
+            {
+                CourseClassId = id,
+                StudentCode = studentCode,
+                StudentName = dto.StudentName.Trim(),
+                AdministrativeClass = dto.AdministrativeClass?.Trim() ?? "K20-CNTT",
+                StudentEmail = string.IsNullOrWhiteSpace(dto.StudentEmail) ? $"{studentCode.ToLower()}@ictu.edu.vn" : dto.StudentEmail.Trim(),
+                EnrolledAt = DateTime.UtcNow
+            };
+
+            _db.ClassEnrollments.Add(enrollment);
+            await _db.SaveChangesAsync();
+
+            return Ok(new { success = true, enrollmentId = enrollment.Id, message = "Đã thêm sinh viên vào lớp học phần thành công." });
+        }
+
+        [HttpDelete("classes/{id}/students/{studentCode}")]
+        public async Task<IActionResult> RemoveStudentFromClass(int id, string studentCode)
+        {
+            var enrollment = await _db.ClassEnrollments.FirstOrDefaultAsync(e => e.CourseClassId == id && e.StudentCode.ToUpper() == studentCode.ToUpper());
+            if (enrollment == null)
+                return NotFound(new { success = false, message = "Sinh viên không có trong lớp này." });
+
+            _db.ClassEnrollments.Remove(enrollment);
+            await _db.SaveChangesAsync();
+            return Ok(new { success = true, message = "Đã xóa sinh viên khỏi lớp học phần." });
         }
 
         [HttpGet("monitoring/{examId}")]
@@ -264,6 +424,8 @@ namespace backend_api.Controllers
         {
             var exam = await _db.Exams
                 .Include(e => e.Subject)
+                .Include(e => e.CourseClass)
+                .ThenInclude(c => c!.Enrollments)
                 .Include(e => e.ExamQuestions)
                 .ThenInclude(eq => eq.Question)
                 .FirstOrDefaultAsync(e => e.Id == examId);
@@ -314,10 +476,37 @@ namespace backend_api.Controllers
                 cloStats["CLO3"] = new { CloCode = "CLO3", AverageScore = 6.9, PassRate = 72.0, QuestionCount = 2 };
             }
 
+            // Course class roster analysis if assigned
+            object? classRosterInfo = null;
+            if (exam.CourseClass != null)
+            {
+                var totalEnrolled = exam.CourseClass.Enrollments.Count;
+                var attendedCodes = sessions.Select(s => s.StudentCode.ToLower()).ToHashSet();
+                var attendedCount = exam.CourseClass.Enrollments.Count(e => attendedCodes.Contains(e.StudentCode.ToLower()));
+                var absentStudents = exam.CourseClass.Enrollments
+                    .Where(e => !attendedCodes.Contains(e.StudentCode.ToLower()))
+                    .Select(e => new { e.StudentCode, e.StudentName, e.AdministrativeClass })
+                    .ToList();
+
+                classRosterInfo = new
+                {
+                    exam.CourseClass.ClassCode,
+                    exam.CourseClass.ClassName,
+                    exam.CourseClass.LecturerName,
+                    TotalEnrolled = totalEnrolled,
+                    AttendedCount = attendedCount,
+                    AbsentCount = totalEnrolled - attendedCount,
+                    AttendanceRate = totalEnrolled > 0 ? Math.Round((double)attendedCount / totalEnrolled * 100, 1) : 0,
+                    AbsentStudents = absentStudents
+                };
+            }
+
             return Ok(new
             {
+                ExamId = exam.Id,
                 ExamTitle = exam.Title,
                 SubjectName = exam.Subject?.Name,
+                CourseClass = classRosterInfo,
                 TotalSubmissions = totalStudents,
                 AverageScore = Math.Round(avgScore, 2),
                 MaxScore = Math.Round(maxScore, 2),
@@ -386,10 +575,31 @@ namespace backend_api.Controllers
     public class CreateExamDto
     {
         public int SubjectId { get; set; }
+        public int? CourseClassId { get; set; }
         public string Title { get; set; } = string.Empty;
         public int DurationMinutes { get; set; } = 30;
         public string AccessCode { get; set; } = "ICTU2026";
         public List<int>? QuestionIds { get; set; }
+    }
+
+    public class CreateCourseClassDto
+    {
+        public string ClassCode { get; set; } = string.Empty;
+        public string ClassName { get; set; } = string.Empty;
+        public int SubjectId { get; set; }
+        public string? LecturerName { get; set; }
+        public string? LecturerEmail { get; set; }
+        public string? Semester { get; set; }
+        public string? AcademicYear { get; set; }
+        public string? Room { get; set; }
+    }
+
+    public class EnrollStudentDto
+    {
+        public string StudentCode { get; set; } = string.Empty;
+        public string StudentName { get; set; } = string.Empty;
+        public string? AdministrativeClass { get; set; }
+        public string? StudentEmail { get; set; }
     }
 }
 

@@ -14,6 +14,7 @@ namespace backend_api.Models
         public List<AcademicDocument> Documents { get; set; } = new();
         public List<Question> Questions { get; set; } = new();
         public List<Exam> Exams { get; set; } = new();
+        public List<CourseClass> CourseClasses { get; set; } = new();
     }
 
     public class AcademicDocument
@@ -52,6 +53,8 @@ namespace backend_api.Models
         public int Id { get; set; }
         public int SubjectId { get; set; }
         public Subject? Subject { get; set; }
+        public int? CourseClassId { get; set; }
+        public CourseClass? CourseClass { get; set; }
         public string Title { get; set; } = string.Empty;
         public int DurationMinutes { get; set; } = 30;
         public string AccessCode { get; set; } = "ICTU2026";
@@ -60,6 +63,36 @@ namespace backend_api.Models
 
         public List<ExamQuestion> ExamQuestions { get; set; } = new();
         public List<ExamSession> Sessions { get; set; } = new();
+    }
+
+    public class CourseClass
+    {
+        public int Id { get; set; }
+        public string ClassCode { get; set; } = string.Empty; // e.g. CS301.01
+        public string ClassName { get; set; } = string.Empty; // e.g. Cơ sở dữ liệu - Lớp 01
+        public int SubjectId { get; set; }
+        public Subject? Subject { get; set; }
+        public string LecturerName { get; set; } = "TS. Nguyễn Văn A";
+        public string LecturerEmail { get; set; } = "gv_nguyenvana@ictu.edu.vn";
+        public string Semester { get; set; } = "Học kỳ 1";
+        public string AcademicYear { get; set; } = "2026-2027";
+        public string Room { get; set; } = "Phòng Lab 302 - C1";
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        public List<ClassEnrollment> Enrollments { get; set; } = new();
+        public List<Exam> Exams { get; set; } = new();
+    }
+
+    public class ClassEnrollment
+    {
+        public int Id { get; set; }
+        public int CourseClassId { get; set; }
+        public CourseClass? CourseClass { get; set; }
+        public string StudentCode { get; set; } = string.Empty; // e.g. DTC205122001
+        public string StudentName { get; set; } = string.Empty; // e.g. Nguyễn Văn An
+        public string AdministrativeClass { get; set; } = "K20-CNTT01"; // Lớp sinh hoạt
+        public string StudentEmail { get; set; } = string.Empty;
+        public DateTime EnrolledAt { get; set; } = DateTime.UtcNow;
     }
 
     public class ExamQuestion

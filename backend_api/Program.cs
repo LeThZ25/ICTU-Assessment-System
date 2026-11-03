@@ -105,8 +105,103 @@ using (var scope = app.Services.CreateScope())
                 alterCmd.CommandText = "ALTER TABLE \"Questions\" ADD COLUMN \"BloomLevel\" TEXT DEFAULT 'Thông hiểu';";
                 alterCmd.ExecuteNonQuery();
             }
+
+            // Safe migration for CourseClassId in Exams table
+            var examCols = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = "PRAGMA table_info(\"Exams\");";
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    examCols.Add(reader.GetString(1));
+                }
+            }
+
+            if (!examCols.Contains("CourseClassId"))
+            {
+                using var alterCmd = conn.CreateCommand();
+                alterCmd.CommandText = "ALTER TABLE \"Exams\" ADD COLUMN \"CourseClassId\" INTEGER NULL;";
+                alterCmd.ExecuteNonQuery();
+            }
+
+            // Create CourseClasses table if not exists
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = @"
+                    CREATE TABLE IF NOT EXISTS ""CourseClasses"" (
+                        ""Id"" INTEGER NOT NULL CONSTRAINT ""PK_CourseClasses"" PRIMARY KEY AUTOINCREMENT,
+                        ""ClassCode"" TEXT NOT NULL,
+                        ""ClassName"" TEXT NOT NULL,
+                        ""SubjectId"" INTEGER NOT NULL,
+                        ""LecturerName"" TEXT NOT NULL,
+                        ""LecturerEmail"" TEXT NOT NULL,
+                        ""Semester"" TEXT NOT NULL,
+                        ""AcademicYear"" TEXT NOT NULL,
+                        ""Room"" TEXT NOT NULL,
+                        ""CreatedAt"" TEXT NOT NULL,
+                        CONSTRAINT ""FK_CourseClasses_Subjects_SubjectId"" FOREIGN KEY (""SubjectId"") REFERENCES ""Subjects"" (""Id"") ON DELETE CASCADE
+                    );
+                    CREATE TABLE IF NOT EXISTS ""ClassEnrollments"" (
+                        ""Id"" INTEGER NOT NULL CONSTRAINT ""PK_ClassEnrollments"" PRIMARY KEY AUTOINCREMENT,
+                        ""CourseClassId"" INTEGER NOT NULL,
+                        ""StudentCode"" TEXT NOT NULL,
+                        ""StudentName"" TEXT NOT NULL,
+                        ""AdministrativeClass"" TEXT NOT NULL,
+                        ""StudentEmail"" TEXT NOT NULL,
+                        ""EnrolledAt"" TEXT NOT NULL,
+                        CONSTRAINT ""FK_ClassEnrollments_CourseClasses_CourseClassId"" FOREIGN KEY (""CourseClassId"") REFERENCES ""CourseClasses"" (""Id"") ON DELETE CASCADE
+                    );
+                ";
+                cmd.ExecuteNonQuery();
+            }
         }
         catch { }
+
+        // Seed default course classes if empty
+        if (!db.CourseClasses.Any())
+        {
+            var c1 = new backend_api.Models.CourseClass
+            {
+                ClassCode = "CS301.01",
+                ClassName = "Cơ sở dữ liệu & Hệ phân tán - Nhóm 01",
+                SubjectId = 1,
+                LecturerName = "TS. Nguyễn Văn A",
+                LecturerEmail = "gv_nguyenvana@ictu.edu.vn",
+                Semester = "Học kỳ 1",
+                AcademicYear = "2026-2027",
+                Room = "Lab 302 - Tòa C1"
+            };
+            var c2 = new backend_api.Models.CourseClass
+            {
+                ClassCode = "AI402.01",
+                ClassName = "Trí tuệ nhân tạo và Ứng dụng - Nhóm 01",
+                SubjectId = 2,
+                LecturerName = "ThS. Lê Thị B",
+                LecturerEmail = "gv_lethib@ictu.edu.vn",
+                Semester = "Học kỳ 1",
+                AcademicYear = "2026-2027",
+                Room = "Lab 405 - Tòa C2"
+            };
+            db.CourseClasses.AddRange(c1, c2);
+            db.SaveChanges();
+
+            db.ClassEnrollments.AddRange(
+                new backend_api.Models.ClassEnrollment { CourseClassId = c1.Id, StudentCode = "DTC205122001", StudentName = "Nguyễn Văn An", AdministrativeClass = "K20-CNTT01", StudentEmail = "dtc205122001@ictu.edu.vn" },
+                new backend_api.Models.ClassEnrollment { CourseClassId = c1.Id, StudentCode = "DTC205122002", StudentName = "Trần Thị Bình", AdministrativeClass = "K20-CNTT01", StudentEmail = "dtc205122002@ms.ictu.edu.vn" },
+                new backend_api.Models.ClassEnrollment { CourseClassId = c1.Id, StudentCode = "DTC205122003", StudentName = "Lê Hoàng Cường", AdministrativeClass = "K20-CNTT02", StudentEmail = "dtc205122003@ictu.edu.vn" },
+                new backend_api.Models.ClassEnrollment { CourseClassId = c2.Id, StudentCode = "DTC205122001", StudentName = "Nguyễn Văn An", AdministrativeClass = "K20-CNTT01", StudentEmail = "dtc205122001@ictu.edu.vn" },
+                new backend_api.Models.ClassEnrollment { CourseClassId = c2.Id, StudentCode = "DTC215122010", StudentName = "Phạm Minh Đức", AdministrativeClass = "K21-KTPM01", StudentEmail = "dtc215122010@ictu.edu.vn" }
+            );
+            db.SaveChanges();
+
+            var exam1 = db.Exams.FirstOrDefault(e => e.Id == 1);
+            if (exam1 != null && exam1.CourseClassId == null)
+            {
+                exam1.CourseClassId = c1.Id;
+                db.SaveChanges();
+            }
+        }
 
         // Seed default user accounts if empty
         if (!db.Users.Any())

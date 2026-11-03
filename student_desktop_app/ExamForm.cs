@@ -351,8 +351,16 @@ namespace student_desktop_app
             {
                 Dock = DockStyle.Top,
                 Height = 65,
-                BackColor = Color.FromArgb(15, 23, 42)
+                BackColor = Color.FromArgb(0, 51, 102) // ICTU Navy
             };
+
+            var pnlTopOrangeBorder = new Panel
+            {
+                Dock = DockStyle.Bottom,
+                Height = 3,
+                BackColor = Color.FromArgb(242, 101, 34) // ICTU Orange Accent
+            };
+            topBar.Controls.Add(pnlTopOrangeBorder);
 
             lblExamTitle = new Label
             {
@@ -365,8 +373,8 @@ namespace student_desktop_app
 
             lblStudentInfo = new Label
             {
-                Text = $"Thí sinh: {_studentName} ({_studentCode}) • ICTU Safe Exam Kiosk",
-                ForeColor = Color.FromArgb(148, 163, 184),
+                Text = $"Thí sinh: {_studentName} ({_studentCode}) • Cổng Khảo thí Trực tuyến ICTU",
+                ForeColor = Color.FromArgb(226, 232, 240),
                 Font = new Font("Segoe UI", 9F),
                 Location = new Point(20, 38),
                 AutoSize = true
@@ -501,16 +509,16 @@ namespace student_desktop_app
 
             var lblAiTitle = new Label
             {
-                Text = "AI GIÁM KHẢO VẤN ĐÁP",
+                Text = "TRỢ LÝ KHẢO THÍ TRỰC TUYẾN",
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(79, 70, 229),
+                ForeColor = Color.FromArgb(0, 74, 153), // ICTU Blue
                 Dock = DockStyle.Top,
                 Height = 25
             };
 
             var lblAiDesc = new Label
             {
-                Text = "Vấn đáp trực tiếp với Tác tử AI để làm rõ lập luận tự luận.",
+                Text = "Trao đổi, vấn đáp trực tuyến để làm rõ các ý chính trong câu hỏi tự luận.",
                 Font = new Font("Segoe UI", 8.5F),
                 ForeColor = Color.FromArgb(100, 116, 139),
                 Dock = DockStyle.Top,
@@ -525,7 +533,7 @@ namespace student_desktop_app
                 BorderStyle = BorderStyle.None,
                 Font = new Font("Segoe UI", 9.5F)
             };
-            rtbAiChat.AppendText("[AI Giám Khảo]: Chào bạn! Hãy làm bài tự tin. Cần vấn đáp làm rõ luận điểm hãy trao đổi tại đây.\n\n");
+            rtbAiChat.AppendText("[Cán bộ khảo thí]: Chào bạn! Hãy tập trung làm bài thi nghiêm túc. Nếu có thắc mắc lý thuyết hoặc cần trao đổi thêm về câu hỏi tự luận, hãy nhắn tại đây.\n\n");
 
             var bottomChat = new Panel
             {
@@ -940,7 +948,12 @@ namespace student_desktop_app
             int examId = _examData.ExamId > 0 ? _examData.ExamId : 1;
 
             var reply = await _api.SendOralChatAsync(_studentCode, examId, msg, currentQ);
-            rtbAiChat.AppendText($"[AI Giám Khảo]: {reply}\n\n");
+            string cleanReply = (reply ?? "Hãy tiếp tục hoàn thiện câu trả lời của bạn.")
+                .Replace("AI Giám Khảo:", "")
+                .Replace("AI Giám khảo:", "")
+                .Replace("Cán bộ khảo thí:", "")
+                .Trim();
+            rtbAiChat.AppendText($"[Cán bộ khảo thí]: {cleanReply}\n\n");
             rtbAiChat.ScrollToCaret();
             btnAiSend.Enabled = true;
         }

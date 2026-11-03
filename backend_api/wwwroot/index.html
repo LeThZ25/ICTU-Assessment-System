@@ -3,12 +3,29 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hệ Thống Khảo Thí & AI Agent Đánh Giá Sinh Viên - ICTU</title>
+  <title>Hệ Thống Khảo Thí & Đánh Giá Chuẩn Đầu Ra - ICTU</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            ictu: {
+              DEFAULT: '#004A99',
+              dark: '#003366',
+              light: '#E6F0FA',
+              accent: '#F26522',
+              gold: '#FFB800'
+            }
+          }
+        }
+      }
+    }
+  </script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     body { font-family: 'Inter', sans-serif; }
     .pulse-alert { animation: pulse-red 1.5s infinite; }
     @keyframes pulse-red { 0%, 100% { background-color: #fee2e2; } 50% { background-color: #fca5a5; } }
@@ -16,68 +33,72 @@
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
 
-  <!-- Top Navbar -->
-  <header class="bg-indigo-900 text-white shadow-lg sticky top-0 z-50">
+  <!-- Top Navbar - ICTU Brand Header -->
+  <header class="bg-ictu-dark text-white border-b-4 border-ictu-accent sticky top-0 z-50 shadow-sm">
     <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-      <div class="flex items-center space-x-3">
-        <div class="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center text-white font-black text-xl shadow-md">
-          ICTU
+      <div class="flex items-center space-x-3.5">
+        <div class="w-11 h-11 rounded-lg bg-white flex flex-col items-center justify-center shadow-sm border border-slate-200 px-1">
+          <span class="text-ictu font-black text-base leading-none tracking-tighter">ICTU</span>
+          <span class="text-[8px] font-bold text-ictu-accent tracking-widest uppercase mt-0.5">TNU</span>
         </div>
         <div>
-          <h1 class="text-base font-bold tracking-tight">HỆ THỐNG QUẢN LÝ & AI AGENT ĐÁNH GIÁ CHUẨN ĐẦU RA</h1>
-          <p class="text-xs text-blue-200">Đề tài NCKH Sinh viên • Phân hệ Giảng viên & Giám sát Chống gian lận</p>
+          <h1 class="text-sm sm:text-base font-bold tracking-tight uppercase text-white">Hệ Thống Khảo Thí & Đánh Giá Chuẩn Đầu Ra (CLO)</h1>
+          <p class="text-xs text-slate-300">Trường Đại học Công nghệ Thông tin & Truyền thông • Cổng Giảng viên & Khảo thí</p>
         </div>
       </div>
 
       <div class="flex items-center space-x-3">
-        <!-- Engine Status Badge -->
-        <span class="hidden md:inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500 text-white shadow">
-          <span class="w-2 h-2 rounded-full bg-white mr-1.5 animate-pulse"></span>
-          Động Cơ AI: Sẵn Sàng Phục Vụ
+        <!-- System Status Badge -->
+        <span class="hidden lg:inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-white/10 text-emerald-300 border border-white/15">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 mr-2 animate-pulse"></span>
+          Máy chủ Khảo thí: Trực tuyến
         </span>
 
         <!-- Current User Profile Pill -->
-        <div class="flex items-center space-x-2 bg-indigo-800/80 border border-indigo-700 px-3 py-1.5 rounded-xl cursor-pointer hover:bg-indigo-700/80 transition" onclick="openLoginModal()">
-          <div class="w-7 h-7 rounded-full bg-amber-400 text-indigo-950 font-bold flex items-center justify-center text-xs">
+        <div class="flex items-center space-x-2.5 bg-white/10 hover:bg-white/15 border border-white/15 px-3 py-1.5 rounded-lg cursor-pointer transition" onclick="openLoginModal()">
+          <div class="w-7 h-7 rounded-md bg-ictu-accent text-white font-bold flex items-center justify-center text-xs">
             GV
           </div>
           <div class="text-left hidden sm:block">
-            <p class="text-xs font-bold leading-none" id="navUserName">TS. Nguyễn Văn A</p>
-            <p class="text-[10px] text-blue-200 leading-tight mt-0.5" id="navUserEmail">gv_nguyenvana@ictu.edu.vn</p>
+            <p class="text-xs font-semibold leading-none text-white" id="navUserName">TS. Nguyễn Văn A</p>
+            <p class="text-[10px] text-slate-300 leading-tight mt-0.5" id="navUserEmail">gv_nguyenvana@ictu.edu.vn</p>
           </div>
-          <i class="fa-solid fa-chevron-down text-[10px] text-blue-300 ml-1"></i>
+          <i class="fa-solid fa-chevron-down text-[10px] text-slate-300 ml-1"></i>
         </div>
 
-        <a href="/student_web.html" target="_blank" class="text-xs bg-blue-600 hover:bg-blue-500 px-3 py-2 rounded-xl border border-blue-400 font-semibold transition flex items-center shadow">
-          <i class="fa-solid fa-graduation-cap mr-1.5"></i> Cổng Sinh Viên
+        <a href="/student_web.html" target="_blank" class="text-xs bg-white text-ictu-dark hover:bg-slate-100 px-3 py-2 rounded-lg font-semibold transition flex items-center shadow-sm">
+          <i class="fa-solid fa-graduation-cap mr-1.5 text-ictu"></i> Cổng Sinh Viên
         </a>
       </div>
     </div>
   </header>
 
   <!-- Main Navigation Tabs -->
-  <nav class="bg-white border-b border-slate-200 shadow-sm sticky top-[62px] z-40">
+  <nav class="bg-white border-b border-slate-200 sticky top-[68px] z-40">
     <div class="max-w-7xl mx-auto px-4 flex space-x-1 overflow-x-auto" id="tabNav">
-      <button onclick="switchTab('dashboard')" class="tab-btn active px-4 py-3 text-sm font-semibold border-b-2 border-indigo-600 text-indigo-600 flex items-center whitespace-nowrap">
+      <button onclick="switchTab('dashboard')" class="tab-btn active px-4 py-3 text-xs sm:text-sm font-semibold border-b-2 border-ictu text-ictu flex items-center whitespace-nowrap transition">
         <i class="fa-solid fa-chart-pie mr-2"></i> Tổng Quan
       </button>
-      <button onclick="switchTab('documents')" class="tab-btn px-4 py-3 text-sm font-semibold border-b-2 border-transparent text-slate-600 hover:text-indigo-600 flex items-center whitespace-nowrap">
-        <i class="fa-solid fa-file-pdf mr-2"></i> Nạp Tài Liệu (RAG)
+      <button onclick="switchTab('classes')" class="tab-btn px-4 py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-slate-600 hover:text-ictu flex items-center whitespace-nowrap transition">
+        <i class="fa-solid fa-chalkboard-user mr-2 text-ictu"></i> Lớp Học Phần
       </button>
-      <button onclick="switchTab('ai-generator')" class="tab-btn px-4 py-3 text-sm font-semibold border-b-2 border-transparent text-slate-600 hover:text-indigo-600 flex items-center whitespace-nowrap">
-        <i class="fa-solid fa-wand-magic-sparkles mr-2 text-amber-500"></i> AI Sinh Đề Tự Động
+      <button onclick="switchTab('documents')" class="tab-btn px-4 py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-slate-600 hover:text-ictu flex items-center whitespace-nowrap transition">
+        <i class="fa-solid fa-file-lines mr-2"></i> Đề Cương & Tài Liệu
       </button>
-      <button onclick="switchTab('question-bank')" class="tab-btn px-4 py-3 text-sm font-semibold border-b-2 border-transparent text-slate-600 hover:text-indigo-600 flex items-center whitespace-nowrap">
+      <button onclick="switchTab('ai-generator')" class="tab-btn px-4 py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-slate-600 hover:text-ictu flex items-center whitespace-nowrap transition">
+        <i class="fa-solid fa-wand-magic-sparkles mr-2 text-ictu-accent"></i> Sinh Câu Hỏi Tự Động
+      </button>
+      <button onclick="switchTab('question-bank')" class="tab-btn px-4 py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-slate-600 hover:text-ictu flex items-center whitespace-nowrap transition">
         <i class="fa-solid fa-boxes-stacked mr-2"></i> Ngân Hàng Câu Hỏi
       </button>
-      <button onclick="switchTab('exams')" class="tab-btn px-4 py-3 text-sm font-semibold border-b-2 border-transparent text-slate-600 hover:text-indigo-600 flex items-center whitespace-nowrap">
+      <button onclick="switchTab('exams')" class="tab-btn px-4 py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-slate-600 hover:text-ictu flex items-center whitespace-nowrap transition">
         <i class="fa-solid fa-clipboard-question mr-2"></i> Quản Lý Đề Thi
       </button>
-      <button onclick="switchTab('monitoring')" class="tab-btn px-4 py-3 text-sm font-semibold border-b-2 border-transparent text-slate-600 hover:text-indigo-600 flex items-center whitespace-nowrap">
-        <i class="fa-solid fa-shield-halved mr-2 text-rose-500"></i> Giám Sát Chống Gian Lận
-        <span id="cheatBadge" class="hidden ml-2 px-1.5 py-0.5 text-xs bg-rose-500 text-white rounded-full">0</span>
+      <button onclick="switchTab('monitoring')" class="tab-btn px-4 py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-slate-600 hover:text-ictu flex items-center whitespace-nowrap transition">
+        <i class="fa-solid fa-shield-halved mr-2 text-rose-600"></i> Giám Sát Phòng Thi
+        <span id="cheatBadge" class="hidden ml-2 px-1.5 py-0.5 text-[10px] bg-rose-600 text-white rounded-full font-bold">0</span>
       </button>
-      <button onclick="switchTab('reports')" class="tab-btn px-4 py-3 text-sm font-semibold border-b-2 border-transparent text-slate-600 hover:text-indigo-600 flex items-center whitespace-nowrap">
+      <button onclick="switchTab('reports')" class="tab-btn px-4 py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-slate-600 hover:text-ictu flex items-center whitespace-nowrap transition">
         <i class="fa-solid fa-square-poll-vertical mr-2"></i> Báo Cáo & Phổ Điểm
       </button>
     </div>
@@ -88,183 +109,258 @@
 
     <!-- TAB 1: DASHBOARD -->
     <section id="tab-dashboard" class="tab-content block space-y-6">
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
+      <!-- Stats Row -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-white p-5 rounded-xl border border-slate-200 border-l-4 border-l-ictu flex items-center justify-between">
           <div>
-            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Môn Học Quản Lý</p>
-            <h3 class="text-2xl font-bold text-slate-800 mt-1" id="statSubjects">2</h3>
-            <p class="text-xs text-indigo-600 font-medium mt-1">CSDL & Trí Tuệ Nhân Tạo</p>
+            <p class="text-xs font-medium text-slate-500">Lớp Học Phần</p>
+            <h3 class="text-2xl font-bold text-slate-800 mt-1" id="statClasses">2</h3>
+            <p class="text-xs text-ictu font-medium mt-1">Học kỳ 1 • 2026-2027</p>
           </div>
-          <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl">
-            <i class="fa-solid fa-book-open"></i>
+          <div class="w-10 h-10 rounded-lg bg-ictu-light text-ictu flex items-center justify-center text-lg">
+            <i class="fa-solid fa-chalkboard-user"></i>
           </div>
         </div>
 
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
+        <div class="bg-white p-5 rounded-xl border border-slate-200 border-l-4 border-l-emerald-600 flex items-center justify-between">
           <div>
-            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Ngân Hàng Câu Hỏi</p>
+            <p class="text-xs font-medium text-slate-500">Ngân Hàng Câu Hỏi</p>
             <h3 class="text-2xl font-bold text-slate-800 mt-1" id="statQuestions">4</h3>
-            <p class="text-xs text-emerald-600 font-medium mt-1">Đã kiểm duyệt</p>
+            <p class="text-xs text-emerald-600 font-medium mt-1">Đã kiểm duyệt theo chuẩn CLO</p>
           </div>
-          <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl">
+          <div class="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg">
             <i class="fa-solid fa-circle-check"></i>
           </div>
         </div>
 
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
+        <div class="bg-white p-5 rounded-xl border border-slate-200 border-l-4 border-l-sky-600 flex items-center justify-between">
           <div>
-            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Lượt Thí Sinh Nộp Bài</p>
+            <p class="text-xs font-medium text-slate-500">Bài Thi Đã Nộp</p>
             <h3 class="text-2xl font-bold text-slate-800 mt-1" id="statSubmissions">0</h3>
-            <p class="text-xs text-blue-600 font-medium mt-1">Chấm điểm tự động</p>
+            <p class="text-xs text-sky-600 font-medium mt-1">Đã chấm điểm tự động</p>
           </div>
-          <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl">
+          <div class="w-10 h-10 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center text-lg">
             <i class="fa-solid fa-user-graduate"></i>
           </div>
         </div>
 
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
+        <div class="bg-white p-5 rounded-xl border border-slate-200 border-l-4 border-l-rose-600 flex items-center justify-between">
           <div>
-            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Cảnh Báo Gian Lận</p>
+            <p class="text-xs font-medium text-slate-500">Cảnh Báo Vi Phạm</p>
             <h3 class="text-2xl font-bold text-rose-600 mt-1" id="statCheats">0</h3>
-            <p class="text-xs text-rose-500 font-medium mt-1">Alt+Tab, Copy/Paste</p>
+            <p class="text-xs text-rose-500 font-medium mt-1">Ghi nhận từ phòng thi</p>
           </div>
-          <div class="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-xl">
+          <div class="w-10 h-10 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center text-lg">
             <i class="fa-solid fa-triangle-exclamation"></i>
           </div>
         </div>
       </div>
 
       <!-- Quick Action Cards -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div class="bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-2xl p-6 text-white shadow-md">
-          <div class="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center text-lg mb-4">
-            <i class="fa-solid fa-upload"></i>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <div class="bg-white rounded-xl p-6 border border-slate-200 hover:border-ictu transition flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <span class="text-xs font-bold uppercase tracking-wider text-ictu bg-ictu-light px-2.5 py-1 rounded">Bước 1 • Quản lý lớp</span>
+              <i class="fa-solid fa-users-rectangle text-slate-400 text-lg"></i>
+            </div>
+            <h4 class="text-base font-bold text-slate-800">Lớp Học Phần & Danh Sách Sinh Viên</h4>
+            <p class="text-xs text-slate-500 mt-2 leading-relaxed">
+              Quản lý các lớp học phần được phân công trong học kỳ, theo dõi danh sách sinh viên ghi danh và tiến độ làm bài thi.
+            </p>
           </div>
-          <h4 class="text-lg font-bold">1. Nạp Giáo Trình Học Phần</h4>
-          <p class="text-sm text-indigo-100 mt-2 mb-4 leading-relaxed">
-            Tải giáo trình PDF, bài giảng DOCX lên hệ thống. AI Agent sẽ tự động băm nhỏ và lập chỉ mục Vector RAG.
-          </p>
-          <button onclick="switchTab('documents')" class="bg-white text-indigo-700 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-indigo-50 transition shadow">
-            Tải Tài Liệu Ngay &rarr;
+          <button onclick="switchTab('classes')" class="mt-5 w-full bg-slate-50 hover:bg-ictu hover:text-white text-ictu border border-slate-200 font-semibold py-2 px-4 rounded-lg text-xs transition flex items-center justify-center">
+            Xem Danh Sách Lớp <i class="fa-solid fa-arrow-right ml-2"></i>
           </button>
         </div>
 
-        <div class="bg-gradient-to-br from-amber-500 to-amber-700 rounded-2xl p-6 text-white shadow-md">
-          <div class="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center text-lg mb-4">
-            <i class="fa-solid fa-bolt"></i>
+        <div class="bg-white rounded-xl p-6 border border-slate-200 hover:border-ictu transition flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <span class="text-xs font-bold uppercase tracking-wider text-amber-700 bg-amber-50 px-2.5 py-1 rounded">Bước 2 • Tạo ngân hàng đề</span>
+              <i class="fa-solid fa-wand-magic-sparkles text-ictu-accent text-lg"></i>
+            </div>
+            <h4 class="text-base font-bold text-slate-800">Sinh Câu Hỏi Chuẩn CLO</h4>
+            <p class="text-xs text-slate-500 mt-2 leading-relaxed">
+              Tự động tạo câu hỏi trắc nghiệm và tự luận phân loại theo thang đo Bloom và Chuẩn đầu ra học phần (CLO) từ đề cương môn học.
+            </p>
           </div>
-          <h4 class="text-lg font-bold">2. Sinh Đề Thi Tự Động Bằng AI</h4>
-          <p class="text-sm text-amber-100 mt-2 mb-4 leading-relaxed">
-            Hệ thống tự động sinh trắc nghiệm và tự luận phân cấp độ theo chuẩn thang đo Bloom và chuẩn đầu ra CLO.
-          </p>
-          <button onclick="switchTab('ai-generator')" class="bg-white text-amber-800 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-amber-50 transition shadow">
-            Cấu Hình Ma Trận &rarr;
+          <button onclick="switchTab('ai-generator')" class="mt-5 w-full bg-ictu hover:bg-ictu-dark text-white font-semibold py-2 px-4 rounded-lg text-xs transition flex items-center justify-center">
+            Thiết Lập Ma Trận Đề <i class="fa-solid fa-arrow-right ml-2"></i>
           </button>
         </div>
 
-        <div class="bg-gradient-to-br from-rose-500 to-rose-700 rounded-2xl p-6 text-white shadow-md">
-          <div class="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center text-lg mb-4">
-            <i class="fa-solid fa-desktop"></i>
+        <div class="bg-white rounded-xl p-6 border border-slate-200 hover:border-ictu transition flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <span class="text-xs font-bold uppercase tracking-wider text-rose-700 bg-rose-50 px-2.5 py-1 rounded">Bước 3 • Giám sát thi</span>
+              <i class="fa-solid fa-desktop text-slate-400 text-lg"></i>
+            </div>
+            <h4 class="text-base font-bold text-slate-800">Giám Sát Phòng Thi Trực Tiếp</h4>
+            <p class="text-xs text-slate-500 mt-2 leading-relaxed">
+              Theo dõi tình trạng kết nối, phát hiện tự động hành vi rời khỏi màn hình làm bài, chuyển cửa sổ hoặc sao chép trong giờ thi.
+            </p>
           </div>
-          <h4 class="text-lg font-bold">3. Giám Sát Chống Gian Lận</h4>
-          <p class="text-sm text-rose-100 mt-2 mb-4 leading-relaxed">
-            Giám sát phòng thi thời gian thực qua SignalR. Phát hiện tức thì các hành vi chuyển cửa sổ, Alt+Tab, Copy/Paste từ Desktop App.
-          </p>
-          <button onclick="switchTab('monitoring')" class="bg-white text-rose-800 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-rose-50 transition shadow">
-            Xem Giám Sát Realtime &rarr;
+          <button onclick="switchTab('monitoring')" class="mt-5 w-full bg-slate-50 hover:bg-rose-600 hover:text-white text-rose-600 border border-slate-200 font-semibold py-2 px-4 rounded-lg text-xs transition flex items-center justify-center">
+            Bật Màn Hình Giám Sát <i class="fa-solid fa-arrow-right ml-2"></i>
           </button>
         </div>
       </div>
     </section>
 
-    <!-- TAB 2: NẠP TÀI LIỆU RAG -->
+    <!-- TAB 2: QUẢN LÝ LỚP HỌC PHẦN -->
+    <section id="tab-classes" class="tab-content hidden space-y-6">
+      <div class="bg-white p-6 rounded-xl border border-slate-200">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 mb-5 border-b border-slate-100 gap-3">
+          <div>
+            <h3 class="text-base font-bold text-slate-800">Danh Sách Lớp Học Phần Phụ Trách</h3>
+            <p class="text-xs text-slate-500 mt-0.5">Quản lý lớp học phần, danh sách sinh viên ghi danh và phân công ca thi tại ICTU</p>
+          </div>
+          <div class="flex items-center space-x-2">
+            <button onclick="openCreateClassModal()" class="bg-ictu hover:bg-ictu-dark text-white text-xs font-semibold px-3.5 py-2 rounded-lg transition flex items-center">
+              <i class="fa-solid fa-plus-circle mr-1.5"></i> Thêm Lớp Học Phần
+            </button>
+            <button onclick="loadClasses()" class="text-xs font-semibold text-ictu hover:bg-ictu-light px-3 py-2 rounded-lg transition">
+              <i class="fa-solid fa-rotate-right mr-1"></i> Làm mới
+            </button>
+          </div>
+        </div>
+
+        <div id="classesListContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <p class="text-sm text-slate-400 py-4">Đang tải danh sách lớp học phần...</p>
+        </div>
+      </div>
+
+      <!-- Class Details & Student Roster Panel -->
+      <div id="classDetailsCard" class="hidden bg-white p-6 rounded-xl border border-slate-200 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-3">
+          <div>
+            <div class="flex items-center space-x-2">
+              <span id="detailClassCodeBadge" class="px-2.5 py-0.5 bg-ictu-light text-ictu text-xs font-bold rounded">CS301.01</span>
+              <h4 id="detailClassName" class="text-base font-bold text-slate-800">Cơ sở dữ liệu & Hệ phân tán - Nhóm 01</h4>
+            </div>
+            <p id="detailClassMeta" class="text-xs text-slate-500 mt-1">Giảng viên: TS. Nguyễn Văn A • Phòng: Lab 302-C1 • Sĩ số: 3 sinh viên</p>
+          </div>
+          <div class="flex items-center space-x-2">
+            <button onclick="openEnrollStudentModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3.5 py-2 rounded-lg transition flex items-center">
+              <i class="fa-solid fa-user-plus mr-1.5"></i> Thêm Sinh Viên
+            </button>
+            <button onclick="closeClassDetails()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-2 rounded-lg transition">
+              Đóng chi tiết
+            </button>
+          </div>
+        </div>
+
+        <!-- Student Roster Table -->
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50 text-slate-600 border-b border-slate-200">
+              <tr>
+                <th class="py-2.5 px-3 font-semibold">STT</th>
+                <th class="py-2.5 px-3 font-semibold">Mã Sinh Viên</th>
+                <th class="py-2.5 px-3 font-semibold">Họ Và Tên</th>
+                <th class="py-2.5 px-3 font-semibold">Lớp Sinh Hoạt</th>
+                <th class="py-2.5 px-3 font-semibold">Email Trường</th>
+                <th class="py-2.5 px-3 font-semibold">Trạng Thái Thi</th>
+                <th class="py-2.5 px-3 text-right font-semibold">Thao Tác</th>
+              </tr>
+            </thead>
+            <tbody id="classStudentsTableBody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: ĐỀ CƯƠNG & TÀI LIỆU -->
     <section id="tab-documents" class="tab-content hidden space-y-6">
-      <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-        <h3 class="text-lg font-bold text-slate-800 mb-2">Tải Lên Tài Liệu & Tri Thức Cho AI (Module 1 &rarr; Module 3)</h3>
-        <p class="text-sm text-slate-500 mb-6">Hệ thống chấp nhận các định dạng tài liệu học phần (.pdf, .txt, .docx). Module 3 AI Agent sẽ trích xuất văn bản, băm chunk và tạo bộ chỉ mục RAG.</p>
+      <div class="bg-white p-6 rounded-xl border border-slate-200">
+        <div class="border-b border-slate-100 pb-4 mb-5">
+          <h3 class="text-base font-bold text-slate-800">Tải Lên Đề Cương & Học Liệu Học Phần</h3>
+          <p class="text-xs text-slate-500 mt-1">Hỗ trợ định dạng .pdf, .txt, .docx. Dữ liệu được trích xuất để làm cơ sở biên soạn câu hỏi kiểm tra chuẩn đầu ra.</p>
+        </div>
 
         <form id="uploadDocForm" onsubmit="handleUploadDoc(event)" class="space-y-4">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label class="block text-xs font-semibold text-slate-600 mb-1">Môn Học Áp Dụng</label>
-              <select id="docSubjectSelect" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <label class="block text-xs font-semibold text-slate-700 mb-1.5">Học Phần Áp Dụng</label>
+              <select id="docSubjectSelect" class="w-full px-3.5 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:border-ictu">
                 <option value="1">CS301 - Cơ sở dữ liệu & Hệ phân tán</option>
                 <option value="2">AI402 - Trí tuệ nhân tạo và Ứng dụng</option>
               </select>
             </div>
             <div>
-              <label class="block text-xs font-semibold text-slate-600 mb-1">Chọn Tệp Tài Liệu</label>
-              <input type="file" id="docFileInput" accept=".pdf,.txt,.docx" required class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer">
+              <label class="block text-xs font-semibold text-slate-700 mb-1.5">Tệp Đề Cương / Giáo Trình</label>
+              <input type="file" id="docFileInput" accept=".pdf,.txt,.docx" required class="w-full text-sm text-slate-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-ictu-light file:text-ictu hover:file:bg-blue-100 cursor-pointer border border-slate-200 rounded-lg p-0.5">
             </div>
           </div>
 
           <div class="flex justify-end pt-2">
-            <button type="submit" id="btnUploadDoc" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm px-6 py-2.5 rounded-xl shadow transition flex items-center">
-              <i class="fa-solid fa-cloud-arrow-up mr-2"></i> Tải Lên & Chuyển Sang AI Học
+            <button type="submit" id="btnUploadDoc" class="bg-ictu hover:bg-ictu-dark text-white font-semibold text-xs px-5 py-2.5 rounded-lg transition flex items-center">
+              <i class="fa-solid fa-cloud-arrow-up mr-2"></i> Tải Lên & Trích Xuất Dữ Liệu
             </button>
           </div>
         </form>
 
-        <div id="uploadStatusBox" class="mt-4 hidden p-4 rounded-xl text-sm"></div>
+        <div id="uploadStatusBox" class="mt-4 hidden p-4 rounded-lg text-sm"></div>
       </div>
     </section>
 
-    <!-- TAB 3: AI SINH ĐỀ THI -->
+    <!-- TAB 4: SINH CÂU HỎI TỰ ĐỘNG -->
     <section id="tab-ai-generator" class="tab-content hidden space-y-6">
-      <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-        <div class="flex items-center justify-between mb-4">
+      <div class="bg-white p-6 rounded-xl border border-slate-200">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 mb-5 border-b border-slate-100 gap-2">
           <div>
-            <h3 class="text-lg font-bold text-slate-800">Thiết Lập Ma Trận Đề & Sinh Câu Hỏi Tự Động Bằng AI</h3>
-            <p class="text-sm text-slate-500">Tối ưu hóa ngân hàng đề, sinh câu hỏi phân loại theo chuẩn Bloom (Nhận biết, Thông hiểu, Vận dụng) và chuẩn đầu ra CLO.</p>
+            <h3 class="text-base font-bold text-slate-800">Thiết Lập Ma Trận Đề & Sinh Câu Hỏi Tự Động</h3>
+            <p class="text-xs text-slate-500 mt-0.5">Phân cấp theo các mức độ Bloom (Nhận biết, Thông hiểu, Vận dụng) và Chuẩn đầu ra (CLO).</p>
           </div>
-          <span class="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-lg text-xs font-semibold flex items-center">
-            <i class="fa-solid fa-microchip mr-1.5"></i> Động Cơ Khảo Thí: Sẵn Sàng
+          <span class="px-2.5 py-1 bg-ictu-light text-ictu rounded-md text-xs font-semibold flex items-center self-start">
+            <i class="fa-solid fa-database mr-1.5"></i> Ngân hàng tri thức: Sẵn sàng
           </span>
         </div>
 
         <form id="aiMatrixForm" onsubmit="handleGenerateQuestions(event)" class="space-y-4">
-          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             <div>
-              <label class="block text-xs font-semibold text-slate-600 mb-1">Môn Học</label>
-              <select id="matrixSubjectSelect" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500">
+              <label class="block text-xs font-semibold text-slate-700 mb-1.5">Học Phần</label>
+              <select id="matrixSubjectSelect" class="w-full px-3.5 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:border-ictu">
                 <option value="1">Cơ sở dữ liệu & Hệ phân tán</option>
                 <option value="2">Trí tuệ nhân tạo và Ứng dụng</option>
               </select>
             </div>
             <div>
-              <label class="block text-xs font-semibold text-slate-600 mb-1">Số Câu Trắc Nghiệm (MCQ)</label>
-              <input type="number" id="matrixNumMcq" value="5" min="1" max="20" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm">
+              <label class="block text-xs font-semibold text-slate-700 mb-1.5">Số Câu Trắc Nghiệm (MCQ)</label>
+              <input type="number" id="matrixNumMcq" value="5" min="1" max="20" class="w-full px-3.5 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:border-ictu">
             </div>
             <div>
-              <label class="block text-xs font-semibold text-slate-600 mb-1">Số Câu Tự Luận/Vấn Đáp</label>
-              <input type="number" id="matrixNumEssay" value="1" min="1" max="5" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm">
+              <label class="block text-xs font-semibold text-slate-700 mb-1.5">Số Câu Tự Luận / Vấn Đáp</label>
+              <input type="number" id="matrixNumEssay" value="1" min="1" max="5" class="w-full px-3.5 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:border-ictu">
             </div>
             <div>
-              <label class="block text-xs font-semibold text-slate-600 mb-1">Mức Độ Thang Bloom</label>
-              <select id="matrixDifficulty" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm">
+              <label class="block text-xs font-semibold text-slate-700 mb-1.5">Mức Độ Thang Bloom</label>
+              <select id="matrixDifficulty" class="w-full px-3.5 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:border-ictu">
                 <option value="Easy">Nhận biết & Thông hiểu</option>
-                <option value="Medium" selected>Vận dụng trung bình</option>
+                <option value="Medium" selected>Vận dụng cơ bản</option>
                 <option value="Hard">Vận dụng cao & Phân tích</option>
               </select>
             </div>
           </div>
 
-          <div class="flex justify-end pt-3">
-            <button type="submit" id="btnGenAI" class="bg-gradient-to-r from-emerald-600 to-indigo-600 hover:from-emerald-700 hover:to-indigo-700 text-white font-medium text-sm px-6 py-2.5 rounded-xl shadow transition flex items-center">
-              <i class="fa-solid fa-wand-magic-sparkles mr-2"></i> Kích Hoạt Tác Tử AI Sinh Đề Thi
+          <div class="flex justify-end pt-2">
+            <button type="submit" id="btnGenAI" class="bg-ictu hover:bg-ictu-dark text-white font-semibold text-xs px-5 py-2.5 rounded-lg transition flex items-center">
+              <i class="fa-solid fa-wand-magic-sparkles mr-2 text-ictu-gold"></i> Tạo Câu Hỏi Theo Ma Trận
             </button>
           </div>
         </form>
       </div>
 
-      <!-- AI Generation Result & Review Screen -->
-      <div id="aiResultCard" class="hidden bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+      <!-- Generated Result & Review Screen -->
+      <div id="aiResultCard" class="hidden bg-white p-6 rounded-xl border border-slate-200 space-y-4">
         <div class="flex items-center justify-between pb-4 border-b border-slate-100">
           <div>
-            <h4 class="text-base font-bold text-slate-800">Danh Sách Câu Hỏi Do AI Agent Vừa Sinh Ra</h4>
-            <p class="text-xs text-slate-500">Giảng viên có thể xem xét, chỉnh sửa trước khi bấm Duyệt vào Ngân hàng Đề.</p>
+            <h4 class="text-sm font-bold text-slate-800">Danh Sách Câu Hỏi Đề Xuất Theo Chuẩn CLO</h4>
+            <p class="text-xs text-slate-500">Giảng viên kiểm tra, biên tập nội dung trước khi duyệt vào Ngân hàng câu hỏi của bộ môn.</p>
           </div>
-          <button onclick="approveAllGeneratedQuestions()" id="btnApproveAll" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-4 py-2 rounded-xl shadow transition flex items-center">
+          <button onclick="approveAllGeneratedQuestions()" id="btnApproveAll" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-4 py-2 rounded-lg transition flex items-center">
             <i class="fa-solid fa-check-double mr-1.5"></i> Duyệt Tất Cả Vào Ngân Hàng
           </button>
         </div>
@@ -273,12 +369,15 @@
       </div>
     </section>
 
-    <!-- TAB 4: NGÂN HÀNG CÂU HỎI -->
+    <!-- TAB 5: NGÂN HÀNG CÂU HỎI -->
     <section id="tab-question-bank" class="tab-content hidden space-y-6">
-      <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-bold text-slate-800">Ngân Hàng Câu Hỏi Đã Duyệt</h3>
-          <button onclick="loadQuestionBank()" class="text-xs font-medium text-indigo-600 hover:underline">
+      <div class="bg-white p-6 rounded-xl border border-slate-200">
+        <div class="flex items-center justify-between pb-4 mb-4 border-b border-slate-100">
+          <div>
+            <h3 class="text-base font-bold text-slate-800">Ngân Hàng Câu Hỏi Đã Kiểm Duyệt</h3>
+            <p class="text-xs text-slate-500">Danh mục câu hỏi chuẩn đầu ra sẵn sàng đưa vào các ca thi</p>
+          </div>
+          <button onclick="loadQuestionBank()" class="text-xs font-semibold text-ictu hover:bg-ictu-light px-3 py-1.5 rounded-lg transition">
             <i class="fa-solid fa-rotate-right mr-1"></i> Làm mới
           </button>
         </div>
@@ -288,81 +387,87 @@
       </div>
     </section>
 
-    <!-- TAB 5: QUẢN LÝ ĐỀ THI -->
+    <!-- TAB 6: QUẢN LÝ ĐỀ THI -->
     <section id="tab-exams" class="tab-content hidden space-y-6">
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <!-- Create Exam Card -->
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-          <h3 class="text-base font-bold text-slate-800 mb-4">Tạo Đề Thi Mới</h3>
-          <form id="createExamForm" onsubmit="handleCreateExam(event)" class="space-y-3">
+        <div class="bg-white p-6 rounded-xl border border-slate-200 h-fit">
+          <h3 class="text-sm font-bold text-slate-800 pb-3 mb-4 border-b border-slate-100">Khởi Tạo Đề Thi / Ca Thi</h3>
+          <form id="createExamForm" onsubmit="handleCreateExam(event)" class="space-y-3.5">
             <div>
-              <label class="block text-xs font-semibold text-slate-600 mb-1">Môn Học</label>
-              <select id="examSubjectSelect" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm">
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Lớp Học Phần Chỉ Định</label>
+              <select id="examClassSelect" onchange="onExamClassChanged(this.value)" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:border-ictu">
+                <option value="">-- Mở cho tất cả sinh viên --</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Học Phần</label>
+              <select id="examSubjectSelect" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:border-ictu">
                 <option value="1">Cơ sở dữ liệu & Hệ phân tán</option>
                 <option value="2">Trí tuệ nhân tạo và Ứng dụng</option>
               </select>
             </div>
             <div>
-              <label class="block text-xs font-semibold text-slate-600 mb-1">Tiêu Đề Đề Thi</label>
-              <input type="text" id="examTitle" value="Kiểm tra Đánh giá Chuẩn đầu ra CSDL - ICTU" required class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm">
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Tiêu Đề Ca Thi</label>
+              <input type="text" id="examTitle" value="Đánh giá Kiểm tra Chuẩn đầu ra CSDL - ICTU 2026" required class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:border-ictu">
             </div>
             <div>
-              <label class="block text-xs font-semibold text-slate-600 mb-1">Thời Gian Làm Bài (Phút)</label>
-              <input type="number" id="examDuration" value="20" min="5" max="180" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm">
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Thời Gian Làm Bài (Phút)</label>
+              <input type="number" id="examDuration" value="20" min="5" max="180" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:border-ictu">
             </div>
             <div>
-              <label class="block text-xs font-semibold text-slate-600 mb-1">Mã Truy Cập Phòng Thi</label>
-              <input type="text" id="examAccessCode" value="ICTU2026" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm font-mono font-bold text-indigo-700">
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Mã Truy Cập Phòng Thi (Access Code)</label>
+              <input type="text" id="examAccessCode" value="ICTU2026" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm font-mono font-bold text-ictu bg-slate-50">
             </div>
-            <button type="submit" class="w-full mt-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm py-2.5 rounded-xl shadow transition">
-              <i class="fa-solid fa-plus-circle mr-1"></i> Khởi Tạo Đề Thi
+            <button type="submit" class="w-full mt-2 bg-ictu hover:bg-ictu-dark text-white font-semibold text-xs py-2.5 rounded-lg transition">
+              <i class="fa-solid fa-plus-circle mr-1.5"></i> Phát Hành Đề Thi
             </button>
           </form>
         </div>
 
         <!-- Exam List -->
-        <div class="md:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-          <h3 class="text-base font-bold text-slate-800 mb-4">Danh Sách Đề Thi Hoạt Động</h3>
+        <div class="md:col-span-2 bg-white p-6 rounded-xl border border-slate-200">
+          <h3 class="text-sm font-bold text-slate-800 pb-3 mb-4 border-b border-slate-100">Danh Sách Ca Thi Đang Mở</h3>
           <div id="examsListContainer" class="space-y-3"></div>
         </div>
       </div>
     </section>
 
-    <!-- TAB 6: GIÁM SÁT CHỐNG GIAN LẬN REALTIME -->
+    <!-- TAB 7: GIÁM SÁT CHỐNG GIAN LẬN REALTIME -->
     <section id="tab-monitoring" class="tab-content hidden space-y-6">
-      <div class="flex items-center justify-between bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between bg-white p-4 rounded-xl border border-slate-200 gap-3">
         <div class="flex items-center space-x-3">
-          <div class="w-3 h-3 rounded-full bg-rose-500 animate-ping"></div>
+          <div class="w-2.5 h-2.5 rounded-full bg-rose-600 animate-ping"></div>
           <div>
-            <h3 class="text-base font-bold text-slate-800">Giám Sát Phòng Thi Trực Tiếp (Realtime Anti-Cheat Feed)</h3>
-            <p class="text-xs text-slate-500">Kết nối SignalR Hub: Lắng nghe tín hiệu vi phạm từ Desktop App & Web Sinh viên</p>
+            <h3 class="text-sm font-bold text-slate-800">Trung Tâm Giám Sát Phòng Thi Trực Tiếp</h3>
+            <p class="text-xs text-slate-500">Giám sát tự động hành vi chuyển cửa sổ, thoát toàn màn hình và thao tác sao chép trái quy chế</p>
           </div>
         </div>
         <div class="flex items-center space-x-2">
-          <span class="text-xs px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg font-semibold">
-            <i class="fa-solid fa-satellite-dish mr-1"></i> SignalR Connected
+          <span class="text-xs px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md font-medium">
+            <i class="fa-solid fa-link mr-1"></i> Kết nối Giám sát: Ổn định
           </span>
-          <button onclick="clearViolationLogs()" class="text-xs px-3 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600">
-            Xóa bảng tin
+          <button onclick="clearViolationLogs()" class="text-xs px-3 py-1 bg-slate-100 hover:bg-slate-200 rounded-md text-slate-700 font-medium transition">
+            Làm mới nhật ký
           </button>
         </div>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <!-- Live Violations Feed -->
-        <div class="md:col-span-2 bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
-          <h4 class="text-sm font-bold text-slate-800 mb-3 flex items-center">
-            <i class="fa-solid fa-bell text-rose-500 mr-2"></i> Nhật Ký Cảnh Báo Gian Lận Thời Gian Thực
+        <div class="md:col-span-2 bg-white p-5 rounded-xl border border-slate-200">
+          <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 flex items-center">
+            <i class="fa-solid fa-bell text-rose-600 mr-2"></i> Nhật Ký Cảnh Báo Quy Chế Thi
           </h4>
           <div class="overflow-y-auto max-h-[450px]">
             <table class="w-full text-left text-xs">
-              <thead class="bg-slate-50 text-slate-500 border-b">
+              <thead class="bg-slate-50 text-slate-600 border-b border-slate-200">
                 <tr>
-                  <th class="py-2.5 px-3">Thời gian</th>
-                  <th class="py-2.5 px-3">Mã SV</th>
-                  <th class="py-2.5 px-3">Họ Tên</th>
-                  <th class="py-2.5 px-3">Hành Vi Vi Phạm</th>
-                  <th class="py-2.5 px-3">Mức Độ</th>
+                  <th class="py-2.5 px-3 font-semibold">Thời gian</th>
+                  <th class="py-2.5 px-3 font-semibold">Mã SV</th>
+                  <th class="py-2.5 px-3 font-semibold">Họ Tên</th>
+                  <th class="py-2.5 px-3 font-semibold">Hành Vi Ghi Nhận</th>
+                  <th class="py-2.5 px-3 font-semibold">Mức Độ</th>
                 </tr>
               </thead>
               <tbody id="violationTableBody" class="divide-y divide-slate-100 font-medium">
@@ -375,9 +480,9 @@
         </div>
 
         <!-- Active Examinees -->
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
-          <h4 class="text-sm font-bold text-slate-800 mb-3 flex items-center">
-            <i class="fa-solid fa-users text-indigo-500 mr-2"></i> Thí Sinh Đang Thi
+        <div class="bg-white p-5 rounded-xl border border-slate-200">
+          <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 flex items-center">
+            <i class="fa-solid fa-users text-ictu mr-2"></i> Thí Sinh Đang Làm Bài
           </h4>
           <div id="activeExamineesList" class="space-y-2 max-h-[450px] overflow-y-auto">
             <p class="text-xs text-slate-400 py-4 text-center">Chưa có thí sinh kết nối.</p>
@@ -386,21 +491,35 @@
       </div>
     </section>
 
-    <!-- TAB 7: BÁO CÁO & PHỔ ĐIỂM + XUẤT FILE -->
+    <!-- TAB 8: BÁO CÁO & PHỔ ĐIỂM + XUẤT FILE -->
     <section id="tab-reports" class="tab-content hidden space-y-6">
-      <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-        <div class="flex items-center justify-between mb-6">
+      <div class="bg-white p-6 rounded-xl border border-slate-200">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 mb-6 border-b border-slate-100 gap-3">
           <div>
-            <h3 class="text-lg font-bold text-slate-800">Báo Cáo Tổng Hợp Kết Quả & Phân Tích Năng Lực</h3>
-            <p class="text-xs text-slate-500">Đánh giá theo chuẩn đầu ra (Bloom's Taxonomy) và trích xuất dữ liệu đào tạo</p>
+            <h3 class="text-base font-bold text-slate-800">Báo Cáo Điểm Số & Đánh Giá Chuẩn Đầu Ra (CLO)</h3>
+            <p class="text-xs text-slate-500">Tổng hợp kết quả ca thi, tỷ lệ đạt chuẩn đầu ra và hỗ trợ giảng viên phúc khảo</p>
           </div>
           <div class="flex space-x-2">
-            <button onclick="exportReportCsv()" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-3 py-1.5 rounded-lg shadow flex items-center">
-              <i class="fa-solid fa-file-excel mr-1.5"></i> Xuất Báo Cáo (CSV/Excel)
+            <button onclick="exportReportCsv()" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-3.5 py-2 rounded-lg transition flex items-center">
+              <i class="fa-solid fa-file-excel mr-1.5"></i> Xuất Bảng Điểm (CSV)
             </button>
-            <button onclick="loadReport(1)" class="text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold px-3 py-1.5 rounded-lg border border-indigo-200">
+            <button onclick="loadReport(1)" class="text-xs bg-ictu-light hover:bg-blue-100 text-ictu font-semibold px-3.5 py-2 rounded-lg transition">
               <i class="fa-solid fa-arrows-rotate mr-1"></i> Tải dữ liệu Đề 1
             </button>
+          </div>
+        </div>
+
+        <!-- Class Attendance Banner (If Exam belongs to a class) -->
+        <div id="classAttendanceBanner" class="hidden mb-6 p-4 rounded-xl border border-slate-200 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <span class="text-xs font-bold uppercase text-ictu tracking-wider" id="reportClassCode">LỚP: CS301.01</span>
+            <h4 class="text-sm font-bold text-slate-800" id="reportClassName">Cơ sở dữ liệu & Hệ phân tán - Nhóm 01</h4>
+            <p class="text-xs text-slate-500 mt-0.5" id="reportClassTeacher">Giảng viên: TS. Nguyễn Văn A</p>
+          </div>
+          <div class="flex items-center space-x-4 text-xs font-medium">
+            <div>Sĩ số: <b id="attTotal">0</b></div>
+            <div class="text-emerald-700">Đã thi: <b id="attAttended">0</b> (<span id="attRate">0%</span>)</div>
+            <div class="text-rose-600">Vắng: <b id="attAbsent">0</b></div>
           </div>
         </div>
 
@@ -409,43 +528,43 @@
         <!-- CLO & Bloom's Taxonomy Distribution Card -->
         <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6">
           <h4 class="text-xs font-bold text-slate-700 uppercase mb-3 flex items-center">
-            <i class="fa-solid fa-layer-group text-indigo-600 mr-2"></i> Đánh Giá Chuẩn Đầu Ra Môn Học (CLO Matrix & Bloom's Taxonomy)
+            <i class="fa-solid fa-layer-group text-ictu mr-2"></i> Tỷ Lệ Đạt Chuẩn Đầu Ra Học Phần (CLO Matrix)
           </h4>
           <div id="cloAchievementGrid" class="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
-            <div class="bg-white p-3 rounded-lg border">
+            <div class="bg-white p-3 rounded-lg border border-slate-200">
               <p class="text-[11px] text-slate-500 font-medium">CLO 1 (Kiến thức cơ sở)</p>
-              <h5 class="text-lg font-bold text-indigo-700 mt-1">85%</h5>
+              <h5 class="text-lg font-bold text-ictu mt-1">85%</h5>
               <span class="text-[10px] text-emerald-600 font-semibold">Đạt chuẩn đầu ra</span>
             </div>
-            <div class="bg-white p-3 rounded-lg border">
+            <div class="bg-white p-3 rounded-lg border border-slate-200">
               <p class="text-[11px] text-slate-500 font-medium">CLO 2 (Thiết kế & Phân tích)</p>
-              <h5 class="text-lg font-bold text-blue-700 mt-1">80%</h5>
+              <h5 class="text-lg font-bold text-ictu mt-1">80%</h5>
               <span class="text-[10px] text-emerald-600 font-semibold">Đạt chuẩn đầu ra</span>
             </div>
-            <div class="bg-white p-3 rounded-lg border">
+            <div class="bg-white p-3 rounded-lg border border-slate-200">
               <p class="text-[11px] text-slate-500 font-medium">CLO 3 (Vận dụng thực tiễn)</p>
-              <h5 class="text-lg font-bold text-amber-700 mt-1">72%</h5>
-              <span class="text-[10px] text-blue-600 font-semibold">Khá tốt</span>
+              <h5 class="text-lg font-bold text-amber-600 mt-1">72%</h5>
+              <span class="text-[10px] text-sky-600 font-semibold">Khá tốt</span>
             </div>
-            <div class="bg-white p-3 rounded-lg border">
+            <div class="bg-white p-3 rounded-lg border border-slate-200">
               <p class="text-[11px] text-slate-500 font-medium">CLO 4 (Tư duy phản biện)</p>
-              <h5 class="text-lg font-bold text-purple-700 mt-1">68%</h5>
+              <h5 class="text-lg font-bold text-amber-600 mt-1">68%</h5>
               <span class="text-[10px] text-amber-600 font-semibold">Cần bổ trợ</span>
             </div>
           </div>
         </div>
 
-        <h4 class="text-sm font-bold text-slate-800 mb-3">Danh Sách Kết Quả & Nhận Xét AI Từng Thí Sinh</h4>
+        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">Bảng Điểm Chi Tiết & Nhận Xét Năng Lực</h4>
         <div id="reportTableContainer" class="overflow-x-auto">
           <table class="w-full text-left text-xs" id="reportTable">
-            <thead class="bg-slate-50 text-slate-500 border-b">
+            <thead class="bg-slate-50 text-slate-600 border-b border-slate-200">
               <tr>
-                <th class="py-2.5 px-3">Mã SV</th>
-                <th class="py-2.5 px-3">Họ Tên</th>
-                <th class="py-2.5 px-3">Điểm Số</th>
-                <th class="py-2.5 px-3">Số Lần Cảnh Báo</th>
-                <th class="py-2.5 px-3">Đánh Giá & Nhận Xét AI Agent</th>
-                <th class="py-2.5 px-3 text-right">Phúc Khảo (Giảng viên)</th>
+                <th class="py-2.5 px-3 font-semibold">Mã SV</th>
+                <th class="py-2.5 px-3 font-semibold">Họ Tên</th>
+                <th class="py-2.5 px-3 font-semibold">Điểm Số</th>
+                <th class="py-2.5 px-3 font-semibold">Cảnh Báo</th>
+                <th class="py-2.5 px-3 font-semibold">Đánh Giá & Nhận Xét Tự Động</th>
+                <th class="py-2.5 px-3 text-right font-semibold">Thao Tác</th>
               </tr>
             </thead>
             <tbody id="reportBody" class="divide-y divide-slate-100">
@@ -458,28 +577,35 @@
 
   </main>
 
+  <footer class="bg-white border-t border-slate-200 py-3 px-4 text-center text-xs text-slate-500">
+    Trường Đại học Công nghệ Thông tin và Truyền thông - Đại học Thái Nguyên (ICTU) • Hệ Thống Khảo Thí Trực Tuyến
+  </footer>
+
   <!-- SSO LOGIN MODAL -->
-  <div id="loginModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4">
-      <div class="flex items-center justify-between pb-3 border-b">
-        <h3 class="text-base font-bold text-slate-800">Đăng Nhập Cổng Quản Lý ICTU</h3>
-        <button onclick="closeLoginModal()" class="text-slate-400 hover:text-slate-600 text-lg">&times;</button>
+  <div id="loginModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-lg border border-slate-200 max-w-md w-full p-6 space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div class="flex items-center space-x-2">
+          <span class="w-2 h-5 bg-ictu rounded-full"></span>
+          <h3 class="text-sm font-bold text-slate-800 uppercase">Xác Thực Tài Khoản ICTU SSO</h3>
+        </div>
+        <button onclick="closeLoginModal()" class="text-slate-400 hover:text-slate-600 text-lg leading-none">&times;</button>
       </div>
 
-      <p class="text-xs text-slate-500">Hệ thống chấp nhận tài khoản Google (@ictu.edu.vn) và Microsoft 365 (@ms.ictu.edu.vn).</p>
+      <p class="text-xs text-slate-500">Sử dụng tài khoản Google Workspace (@ictu.edu.vn) hoặc Microsoft 365 (@ms.ictu.edu.vn).</p>
 
       <div class="space-y-2 pt-1">
-        <button onclick="mockSso('Google', 'Lecturer')" class="w-full flex items-center justify-center space-x-2 py-2.5 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-sm transition">
-          <span class="text-red-500 font-black">G</span>
+        <button onclick="mockSso('Google', 'Lecturer')" class="w-full flex items-center justify-center space-x-2 py-2.5 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition">
+          <i class="fa-brands fa-google text-red-500"></i>
           <span>Đăng nhập Giảng viên (@ictu.edu.vn)</span>
         </button>
-        <button onclick="mockSso('Google', 'Student')" class="w-full flex items-center justify-center space-x-2 py-2.5 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-sm transition">
-          <span class="text-red-500 font-black">G</span>
-          <span>Đăng nhập Sinh viên Google (masv@ictu.edu.vn)</span>
+        <button onclick="mockSso('Google', 'Student')" class="w-full flex items-center justify-center space-x-2 py-2.5 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition">
+          <i class="fa-brands fa-google text-red-500"></i>
+          <span>Đăng nhập Sinh viên Google (@ictu.edu.vn)</span>
         </button>
-        <button onclick="mockSso('Microsoft', 'Student')" class="w-full flex items-center justify-center space-x-2 py-2.5 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-sm transition">
-          <i class="fa-brands fa-microsoft text-blue-600"></i>
-          <span>Đăng nhập Sinh viên Microsoft (masv@ms.ictu.edu.vn)</span>
+        <button onclick="mockSso('Microsoft', 'Student')" class="w-full flex items-center justify-center space-x-2 py-2.5 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition">
+          <i class="fa-brands fa-microsoft text-sky-600"></i>
+          <span>Đăng nhập Sinh viên Microsoft (@ms.ictu.edu.vn)</span>
         </button>
       </div>
 
@@ -490,11 +616,94 @@
 
       <form onsubmit="handleDirectLogin(event)" class="space-y-3">
         <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1">Email trường</label>
-          <input type="text" id="directEmail" placeholder="ví dụ: gv_nguyenvana@ictu.edu.vn" required class="w-full px-3 py-2 border rounded-xl text-xs">
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Email trường</label>
+          <input type="text" id="directEmail" placeholder="ví dụ: gv_nguyenvana@ictu.edu.vn" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-none focus:border-ictu">
         </div>
-        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl text-xs shadow">
+        <button type="submit" class="w-full bg-ictu hover:bg-ictu-dark text-white font-semibold py-2.5 rounded-lg text-xs transition">
           Xác Nhận Đăng Nhập
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- CREATE CLASS MODAL -->
+  <div id="createClassModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-lg border border-slate-200 max-w-md w-full p-6 space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div class="flex items-center space-x-2">
+          <span class="w-2 h-5 bg-ictu rounded-full"></span>
+          <h3 class="text-sm font-bold text-slate-800 uppercase">Khởi Tạo Lớp Học Phần Mới</h3>
+        </div>
+        <button onclick="closeCreateClassModal()" class="text-slate-400 hover:text-slate-600 text-lg leading-none">&times;</button>
+      </div>
+
+      <form onsubmit="handleCreateClass(event)" class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Học Phần</label>
+          <select id="newClassSubject" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-none focus:border-ictu">
+            <option value="1">CS301 - Cơ sở dữ liệu & Hệ phân tán</option>
+            <option value="2">AI402 - Trí tuệ nhân tạo và Ứng dụng</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Mã Lớp Học Phần</label>
+          <input type="text" id="newClassCode" placeholder="ví dụ: CS301.02" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs uppercase focus:outline-none focus:border-ictu">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Tên Lớp Học Phần</label>
+          <input type="text" id="newClassName" placeholder="ví dụ: Cơ sở dữ liệu - Nhóm 02" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-none focus:border-ictu">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Học Kỳ</label>
+            <input type="text" id="newClassSemester" value="Học kỳ 1" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Năm Học</label>
+            <input type="text" id="newClassYear" value="2026-2027" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Phòng Học / Phòng Thi</label>
+          <input type="text" id="newClassRoom" value="Phòng Lab 302 - Tòa C1" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs">
+        </div>
+        <button type="submit" class="w-full bg-ictu hover:bg-ictu-dark text-white font-semibold py-2.5 rounded-lg text-xs transition mt-2">
+          Khởi Tạo Lớp Học Phần
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ENROLL STUDENT MODAL -->
+  <div id="enrollStudentModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-lg border border-slate-200 max-w-md w-full p-6 space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div class="flex items-center space-x-2">
+          <span class="w-2 h-5 bg-emerald-600 rounded-full"></span>
+          <h3 class="text-sm font-bold text-slate-800 uppercase">Thêm Sinh Viên Vào Lớp</h3>
+        </div>
+        <button onclick="closeEnrollStudentModal()" class="text-slate-400 hover:text-slate-600 text-lg leading-none">&times;</button>
+      </div>
+
+      <form onsubmit="handleEnrollStudent(event)" class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Mã Sinh Viên (DTC...)</label>
+          <input type="text" id="enrollStudentCode" placeholder="ví dụ: DTC205122004" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs uppercase focus:outline-none focus:border-ictu">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Họ Và Tên Sinh Viên</label>
+          <input type="text" id="enrollStudentName" placeholder="ví dụ: Phạm Văn Hoàng" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-none focus:border-ictu">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Lớp Sinh Hoạt (Lớp Hành Chính)</label>
+          <input type="text" id="enrollAdminClass" placeholder="ví dụ: K20-CNTT01" required value="K20-CNTT01" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-none focus:border-ictu">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Email Trường (Tùy chọn)</label>
+          <input type="email" id="enrollStudentEmail" placeholder="ví dụ: dtc205122004@ictu.edu.vn" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-none focus:border-ictu">
+        </div>
+        <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-lg text-xs transition mt-2">
+          Xác Nhận Thêm Vào Lớp
         </button>
       </form>
     </div>
@@ -503,6 +712,8 @@
   <!-- Notification Audio & Logic Script -->
   <script>
     let currentReportSessions = [];
+    let currentClassesList = [];
+    let selectedClassId = null;
 
     function playBeep() {
       try {
@@ -523,8 +734,8 @@
     function switchTab(tabId) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
       document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.classList.remove('border-indigo-600', 'text-indigo-600');
-        btn.classList.add('border-transparent', 'text-slate-600');
+        btn.classList.remove('border-ictu', 'text-ictu', 'font-semibold');
+        btn.classList.add('border-transparent', 'text-slate-600', 'font-medium');
       });
 
       const activeSection = document.getElementById(`tab-${tabId}`);
@@ -532,10 +743,11 @@
 
       const clickedBtn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick')?.includes(tabId));
       if (clickedBtn) {
-        clickedBtn.classList.remove('border-transparent', 'text-slate-600');
-        clickedBtn.classList.add('border-indigo-600', 'text-indigo-600');
+        clickedBtn.classList.remove('border-transparent', 'text-slate-600', 'font-medium');
+        clickedBtn.classList.add('border-ictu', 'text-ictu', 'font-semibold');
       }
 
+      if (tabId === 'classes') loadClasses();
       if (tabId === 'question-bank') loadQuestionBank();
       if (tabId === 'exams') loadExams();
       if (tabId === 'reports') loadReport(1);
@@ -597,13 +809,212 @@
       localStorage.setItem('ictu_user', JSON.stringify(user));
     }
 
+    // --- COURSE CLASSES MANAGEMENT ---
+    async function loadClasses() {
+      try {
+        const res = await fetch("/api/lecturer/classes");
+        const list = await res.json();
+        currentClassesList = list;
+        document.getElementById('statClasses').innerText = list.length;
+        
+        // Update exam creation class dropdown
+        const select = document.getElementById('examClassSelect');
+        if (select) {
+          select.innerHTML = `<option value="">-- Mở cho tất cả sinh viên --</option>` + list.map(c => 
+            `<option value="${c.id}">${c.classCode} - ${c.className}</option>`
+          ).join("");
+        }
+
+        const container = document.getElementById('classesListContainer');
+        if (list.length === 0) {
+          container.innerHTML = `<p class="text-sm text-slate-400 py-4 col-span-2 text-center">Chưa có lớp học phần nào.</p>`;
+          return;
+        }
+
+        container.innerHTML = list.map(c => `
+          <div class="p-5 bg-slate-50 border border-slate-200 rounded-xl hover:border-ictu transition space-y-3">
+            <div class="flex items-start justify-between">
+              <div>
+                <span class="px-2.5 py-0.5 bg-ictu-light text-ictu text-xs font-bold rounded">${c.classCode}</span>
+                <h4 class="text-sm font-bold text-slate-800 mt-1.5">${c.className}</h4>
+                <p class="text-xs text-slate-500 mt-0.5">Học phần: <b>${c.subjectName}</b></p>
+              </div>
+              <span class="text-xs px-2 py-1 bg-white border border-slate-200 rounded-md font-semibold text-slate-600">
+                ${c.totalStudents} sinh viên
+              </span>
+            </div>
+
+            <div class="text-xs text-slate-600 space-y-1 bg-white p-3 rounded-lg border border-slate-200">
+              <div class="flex items-center justify-between">
+                <span>Giảng viên phụ trách:</span>
+                <b class="text-slate-800">${c.lecturerName}</b>
+              </div>
+              <div class="flex items-center justify-between">
+                <span>Học kỳ / Năm học:</span>
+                <span>${c.semester} • ${c.academicYear}</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span>Phòng học:</span>
+                <span>${c.room || 'Chưa xếp phòng'}</span>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-end space-x-2 pt-1">
+              <button onclick="showClassDetail(${c.id})" class="text-xs bg-ictu hover:bg-ictu-dark text-white font-semibold px-3 py-1.5 rounded-lg transition">
+                <i class="fa-solid fa-users mr-1"></i> Danh Sách Sinh Viên
+              </button>
+            </div>
+          </div>
+        `).join("");
+      } catch (e) {
+        console.error("Load classes error: ", e);
+      }
+    }
+
+    async function showClassDetail(classId) {
+      selectedClassId = classId;
+      try {
+        const res = await fetch(`/api/lecturer/classes/${classId}`);
+        const data = await res.json();
+        
+        document.getElementById('detailClassCodeBadge').innerText = data.classCode;
+        document.getElementById('detailClassName').innerText = data.className;
+        document.getElementById('detailClassMeta').innerText = `Giảng viên: ${data.lecturerName} • Phòng: ${data.room} • Sĩ số: ${data.totalStudents} sinh viên`;
+
+        const tbody = document.getElementById('classStudentsTableBody');
+        if (!data.students || data.students.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-slate-400">Lớp học phần này chưa có sinh viên nào. Vui lòng bấm 'Thêm Sinh Viên'.</td></tr>`;
+        } else {
+          tbody.innerHTML = data.students.map((st, i) => `
+            <tr class="hover:bg-slate-50">
+              <td class="py-2.5 px-3 text-slate-400 font-medium">${i+1}</td>
+              <td class="py-2.5 px-3 font-mono font-bold text-ictu">${st.studentCode}</td>
+              <td class="py-2.5 px-3 font-semibold text-slate-800">${st.studentName}</td>
+              <td class="py-2.5 px-3 text-slate-600">${st.administrativeClass}</td>
+              <td class="py-2.5 px-3 text-slate-500 font-mono text-[11px]">${st.studentEmail}</td>
+              <td class="py-2.5 px-3">
+                ${st.hasSubmittedExam 
+                  ? `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800">Đã nộp bài (${st.latestScore}đ)</span>`
+                  : `<span class="px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-600">Chưa dự thi</span>`}
+              </td>
+              <td class="py-2.5 px-3 text-right">
+                <button onclick="removeStudentFromClass(${classId}, '${st.studentCode}')" class="text-rose-600 hover:text-rose-800 text-xs transition">
+                  <i class="fa-solid fa-trash-can"></i>
+                </button>
+              </td>
+            </tr>
+          `).join("");
+        }
+
+        const card = document.getElementById('classDetailsCard');
+        card.classList.remove('hidden');
+        card.scrollIntoView({ behavior: 'smooth' });
+      } catch (err) {
+        alert("Lỗi tải thông tin lớp: " + err.message);
+      }
+    }
+
+    function closeClassDetails() {
+      document.getElementById('classDetailsCard').classList.add('hidden');
+      selectedClassId = null;
+    }
+
+    function openCreateClassModal() { document.getElementById('createClassModal').classList.remove('hidden'); }
+    function closeCreateClassModal() { document.getElementById('createClassModal').classList.add('hidden'); }
+
+    async function handleCreateClass(e) {
+      e.preventDefault();
+      const subjectId = parseInt(document.getElementById('newClassSubject').value);
+      const classCode = document.getElementById('newClassCode').value.trim();
+      const className = document.getElementById('newClassName').value.trim();
+      const semester = document.getElementById('newClassSemester').value.trim();
+      const academicYear = document.getElementById('newClassYear').value.trim();
+      const room = document.getElementById('newClassRoom').value.trim();
+
+      try {
+        const res = await fetch("/api/lecturer/classes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ subjectId, classCode, className, semester, academicYear, room })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert("Khởi tạo lớp học phần thành công!");
+          closeCreateClassModal();
+          loadClasses();
+        } else {
+          alert("Lỗi: " + (data.message || "Không thể tạo lớp"));
+        }
+      } catch (err) {
+        alert("Lỗi kết nối: " + err.message);
+      }
+    }
+
+    function openEnrollStudentModal() {
+      if (!selectedClassId) return alert("Vui lòng chọn lớp học phần trước.");
+      document.getElementById('enrollStudentModal').classList.remove('hidden');
+    }
+    function closeEnrollStudentModal() { document.getElementById('enrollStudentModal').classList.add('hidden'); }
+
+    async function handleEnrollStudent(e) {
+      e.preventDefault();
+      if (!selectedClassId) return;
+
+      const studentCode = document.getElementById('enrollStudentCode').value.trim();
+      const studentName = document.getElementById('enrollStudentName').value.trim();
+      const administrativeClass = document.getElementById('enrollAdminClass').value.trim();
+      const studentEmail = document.getElementById('enrollStudentEmail').value.trim();
+
+      try {
+        const res = await fetch(`/api/lecturer/classes/${selectedClassId}/enroll`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ studentCode, studentName, administrativeClass, studentEmail })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert("Đã thêm sinh viên vào lớp học phần!");
+          closeEnrollStudentModal();
+          showClassDetail(selectedClassId);
+          loadClasses();
+        } else {
+          alert("Lỗi: " + (data.message || "Không thể thêm"));
+        }
+      } catch (err) {
+        alert("Lỗi: " + err.message);
+      }
+    }
+
+    async function removeStudentFromClass(classId, studentCode) {
+      if (!confirm(`Bạn có chắc muốn xóa sinh viên ${studentCode} khỏi lớp học phần này?`)) return;
+      try {
+        const res = await fetch(`/api/lecturer/classes/${classId}/students/${studentCode}`, { method: "DELETE" });
+        const data = await res.json();
+        if (data.success) {
+          showClassDetail(classId);
+          loadClasses();
+        }
+      } catch (err) {
+        alert("Lỗi: " + err.message);
+      }
+    }
+
+    function onExamClassChanged(classId) {
+      if (!classId) return;
+      const c = currentClassesList.find(x => x.id == classId);
+      if (c) {
+        document.getElementById('examSubjectSelect').value = c.subjectId;
+        document.getElementById('examTitle').value = `Đánh giá Chuẩn đầu ra ${c.subjectName} - ${c.classCode}`;
+      }
+    }
+
     // Export CSV Report
     function exportReportCsv() {
       if (!currentReportSessions || currentReportSessions.length === 0) {
-        alert("Chưa có dữ liệu bài nộp để xuất file!");
+        alert("Chưa có dữ liệu bài nộp để xuất bảng điểm!");
         return;
       }
-      let csv = "Mã Sinh Viên,Họ Tên,Điểm Số,Số Lần Cảnh Báo,Đánh Giá & Nhận Xét AI Agent\n";
+      let csv = "Mã Sinh Viên,Họ Tên,Điểm Số,Số Lần Cảnh Báo,Đánh Giá & Nhận Xét Năng Lực\n";
       currentReportSessions.forEach(s => {
         const cleanFeedback = (s.aiFeedback || "").replace(/"/g, '""');
         csv += `"${s.studentCode}","${s.studentName}","${s.score}","${s.cheatingCount}","${cleanFeedback}"\n`;
@@ -613,7 +1024,7 @@
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `Bao_Cao_Diem_Chuan_Dau_Ra_ICTU_${new Date().toISOString().slice(0,10)}.csv`;
+      a.download = `Bang_Diem_Chuan_Dau_Ra_ICTU_${new Date().toISOString().slice(0,10)}.csv`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -647,20 +1058,20 @@
 
         tr.innerHTML = `
           <td class="py-2.5 px-3 text-slate-500">${data.timestamp || new Date().toLocaleTimeString()}</td>
-          <td class="py-2.5 px-3 font-mono font-bold text-indigo-700">${data.studentCode}</td>
+          <td class="py-2.5 px-3 font-mono font-bold text-ictu">${data.studentCode}</td>
           <td class="py-2.5 px-3">${data.studentName || 'Sinh viên'}</td>
           <td class="py-2.5 px-3 text-rose-600 font-semibold">
-            <i class="fa-solid fa-shield-virus mr-1"></i> ${data.violationType} (${data.details || ''})
+            <i class="fa-solid fa-triangle-exclamation mr-1"></i> ${data.violationType} (${data.details || ''})
           </td>
           <td class="py-2.5 px-3">
-            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700">NGHIÊM TRỌNG</span>
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700">CẢNH BÁO</span>
           </td>
         `;
         tableBody.insertBefore(tr, tableBody.firstChild);
       });
 
       connection.on("OnStudentSubmitted", function(data) {
-        showToastNotification(`Thí sinh ${data.studentName} (${data.studentCode}) vừa hoàn thành bài thi! Điểm: ${data.score}/10`);
+        showToastNotification(`Thí sinh ${data.studentName} (${data.studentCode}) vừa nộp bài thi! Điểm: ${data.score}/10`);
         loadExams();
       });
 
@@ -682,8 +1093,8 @@
 
     function showToastNotification(msg) {
       const toast = document.createElement('div');
-      toast.className = "fixed bottom-5 right-5 bg-indigo-900 text-white px-5 py-3 rounded-2xl shadow-2xl border border-indigo-700 flex items-center space-x-3 z-50 text-xs font-semibold animate-bounce";
-      toast.innerHTML = `<i class="fa-solid fa-bell text-amber-400 text-sm"></i> <span>${msg}</span>`;
+      toast.className = "fixed bottom-5 right-5 bg-ictu-dark text-white px-4 py-3 rounded-xl shadow-lg border-l-4 border-ictu-accent flex items-center space-x-3 z-50 text-xs font-medium";
+      toast.innerHTML = `<i class="fa-solid fa-bell text-ictu-gold text-sm"></i> <span>${msg}</span>`;
       document.body.appendChild(toast);
       setTimeout(() => {
         toast.style.opacity = '0';
@@ -703,9 +1114,9 @@
       if (!fileInput.files || fileInput.files.length === 0) return;
 
       btn.disabled = true;
-      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Đang tải và băm nhỏ tài liệu (RAG)...`;
-      box.className = "mt-4 p-4 rounded-xl text-sm bg-blue-50 text-blue-700 block border border-blue-200";
-      box.innerHTML = `Đang gửi file sang Module 3 Python AI Service để xử lý trích xuất văn bản...`;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Đang trích xuất tri thức...`;
+      box.className = "mt-4 p-4 rounded-lg text-xs bg-ictu-light text-ictu block border border-blue-200";
+      box.innerHTML = `Đang tải tài liệu lên hệ thống và phân đoạn dữ liệu học phần...`;
 
       const formData = new FormData();
       formData.append("subjectId", subjectId);
@@ -715,24 +1126,24 @@
         const res = await fetch("/api/lecturer/upload-document", { method: "POST", body: formData });
         const data = await res.json();
         if (data.success) {
-          box.className = "mt-4 p-4 rounded-xl text-sm bg-emerald-50 text-emerald-800 block border border-emerald-200";
+          box.className = "mt-4 p-4 rounded-lg text-xs bg-emerald-50 text-emerald-800 block border border-emerald-200";
           box.innerHTML = `
-            <strong><i class="fa-solid fa-check-circle mr-1"></i> Tải lên thành công!</strong><br>
-            Tệp: <b>${data.document.filename}</b> | Chunks RAG: <b>${data.document.chunksCount}</b> | Số từ: <b>${data.document.wordCount}</b><br>
-            <span class="text-xs text-slate-600 mt-1 block">Trích xuất tri thức: "${data.aiPreview}"</span>
+            <strong><i class="fa-solid fa-check-circle mr-1"></i> Đã trích xuất và lập chỉ mục thành công!</strong><br>
+            Tệp: <b>${data.document.filename}</b> | Số phân đoạn: <b>${data.document.chunksCount}</b> | Số từ: <b>${data.document.wordCount}</b><br>
+            <span class="text-slate-600 mt-1 block">Nội dung trích xuất: "${data.aiPreview}"</span>
           `;
           fileInput.value = "";
         }
       } catch (err) {
-        box.className = "mt-4 p-4 rounded-xl text-sm bg-rose-50 text-rose-800 block border border-rose-200";
+        box.className = "mt-4 p-4 rounded-lg text-xs bg-rose-50 text-rose-800 block border border-rose-200";
         box.innerHTML = `<i class="fa-solid fa-circle-exclamation mr-1"></i> Lỗi: ${err.message}`;
       } finally {
         btn.disabled = false;
-        btn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up mr-2"></i> Tải Lên & Chuyển Sang AI Học`;
+        btn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up mr-2"></i> Tải Lên & Trích Xuất Dữ Liệu`;
       }
     }
 
-    // AI Question Generation
+    // Question Generation
     let tempGeneratedQuestions = [];
     async function handleGenerateQuestions(e) {
       e.preventDefault();
@@ -743,7 +1154,7 @@
       const btn = document.getElementById('btnGenAI');
 
       btn.disabled = true;
-      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Tác tử AI Đang Xử Lý & Sinh Đề...`;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Đang tạo câu hỏi...`;
 
       try {
         const res = await fetch("/api/lecturer/generate-questions", {
@@ -756,19 +1167,19 @@
         try {
           data = JSON.parse(text);
         } catch(e) {
-          throw new Error(text || "Máy chủ AI chưa phản hồi. Vui lòng kiểm tra cổng 8000.");
+          throw new Error(text || "Máy chủ tạo câu hỏi chưa phản hồi.");
         }
         if (data.success) {
           tempGeneratedQuestions = data.questions;
           renderGeneratedQuestions(tempGeneratedQuestions);
         } else {
-          alert("Lỗi sinh đề: " + (data.message || "Không xác định"));
+          alert("Lỗi tạo câu hỏi: " + (data.message || "Không xác định"));
         }
       } catch (err) {
         alert("Thông báo hệ thống: " + err.message);
       } finally {
         btn.disabled = false;
-        btn.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles mr-2"></i> Kích Hoạt Tác Tử AI Sinh Đề Thi`;
+        btn.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles mr-2 text-ictu-gold"></i> Tạo Câu Hỏi Theo Ma Trận`;
       }
     }
 
@@ -780,7 +1191,7 @@
 
       questions.forEach((q, idx) => {
         const div = document.createElement('div');
-        div.className = "p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2";
+        div.className = "p-4 bg-slate-50 border border-slate-200 rounded-lg space-y-2.5";
         const clo = q.clo_code || "CLO2";
         const bloom = q.bloom_level || q.difficulty || "Vận dụng";
 
@@ -788,32 +1199,32 @@
           div.innerHTML = `
             <div class="flex items-center justify-between">
               <div class="flex items-center space-x-2">
-                <span class="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-xs font-bold rounded">Câu ${idx+1} [Trắc nghiệm]</span>
-                <span class="px-2 py-0.5 bg-slate-200 text-slate-700 text-[10px] font-bold rounded">Chuẩn: ${clo}</span>
-                <span class="px-2 py-0.5 bg-blue-50 text-blue-700 text-[10px] font-bold rounded">Bloom: ${bloom}</span>
+                <span class="px-2 py-0.5 bg-ictu-light text-ictu text-xs font-bold rounded">Câu ${idx+1} • Trắc nghiệm</span>
+                <span class="px-2 py-0.5 bg-slate-200 text-slate-700 text-[10px] font-semibold rounded">${clo}</span>
+                <span class="px-2 py-0.5 bg-white border border-slate-200 text-slate-600 text-[10px] font-medium rounded">Bloom: ${bloom}</span>
               </div>
-              <span class="text-xs text-emerald-700 font-bold">Đáp án đúng: ${q.correct_Option || q.correct_option}</span>
+              <span class="text-xs text-emerald-700 font-bold">Đáp án: ${q.correct_Option || q.correct_option}</span>
             </div>
-            <textarea onchange="updateTempQ(${idx}, 'question', this.value)" rows="2" class="w-full font-semibold text-sm text-slate-800 p-2 border rounded-lg bg-white">${q.question}</textarea>
-            <div class="grid grid-cols-2 gap-2 text-xs text-slate-600 pt-1">
-              <input type="text" value="${q.option_a || q.option_A || ''}" onchange="updateTempQ(${idx}, 'option_a', this.value)" class="p-1.5 border rounded bg-white">
-              <input type="text" value="${q.option_b || q.option_B || ''}" onchange="updateTempQ(${idx}, 'option_b', this.value)" class="p-1.5 border rounded bg-white">
-              <input type="text" value="${q.option_c || q.option_C || ''}" onchange="updateTempQ(${idx}, 'option_c', this.value)" class="p-1.5 border rounded bg-white">
-              <input type="text" value="${q.option_d || q.option_D || ''}" onchange="updateTempQ(${idx}, 'option_d', this.value)" class="p-1.5 border rounded bg-white">
+            <textarea onchange="updateTempQ(${idx}, 'question', this.value)" rows="2" class="w-full font-semibold text-sm text-slate-800 p-2 border border-slate-300 rounded-md bg-white">${q.question}</textarea>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-600">
+              <input type="text" value="${q.option_a || q.option_A || ''}" onchange="updateTempQ(${idx}, 'option_a', this.value)" class="p-2 border border-slate-300 rounded-md bg-white">
+              <input type="text" value="${q.option_b || q.option_B || ''}" onchange="updateTempQ(${idx}, 'option_b', this.value)" class="p-2 border border-slate-300 rounded-md bg-white">
+              <input type="text" value="${q.option_c || q.option_C || ''}" onchange="updateTempQ(${idx}, 'option_c', this.value)" class="p-2 border border-slate-300 rounded-md bg-white">
+              <input type="text" value="${q.option_d || q.option_D || ''}" onchange="updateTempQ(${idx}, 'option_d', this.value)" class="p-2 border border-slate-300 rounded-md bg-white">
             </div>
-            <p class="text-xs text-slate-500 italic bg-white p-2 rounded border">💡 Lời giải / Cơ sở trích xuất: ${q.explanation || 'Được đối sánh từ tri thức giáo trình môn học'}</p>
+            <p class="text-xs text-slate-500 bg-white p-2 rounded border border-slate-200"><b>Giải thích / Nguồn trích xuất:</b> ${q.explanation || 'Đối sánh từ giáo trình học phần'}</p>
           `;
         } else {
           div.innerHTML = `
             <div class="flex items-center justify-between">
               <div class="flex items-center space-x-2">
-                <span class="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-bold rounded">Câu ${idx+1} [Tự luận]</span>
-                <span class="px-2 py-0.5 bg-slate-200 text-slate-700 text-[10px] font-bold rounded">Chuẩn: ${clo}</span>
-                <span class="px-2 py-0.5 bg-purple-50 text-purple-700 text-[10px] font-bold rounded">Bloom: ${bloom}</span>
+                <span class="px-2 py-0.5 bg-amber-100 text-amber-800 text-xs font-bold rounded">Câu ${idx+1} • Tự luận</span>
+                <span class="px-2 py-0.5 bg-slate-200 text-slate-700 text-[10px] font-semibold rounded">${clo}</span>
+                <span class="px-2 py-0.5 bg-white border border-slate-200 text-slate-600 text-[10px] font-medium rounded">Bloom: ${bloom}</span>
               </div>
             </div>
-            <textarea onchange="updateTempQ(${idx}, 'question', this.value)" rows="2" class="w-full font-semibold text-sm text-slate-800 p-2 border rounded-lg bg-white">${q.question}</textarea>
-            <input type="text" value="${q.key_points || q.key_Points || ''}" onchange="updateTempQ(${idx}, 'key_points', this.value)" placeholder="Barem chấm điểm" class="w-full text-xs text-slate-600 bg-white p-2 rounded border">
+            <textarea onchange="updateTempQ(${idx}, 'question', this.value)" rows="2" class="w-full font-semibold text-sm text-slate-800 p-2 border border-slate-300 rounded-md bg-white">${q.question}</textarea>
+            <input type="text" value="${q.key_points || q.key_Points || ''}" onchange="updateTempQ(${idx}, 'key_points', this.value)" placeholder="Hướng dẫn chấm / Barem đáp án" class="w-full text-xs text-slate-600 bg-white p-2 rounded border border-slate-300">
           `;
         }
         container.appendChild(div);
@@ -844,7 +1255,7 @@
         });
         const data = await res.json();
         if (data.success) {
-          alert(`Đã phê duyệt thành công ${data.addedCount} câu hỏi vào Ngân hàng Đề!`);
+          alert(`Đã phê duyệt thành công ${data.addedCount} câu hỏi vào Ngân hàng Đề của bộ môn!`);
           document.getElementById('aiResultCard').classList.add('hidden');
           loadQuestionBank();
         }
@@ -868,20 +1279,20 @@
           return;
         }
         container.innerHTML = list.map((q) => `
-          <div class="p-4 bg-slate-50 border border-slate-200 rounded-xl">
-            <div class="flex items-center justify-between text-xs font-bold mb-1">
-              <span class="text-indigo-700">#${q.id} • ${q.type === 'mcq' ? 'Trắc nghiệm' : 'Tự luận'}</span>
-              <span class="text-slate-500">${q.difficulty}</span>
+          <div class="p-4 bg-slate-50 border border-slate-200 rounded-lg">
+            <div class="flex items-center justify-between text-xs font-semibold mb-1.5">
+              <span class="text-ictu">#${q.id} • ${q.type === 'mcq' ? 'Trắc nghiệm' : 'Tự luận'}</span>
+              <span class="px-2 py-0.5 bg-white border border-slate-200 rounded text-slate-600 text-[11px]">${q.difficulty}</span>
             </div>
             <p class="text-sm font-semibold text-slate-800">${q.questionText}</p>
             ${q.type === 'mcq' ? `
-              <div class="grid grid-cols-2 gap-2 text-xs text-slate-600 mt-2">
-                <div class="${q.correctOption === 'A' ? 'font-bold text-emerald-700' : ''}">A: ${q.optionA}</div>
-                <div class="${q.correctOption === 'B' ? 'font-bold text-emerald-700' : ''}">B: ${q.optionB}</div>
-                <div class="${q.correctOption === 'C' ? 'font-bold text-emerald-700' : ''}">C: ${q.optionC}</div>
-                <div class="${q.correctOption === 'D' ? 'font-bold text-emerald-700' : ''}">D: ${q.optionD}</div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-600 mt-2.5 bg-white p-2.5 rounded border border-slate-200">
+                <div class="${q.correctOption === 'A' ? 'font-bold text-emerald-700' : ''}">A. ${q.optionA}</div>
+                <div class="${q.correctOption === 'B' ? 'font-bold text-emerald-700' : ''}">B. ${q.optionB}</div>
+                <div class="${q.correctOption === 'C' ? 'font-bold text-emerald-700' : ''}">C. ${q.optionC}</div>
+                <div class="${q.correctOption === 'D' ? 'font-bold text-emerald-700' : ''}">D. ${q.optionD}</div>
               </div>
-            ` : `<p class="text-xs text-slate-500 mt-2"><b>Barem:</b> ${q.keyPoints || ''}</p>`}
+            ` : `<p class="text-xs text-slate-600 mt-2 bg-white p-2 rounded border border-slate-200"><b>Đáp án / Barem:</b> ${q.keyPoints || ''}</p>`}
           </div>
         `).join("");
       } catch (e) {
@@ -892,6 +1303,8 @@
     // Exam Management
     async function handleCreateExam(e) {
       e.preventDefault();
+      const courseClassIdVal = document.getElementById('examClassSelect').value;
+      const courseClassId = courseClassIdVal ? parseInt(courseClassIdVal) : null;
       const subjectId = parseInt(document.getElementById('examSubjectSelect').value);
       const title = document.getElementById('examTitle').value;
       const durationMinutes = parseInt(document.getElementById('examDuration').value);
@@ -901,7 +1314,7 @@
         const res = await fetch("/api/lecturer/create-exam", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ subjectId, title, durationMinutes, accessCode })
+          body: JSON.stringify({ subjectId, courseClassId, title, durationMinutes, accessCode })
         });
         const data = await res.json();
         if (data.success) {
@@ -927,18 +1340,21 @@
         container.innerHTML = exams.map(e => {
           totalSub += e.totalSubmissions;
           return `
-            <div class="p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
+            <div class="p-4 bg-slate-50 border border-slate-200 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h4 class="text-sm font-bold text-slate-800">${e.title}</h4>
-                <p class="text-xs text-slate-500 mt-0.5">
-                  Môn: <b>${e.subjectName}</b> | Thời gian: <b>${e.durationMinutes} phút</b> | Câu hỏi: <b>${e.totalQuestions}</b>
+                <div class="flex items-center space-x-2">
+                  <h4 class="text-sm font-bold text-slate-800">${e.title}</h4>
+                  ${e.courseClassCode ? `<span class="px-2 py-0.5 bg-ictu-light text-ictu rounded text-[10px] font-bold">Lớp: ${e.courseClassCode}</span>` : ''}
+                </div>
+                <p class="text-xs text-slate-500 mt-1">
+                  Học phần: <b>${e.subjectName}</b> • Thời lượng: <b>${e.durationMinutes} phút</b> • Số câu: <b>${e.totalQuestions}</b>
                 </p>
                 <div class="mt-2 flex items-center space-x-2">
-                  <span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-700 text-xs font-mono font-bold">Mã phòng: ${e.accessCode}</span>
+                  <span class="px-2 py-0.5 rounded bg-ictu-light text-ictu text-xs font-mono font-bold">Mã phòng: ${e.accessCode}</span>
                   <span class="text-xs text-slate-500">Đã nộp: <b>${e.totalSubmissions}</b> bài</span>
                 </div>
               </div>
-              <button onclick="loadReport(${e.id}); switchTab('reports');" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-1.5 rounded-lg shadow font-medium">
+              <button onclick="loadReport(${e.id}); switchTab('reports');" class="bg-white hover:bg-ictu hover:text-white text-ictu border border-ictu text-xs px-3.5 py-2 rounded-lg font-semibold transition self-start sm:self-center">
                 Xem Báo Cáo
               </button>
             </div>
@@ -959,23 +1375,38 @@
         const data = await res.json();
         currentReportSessions = data.sessions || [];
 
+        // Class Attendance Card
+        const attCard = document.getElementById('classAttendanceBanner');
+        if (data.courseClass) {
+          attCard.classList.remove('hidden');
+          document.getElementById('reportClassCode').innerText = `LỚP HỌC PHẦN: ${data.courseClass.classCode}`;
+          document.getElementById('reportClassName').innerText = data.courseClass.className;
+          document.getElementById('reportClassTeacher').innerText = `Giảng viên: ${data.courseClass.lecturerName || 'TS. Nguyễn Văn A'}`;
+          document.getElementById('attTotal').innerText = data.courseClass.totalEnrolled;
+          document.getElementById('attAttended').innerText = data.courseClass.attendedCount;
+          document.getElementById('attRate').innerText = `${data.courseClass.attendanceRate}%`;
+          document.getElementById('attAbsent').innerText = data.courseClass.absentCount;
+        } else {
+          attCard.classList.add('hidden');
+        }
+
         const box = document.getElementById('reportSummaryBox');
         box.innerHTML = `
-          <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-100">
-            <span class="text-xs text-indigo-600 font-semibold uppercase">Điểm Trung Bình</span>
-            <h4 class="text-2xl font-bold text-indigo-900 mt-1">${data.averageScore} / 10</h4>
+          <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 border-l-4 border-l-ictu">
+            <span class="text-xs text-slate-500 font-medium">Điểm Trung Bình</span>
+            <h4 class="text-xl font-bold text-slate-800 mt-1">${data.averageScore} / 10</h4>
           </div>
-          <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
-            <span class="text-xs text-emerald-600 font-semibold uppercase">Điểm Cao Nhất</span>
-            <h4 class="text-2xl font-bold text-emerald-900 mt-1">${data.maxScore} / 10</h4>
+          <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 border-l-4 border-l-emerald-600">
+            <span class="text-xs text-slate-500 font-medium">Điểm Cao Nhất</span>
+            <h4 class="text-xl font-bold text-emerald-700 mt-1">${data.maxScore} / 10</h4>
           </div>
-          <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
-            <span class="text-xs text-blue-600 font-semibold uppercase">Tổng Số Bài Thi</span>
-            <h4 class="text-2xl font-bold text-blue-900 mt-1">${data.totalSubmissions}</h4>
+          <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 border-l-4 border-l-sky-600">
+            <span class="text-xs text-slate-500 font-medium">Tổng Bài Nộp</span>
+            <h4 class="text-xl font-bold text-slate-800 mt-1">${data.totalSubmissions}</h4>
           </div>
-          <div class="bg-rose-50 p-4 rounded-xl border border-rose-100">
-            <span class="text-xs text-rose-600 font-semibold uppercase">Tổng Cảnh Báo Gian Lận</span>
-            <h4 class="text-2xl font-bold text-rose-900 mt-1">${data.totalCheatingAlerts}</h4>
+          <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 border-l-4 border-l-rose-600">
+            <span class="text-xs text-slate-500 font-medium">Cảnh Báo Vi Phạm</span>
+            <h4 class="text-xl font-bold text-rose-600 mt-1">${data.totalCheatingAlerts}</h4>
           </div>
         `;
 
@@ -985,10 +1416,10 @@
           const clos = Object.values(data.cloAchievement);
           if (clos.length > 0) {
             grid.innerHTML = clos.map((c, i) => `
-              <div class="bg-white p-3 rounded-lg border">
+              <div class="bg-white p-3 rounded-lg border border-slate-200">
                 <p class="text-[11px] text-slate-500 font-medium">${c.cloCode || ('CLO ' + (i+1))}</p>
-                <h5 class="text-lg font-bold ${c.passRate >= 80 ? 'text-indigo-700' : c.passRate >= 70 ? 'text-blue-700' : 'text-amber-700'} mt-1">${c.passRate}%</h5>
-                <span class="text-[10px] ${c.passRate >= 75 ? 'text-emerald-600' : 'text-amber-600'} font-semibold">${c.passRate >= 75 ? 'Đạt chuẩn đầu ra' : 'Cần bổ trợ'}</span>
+                <h5 class="text-lg font-bold ${c.passRate >= 75 ? 'text-ictu' : 'text-amber-600'} mt-1">${c.passRate}%</h5>
+                <span class="text-[10px] ${c.passRate >= 75 ? 'text-emerald-600' : 'text-amber-600'} font-semibold">${c.passRate >= 75 ? 'Đạt chuẩn đầu ra' : 'Cần bồi dưỡng'}</span>
               </div>
             `).join("");
           }
@@ -1002,17 +1433,17 @@
 
         body.innerHTML = data.sessions.map(s => `
           <tr class="hover:bg-slate-50">
-            <td class="py-2.5 px-3 font-mono font-bold text-indigo-700">${s.studentCode}</td>
-            <td class="py-2.5 px-3">${s.studentName}</td>
-            <td class="py-2.5 px-3 font-bold text-emerald-600 text-sm" id="score_cell_${s.id}">${s.score}</td>
+            <td class="py-2.5 px-3 font-mono font-bold text-ictu">${s.studentCode}</td>
+            <td class="py-2.5 px-3 font-medium">${s.studentName}</td>
+            <td class="py-2.5 px-3 font-bold text-emerald-700 text-sm" id="score_cell_${s.id}">${s.score}</td>
             <td class="py-2.5 px-3">
               <span class="px-2 py-0.5 rounded text-xs font-semibold ${s.cheatingCount > 0 ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-600'}">
                 ${s.cheatingCount} lần
               </span>
             </td>
-            <td class="py-2.5 px-3 text-slate-600 max-w-md" id="feedback_cell_${s.id}">${s.aiFeedback || 'Không có nhận xét'}</td>
+            <td class="py-2.5 px-3 text-slate-600 max-w-md" id="feedback_cell_${s.id}">${s.aiFeedback || 'Đạt yêu cầu chuẩn đầu ra'}</td>
             <td class="py-2.5 px-3 text-right">
-              <button onclick="handleOverrideScore(${s.id}, ${s.score})" class="text-xs bg-slate-100 hover:bg-indigo-50 text-indigo-700 border border-slate-200 hover:border-indigo-300 px-2 py-1 rounded font-medium transition">
+              <button onclick="handleOverrideScore(${s.id}, ${s.score})" class="text-xs bg-white hover:bg-ictu-light text-ictu border border-slate-200 px-2.5 py-1 rounded font-medium transition">
                 <i class="fa-solid fa-pen-to-square mr-1"></i> Phúc khảo
               </button>
             </td>
@@ -1058,6 +1489,7 @@
     // Init
     window.addEventListener('DOMContentLoaded', () => {
       initSignalR();
+      loadClasses();
       loadQuestionBank();
       loadExams();
     });

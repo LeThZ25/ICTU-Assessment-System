@@ -177,6 +177,14 @@ def run_tests():
     passed = r["status"] == 200 and isinstance(r.get("data"), list) and len(r["data"]) >= 2
     record_test("TC-LEC-01", "Truy xuất danh mục học phần quản lý", "Lecturer Management", passed, f"Số học phần: {len(r.get('data', []))}", d_ms)
 
+    # TC-LEC-01B
+    t0 = time.time()
+    r = http_get(f"{BACKEND_URL}/api/lecturer/classes")
+    d_ms = (time.time() - t0) * 1000
+    classes = r.get("data", [])
+    passed = r["status"] == 200 and isinstance(classes, list) and len(classes) >= 1
+    record_test("TC-LEC-01B", "Quản lý Lớp học phần: Truy xuất danh mục lớp", "Class Management", passed, f"Số lớp học phần: {len(classes)}", d_ms)
+
     # TC-LEC-02
     t0 = time.time()
     sample_text = (
@@ -245,6 +253,14 @@ def run_tests():
     d_ms = (time.time() - t0) * 1000
     passed = r["status"] == 200 and isinstance(r.get("data"), list) and any(e.get("id") == exam_id for e in r["data"])
     record_test("TC-STU-01", "Sinh viên tra cứu các đề thi đang mở", "Student Exam", passed, f"Tìm thấy đề thi {exam_id}", d_ms)
+
+    # TC-STU-01B
+    t0 = time.time()
+    r = http_get(f"{BACKEND_URL}/api/student/my-classes/DTC205122001")
+    d_ms = (time.time() - t0) * 1000
+    my_classes = r.get("data", [])
+    passed = r["status"] == 200 and isinstance(my_classes, list) and len(my_classes) >= 1
+    record_test("TC-STU-01B", "Sinh viên tra cứu lớp học phần & lịch thi cá nhân", "Student Enrollment", passed, f"Lớp đã ghi danh: {len(my_classes)}", d_ms)
 
     # TC-STU-02
     t0 = time.time()
