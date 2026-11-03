@@ -1,41 +1,37 @@
-"""Phase 6 — Question generation tests.
-
-EmbeddingService, ChromaRepository (FakeRepo) and LLMService are mocked, so the
-backend logic is tested without Ollama or ChromaDB.
-"""
+"""Question generation: single list and exam matrix."""
 
 from __future__ import annotations
 
+import pytest
 import uuid
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
-
 from app.core.exceptions import AppError, ErrorCode
-from app.core.prompts import (
-    QUESTION_GENERATION_PROMPT_VERSION,
-    QUESTION_GENERATION_SYSTEM_PROMPT,
-    build_question_generation_prompt,
-)
+from app.core.prompts import QUESTION_GENERATION_PROMPT_VERSION, QUESTION_GENERATION_SYSTEM_PROMPT, build_question_generation_prompt
 from app.schemas.question import QuestionGenerateRequest
 from app.services.llm_service import LLMService
-from app.services.question_service import (
-    QuestionGenerationService,
-    is_duplicate,
-    normalize_text,
-)
+from app.services.question_service import QuestionGenerationService, is_duplicate, normalize_text
 from app.services.rag_service import RAGService
-from tests.test_rag import FakeRepo, hit, make_embedding
+from tests.test_rag import FakeRepo
+from tests.test_rag import hit
+from tests.test_rag import make_embedding
+
+
+# ====================================================================================================
+# question generation
+# ====================================================================================================
+
 
 DOC_A = str(uuid.UUID(int=1))
+
+
 DOC_B = str(uuid.UUID(int=2))
+
+
 UNKNOWN = str(uuid.UUID(int=99))
 
 
 # ── Helpers ─────────────────────────────────────────────────────────
-
-
 def q(question: str, answer: str = "An expected answer.", difficulty="medium",
       type_="short_answer", **extra: Any) -> dict[str, Any]:
     return {"question": question, "expected_answer": answer,
@@ -44,7 +40,7 @@ def q(question: str, answer: str = "An expected answer.", difficulty="medium",
 
 def make_llm(response: Any = None, side_effect: Any = None) -> MagicMock:
     llm = MagicMock(spec=LLMService)
-    llm.model_name = "qwen-test"
+    llm.model_name = "gemini-test"
     llm.generate_json = AsyncMock(
         return_value=response if response is not None else {"questions": [q("What is machine learning?")]},
         side_effect=side_effect,
@@ -76,8 +72,6 @@ async def gen(svc, doc=DOC_A, n=5, difficulty="medium", qtype="short_answer"):
 
 
 # ── Happy paths ─────────────────────────────────────────────────────
-
-
 @pytest.mark.asyncio
 async def test_generate_short_answer_questions() -> None:
     llm = make_llm()
@@ -123,8 +117,6 @@ async def test_llm_returns_fewer_than_requested_not_padded() -> None:
 
 
 # ── Request validation ──────────────────────────────────────────────
-
-
 @pytest.mark.asyncio
 @pytest.mark.parametrize("n", [0, -1, 21])
 async def test_invalid_number_of_questions(n: int) -> None:
@@ -188,8 +180,6 @@ async def test_insufficient_context_does_not_call_llm() -> None:
 
 
 # ── LLM JSON handling ───────────────────────────────────────────────
-
-
 @pytest.mark.asyncio
 async def test_llm_valid_json() -> None:
     svc, _, _ = make_stack(default_hits(), make_llm())
@@ -236,17 +226,15 @@ async def test_llm_unexpected_error_wrapped_without_details() -> None:
 
 
 @pytest.mark.asyncio
-async def test_ollama_errors_propagate() -> None:
-    llm = make_llm(side_effect=AppError(ErrorCode.OLLAMA_UNAVAILABLE, "down"))
+async def test_provider_errors_propagate() -> None:
+    llm = make_llm(side_effect=AppError(ErrorCode.LLM_UNAVAILABLE, "down"))
     svc, _, _ = make_stack(default_hits(), llm)
     with pytest.raises(AppError) as exc:
         await gen(svc)
-    assert exc.value.code == ErrorCode.OLLAMA_UNAVAILABLE
+    assert exc.value.code == ErrorCode.LLM_UNAVAILABLE
 
 
 # ── Duplicates ──────────────────────────────────────────────────────
-
-
 def test_normalize_and_duplicate_helpers() -> None:
     assert normalize_text("  What  is Machine-Learning?? ") == "what is machine learning"
     assert is_duplicate(normalize_text("what is machine learning"),
@@ -269,8 +257,6 @@ async def test_duplicate_questions_removed() -> None:
 
 
 # ── IDs and sources ─────────────────────────────────────────────────
-
-
 @pytest.mark.asyncio
 async def test_question_id_generated_by_backend() -> None:
     llm = make_llm({"questions": [q("What is machine learning?", question_id="abc123")]})
@@ -337,8 +323,6 @@ async def test_question_without_document_support_is_dropped() -> None:
 
 
 # ── Integrity ───────────────────────────────────────────────────────
-
-
 @pytest.mark.asyncio
 async def test_question_type_integrity() -> None:
     llm = make_llm({"questions": [q("What is machine learning?", type_="essay")]})
@@ -374,8 +358,6 @@ async def test_expected_answer_not_empty(bad: dict) -> None:
 
 
 # ── Multiple choice / true-false / essay ────────────────────────────
-
-
 def mc(**over: Any) -> dict[str, Any]:
     base = q("Which field lets systems learn from data?", "Machine learning, because it learns.",
              type_="multiple_choice",
@@ -435,8 +417,6 @@ async def test_essay_question() -> None:
 
 
 # ── Prompt ──────────────────────────────────────────────────────────
-
-
 @pytest.mark.parametrize("qtype", ["short_answer", "multiple_choice", "true_false", "essay"])
 def test_question_generation_prompt(qtype: str) -> None:
     system, user = build_question_generation_prompt("CTX {with} braces", 7, "hard", qtype)
@@ -457,8 +437,6 @@ def test_prompt_values_are_dynamic() -> None:
 
 
 # ── RAG + LLM integration ───────────────────────────────────────────
-
-
 @pytest.mark.asyncio
 async def test_rag_to_llm_integration_isolation_and_context() -> None:
     hits = default_hits() + [
@@ -493,7 +471,6 @@ async def test_hallucination_python_example() -> None:
 
 
 # ── API ─────────────────────────────────────────────────────────────
-
 URL = "/api/questions/generate"
 
 
@@ -550,8 +527,8 @@ async def test_api_document_not_found(client) -> None:
 
 
 @pytest.mark.asyncio
-async def test_api_ollama_down_clean_error(client) -> None:
-    llm = make_llm(side_effect=AppError(ErrorCode.OLLAMA_UNAVAILABLE, "Ollama server is not reachable."))
+async def test_api_provider_down_clean_error(client) -> None:
+    llm = make_llm(side_effect=AppError(ErrorCode.LLM_UNAVAILABLE, "Gemini API is not reachable."))
     svc, _, _ = make_stack(default_hits(), llm)
     with patch("app.api.questions._get_question_service", return_value=svc):
         resp = await client.post(URL, json={"document_id": DOC_A})
