@@ -28,7 +28,7 @@ namespace backend_api.Services
         public AiServiceClient(HttpClient http, IConfiguration configuration)
         {
             _http = http;
-            _primaryUrl = (configuration["AiService:PrimaryUrl"] ?? "https://8ebc89473dd3cc.lhr.life").TrimEnd('/');
+            _primaryUrl = (configuration["AiService:PrimaryUrl"] ?? "https://ictu-ai-module3.onrender.com").TrimEnd('/');
             _fallbackUrl = (configuration["AiService:LocalFallbackUrl"] ?? "http://127.0.0.1:8000").TrimEnd('/');
             _timeoutSeconds = int.TryParse(configuration["AiService:TimeoutSeconds"], out int t) ? t : 20;
             _http.Timeout = TimeSpan.FromSeconds(_timeoutSeconds);

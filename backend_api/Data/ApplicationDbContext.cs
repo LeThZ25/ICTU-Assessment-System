@@ -11,6 +11,8 @@ namespace backend_api.Data
         public DbSet<AcademicDocument> Documents => Set<AcademicDocument>();
         public DbSet<Question> Questions => Set<Question>();
         public DbSet<Exam> Exams => Set<Exam>();
+        public DbSet<CourseClass> CourseClasses => Set<CourseClass>();
+        public DbSet<ClassEnrollment> ClassEnrollments => Set<ClassEnrollment>();
         public DbSet<ExamQuestion> ExamQuestions => Set<ExamQuestion>();
         public DbSet<Student> Students => Set<Student>();
         public DbSet<UserAccount> Users => Set<UserAccount>();
@@ -99,12 +101,50 @@ namespace backend_api.Data
                 }
             );
 
+            // Seed sample course classes
+            modelBuilder.Entity<CourseClass>().HasData(
+                new CourseClass
+                {
+                    Id = 1,
+                    ClassCode = "CS301.01",
+                    ClassName = "Cơ sở dữ liệu & Hệ phân tán - Nhóm 01",
+                    SubjectId = 1,
+                    LecturerName = "TS. Nguyễn Văn A",
+                    LecturerEmail = "gv_nguyenvana@ictu.edu.vn",
+                    Semester = "Học kỳ 1",
+                    AcademicYear = "2026-2027",
+                    Room = "Lab 302 - Tòa C1"
+                },
+                new CourseClass
+                {
+                    Id = 2,
+                    ClassCode = "AI402.01",
+                    ClassName = "Trí tuệ nhân tạo và Ứng dụng - Nhóm 01",
+                    SubjectId = 2,
+                    LecturerName = "ThS. Lê Thị B",
+                    LecturerEmail = "gv_lethib@ictu.edu.vn",
+                    Semester = "Học kỳ 1",
+                    AcademicYear = "2026-2027",
+                    Room = "Lab 405 - Tòa C2"
+                }
+            );
+
+            // Seed sample class enrollments
+            modelBuilder.Entity<ClassEnrollment>().HasData(
+                new ClassEnrollment { Id = 1, CourseClassId = 1, StudentCode = "DTC205122001", StudentName = "Nguyễn Văn An", AdministrativeClass = "K20-CNTT01", StudentEmail = "dtc205122001@ictu.edu.vn" },
+                new ClassEnrollment { Id = 2, CourseClassId = 1, StudentCode = "DTC205122002", StudentName = "Trần Thị Bình", AdministrativeClass = "K20-CNTT01", StudentEmail = "dtc205122002@ms.ictu.edu.vn" },
+                new ClassEnrollment { Id = 3, CourseClassId = 1, StudentCode = "DTC205122003", StudentName = "Lê Hoàng Cường", AdministrativeClass = "K20-CNTT02", StudentEmail = "dtc205122003@ictu.edu.vn" },
+                new ClassEnrollment { Id = 4, CourseClassId = 2, StudentCode = "DTC205122001", StudentName = "Nguyễn Văn An", AdministrativeClass = "K20-CNTT01", StudentEmail = "dtc205122001@ictu.edu.vn" },
+                new ClassEnrollment { Id = 5, CourseClassId = 2, StudentCode = "DTC215122010", StudentName = "Phạm Minh Đức", AdministrativeClass = "K21-KTPM01", StudentEmail = "dtc215122010@ictu.edu.vn" }
+            );
+
             // Seed sample exam
             modelBuilder.Entity<Exam>().HasData(
                 new Exam
                 {
                     Id = 1,
                     SubjectId = 1,
+                    CourseClassId = 1,
                     Title = "Đánh giá Kiểm tra Chuẩn đầu ra CSDL - ICTU 2026",
                     DurationMinutes = 20,
                     AccessCode = "ICTU2026",

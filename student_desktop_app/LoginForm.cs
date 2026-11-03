@@ -25,7 +25,7 @@ namespace student_desktop_app
 
         private void InitializeComponent()
         {
-            this.Text = "Hệ Thống Thi & Đánh Giá Sinh Viên ICTU - Safe Exam Client";
+            this.Text = "Hệ Thống Khảo Thí & Đánh Giá Năng Lực Sinh Viên ICTU";
             this.Size = new Size(540, 600);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -37,26 +37,52 @@ namespace student_desktop_app
             {
                 Dock = DockStyle.Top,
                 Height = 90,
-                BackColor = Color.FromArgb(30, 41, 59)
+                BackColor = Color.FromArgb(0, 51, 102) // ICTU Navy
             };
+
+            var pnlOrangeLine = new Panel
+            {
+                Dock = DockStyle.Bottom,
+                Height = 4,
+                BackColor = Color.FromArgb(242, 101, 34) // ICTU Orange Accent
+            };
+            pnlHeader.Controls.Add(pnlOrangeLine);
 
             var lblLogo = new Label
             {
-                Text = "ICTU ASSESSMENT & ANTI-CHEAT",
+                Text = "CỔNG KHẢO THÍ TRỰC TUYẾN ICTU",
                 ForeColor = Color.White,
-                Font = new Font("Segoe UI", 13F, FontStyle.Bold, GraphicsUnit.Point),
-                Location = new Point(20, 18),
+                Font = new Font("Segoe UI", 12.5F, FontStyle.Bold, GraphicsUnit.Point),
+                Location = new Point(85, 18),
                 AutoSize = true
             };
 
             var lblSub = new Label
             {
-                Text = "Hỗ trợ tài khoản @ictu.edu.vn (Google) & @ms.ictu.edu.vn (Microsoft 365)",
-                ForeColor = Color.FromArgb(148, 163, 184),
+                Text = "Trường Đại học Công nghệ Thông tin & Truyền thông • Đại học Thái Nguyên",
+                ForeColor = Color.FromArgb(226, 232, 240),
                 Font = new Font("Segoe UI", 8.5F, FontStyle.Regular, GraphicsUnit.Point),
-                Location = new Point(20, 50),
+                Location = new Point(85, 48),
                 AutoSize = true
             };
+
+            if (System.IO.File.Exists("ictu_logo.png"))
+            {
+                var picLogo = new PictureBox
+                {
+                    Image = Image.FromFile("ictu_logo.png"),
+                    SizeMode = PictureBoxSizeMode.Zoom,
+                    Size = new Size(58, 58),
+                    Location = new Point(16, 14),
+                    BackColor = Color.Transparent
+                };
+                pnlHeader.Controls.Add(picLogo);
+            }
+            else
+            {
+                lblLogo.Location = new Point(20, 18);
+                lblSub.Location = new Point(20, 50);
+            }
 
             pnlHeader.Controls.Add(lblLogo);
             pnlHeader.Controls.Add(lblSub);
@@ -122,7 +148,7 @@ namespace student_desktop_app
 
             lblStatus = new Label
             {
-                Text = "Cơ chế chống gian lận: Alt+Tab Hook, Kiosk Fullscreen, Cấm Copy/Paste.",
+                Text = "Chế độ giám sát quy chế thi ICTU: Khóa chuyển ứng dụng, giám sát toàn màn hình.",
                 ForeColor = Color.FromArgb(100, 116, 139),
                 Location = new Point(45, 405),
                 Width = 440,
@@ -132,11 +158,11 @@ namespace student_desktop_app
 
             btnLogin = new Button
             {
-                Text = "VÀO PHÒNG THI AN TOÀN (FULLSCREEN)",
+                Text = "VÀO PHÒNG THI AN TOÀN (SAFE EXAM)",
                 Location = new Point(45, 450),
                 Width = 440,
                 Height = 48,
-                BackColor = Color.FromArgb(79, 70, 229),
+                BackColor = Color.FromArgb(0, 74, 153), // ICTU Blue
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold)

@@ -177,6 +177,14 @@ def run_tests():
     passed = r["status"] == 200 and isinstance(r.get("data"), list) and len(r["data"]) >= 2
     record_test("TC-LEC-01", "Truy xuất danh mục học phần quản lý", "Lecturer Management", passed, f"Số học phần: {len(r.get('data', []))}", d_ms)
 
+    # TC-LEC-01B
+    t0 = time.time()
+    r = http_get(f"{BACKEND_URL}/api/lecturer/classes")
+    d_ms = (time.time() - t0) * 1000
+    classes = r.get("data", [])
+    passed = r["status"] == 200 and isinstance(classes, list) and len(classes) >= 1
+    record_test("TC-LEC-01B", "Quản lý Lớp học phần: Truy xuất danh mục lớp", "Class Management", passed, f"Số lớp học phần: {len(classes)}", d_ms)
+
     # TC-LEC-02
     t0 = time.time()
     sample_text = (
@@ -245,6 +253,14 @@ def run_tests():
     d_ms = (time.time() - t0) * 1000
     passed = r["status"] == 200 and isinstance(r.get("data"), list) and any(e.get("id") == exam_id for e in r["data"])
     record_test("TC-STU-01", "Sinh viên tra cứu các đề thi đang mở", "Student Exam", passed, f"Tìm thấy đề thi {exam_id}", d_ms)
+
+    # TC-STU-01B
+    t0 = time.time()
+    r = http_get(f"{BACKEND_URL}/api/student/my-classes/DTC205122001")
+    d_ms = (time.time() - t0) * 1000
+    my_classes = r.get("data", [])
+    passed = r["status"] == 200 and isinstance(my_classes, list) and len(my_classes) >= 1
+    record_test("TC-STU-01B", "Sinh viên tra cứu lớp học phần & lịch thi cá nhân", "Student Enrollment", passed, f"Lớp đã ghi danh: {len(my_classes)}", d_ms)
 
     # TC-STU-02
     t0 = time.time()
@@ -367,7 +383,9 @@ def run_tests():
 
     # TC-POL-01
     t0 = time.time()
-    with open("d:/ICTU Assesment System/backend_api/wwwroot/index.html", "r", encoding="utf-8") as f:
+    root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    index_html_path = os.path.join(root_dir, "backend_api", "wwwroot", "index.html")
+    with open(index_html_path, "r", encoding="utf-8") as f:
         html = f.read()
     vendors = ["groq", "qwen", "llama", "gemini"]
     found_vendors = [v for v in vendors if v in html.lower()]
@@ -395,7 +413,7 @@ def run_tests():
     print("=" * 70)
 
     # Write Markdown Report
-    report_path = "d:/ICTU Assesment System/TEST_REPORT_ICTU.md"
+    report_path = os.path.join(root_dir, "TEST_REPORT_ICTU.md")
     with open(report_path, "w", encoding="utf-8") as f:
         f.write("# BÁO CÁO KIỂM THỬ HỆ THỐNG ĐÁNH GIÁ SINH VIÊN & AI AGENT — ICTU\n\n")
         f.write(f"- **Ngày kiểm thử:** {time.strftime('%d/%m/%Y %H:%M:%S')}\n")

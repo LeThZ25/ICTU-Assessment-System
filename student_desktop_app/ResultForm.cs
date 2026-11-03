@@ -8,7 +8,7 @@ namespace student_desktop_app
     {
         public ResultForm(SubmitExamResponse result, int violations)
         {
-            this.Text = "Kết Quả Đánh Giá Năng Lực & Phản Hồi AI - ICTU";
+            this.Text = "Kết Quả Đánh Giá Năng Lực Học Phần - ICTU";
             this.Size = new Size(580, 600);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -28,7 +28,7 @@ namespace student_desktop_app
             {
                 Text = "HOÀN THÀNH BÀI THI & ĐÁNH GIÁ CHUẨN ĐẦU RA",
                 Font = new Font("Segoe UI", 11.5F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(30, 41, 59),
+                ForeColor = Color.FromArgb(0, 51, 102), // ICTU Navy
                 Location = new Point(20, 15),
                 AutoSize = true
             };
@@ -37,14 +37,14 @@ namespace student_desktop_app
             {
                 Text = $"{result.Score:F1} / 10",
                 Font = new Font("Segoe UI", 36F, FontStyle.Bold),
-                ForeColor = result.Score >= 8.0 ? Color.FromArgb(16, 185, 129) : (result.Score >= 6.5 ? Color.FromArgb(79, 70, 229) : Color.FromArgb(245, 158, 11)),
+                ForeColor = result.Score >= 8.0 ? Color.FromArgb(16, 185, 129) : (result.Score >= 6.5 ? Color.FromArgb(0, 74, 153) : Color.FromArgb(245, 158, 11)),
                 Location = new Point(20, 45),
                 AutoSize = true
             };
 
             var lblViol = new Label
             {
-                Text = violations > 0 ? $"Ghi nhận {violations} cảnh báo vi phạm (Alt+Tab/Copy/Paste)" : "Phòng thi ghi nhận: Trung thực tuyệt đối (0 vi phạm)",
+                Text = violations > 0 ? $"Ghi nhận {violations} cảnh báo quy chế (Alt+Tab/Copy/Paste)" : "Phòng thi ghi nhận: Thực hiện nghiêm túc quy chế thi (0 vi phạm)",
                 ForeColor = violations > 0 ? Color.FromArgb(225, 29, 72) : Color.FromArgb(16, 185, 129),
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                 Location = new Point(25, 125),
@@ -63,9 +63,9 @@ namespace student_desktop_app
 
             var lblAiTitle = new Label
             {
-                Text = "NHẬN XÉT NĂNG LỰC & LỘ TRÌNH TỪ AI AGENT:",
+                Text = "NHẬN XÉT & ĐÁNH GIÁ NĂNG LỰC HỌC PHẦN:",
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(124, 58, 237),
+                ForeColor = Color.FromArgb(0, 74, 153), // ICTU Navy
                 Location = new Point(25, 180),
                 AutoSize = true
             };
@@ -75,21 +75,21 @@ namespace student_desktop_app
                 Location = new Point(25, 210),
                 Size = new Size(515, 230),
                 ReadOnly = true,
-                BackColor = Color.FromArgb(245, 243, 255),
+                BackColor = Color.FromArgb(230, 240, 250), // ICTU Light
                 BorderStyle = BorderStyle.None,
                 Font = new Font("Segoe UI", 9.5F),
                 Text = result.AiFeedback + "\n\n" +
-                       "📌 Lộ trình học tập đề xuất:\n" +
+                       "📌 Lộ trình củng cố kiến thức học phần:\n" +
                        "• Tiếp tục rèn luyện kỹ năng giải thích bản chất kiến trúc và chuẩn hóa dữ liệu.\n" +
-                       "• Tham khảo thêm các tài liệu RAG và cơ chế điều khiển đồng thời hệ phân tán trên thư viện số ICTU."
+                       "• Đọc thêm giáo trình học phần và tài liệu tham khảo trên Cổng học liệu số ICTU."
             };
 
             var btnClose = new Button
             {
-                Text = "ĐÓNG ỨNG DỤNG THI",
+                Text = "ĐÓNG CỬA SỔ PHÒNG THI",
                 Location = new Point(25, 465),
                 Size = new Size(515, 48),
-                BackColor = Color.FromArgb(30, 41, 59),
+                BackColor = Color.FromArgb(0, 51, 102), // ICTU Navy
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold)

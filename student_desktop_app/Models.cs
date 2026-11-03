@@ -12,6 +12,9 @@ namespace student_desktop_app
         public string? OptionB { get; set; }
         public string? OptionC { get; set; }
         public string? OptionD { get; set; }
+        public string? ProgrammingLanguage { get; set; }
+        public string? StarterCode { get; set; }
+        public string? TestCasesJson { get; set; }
         public string Difficulty { get; set; } = "Medium";
         public string CloCode { get; set; } = "CLO1";
         public string BloomLevel { get; set; } = "Thông hiểu";
@@ -32,6 +35,7 @@ namespace student_desktop_app
         public int QuestionId { get; set; }
         public string? SelectedOption { get; set; }
         public string? EssayAnswer { get; set; }
+        public string? CodeAnswer { get; set; }
     }
 
     public class SubmitExamResponse

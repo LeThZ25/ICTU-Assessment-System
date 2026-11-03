@@ -33,6 +33,7 @@ namespace student_desktop_app
 
         private Dictionary<int, string> _mcqAnswers = new();
         private Dictionary<int, string> _essayAnswers = new();
+        private Dictionary<int, string> _codeAnswers = new();
         private HashSet<int> _flaggedQuestions = new();
 
         private readonly string[] _blacklistedProcesses = new[] { "anydesk", "teamviewer", "ultraviewer", "discord", "obs64" };
@@ -72,8 +73,14 @@ namespace student_desktop_app
         private Panel pnlOptions = null!;
         private RadioButton rbA = null!, rbB = null!, rbC = null!, rbD = null!;
         private TextBox txtEssay = null!;
+        private TextBox txtCode = null!;
+        private Panel pnlCodeHeader = null!;
+        private Label lblCodeLang = null!;
+        private Button btnResetCode = null!;
         private Button btnPrev = null!, btnNext = null!, btnFlag = null!, btnSubmit = null!;
-        private Button btnZoomIn = null!, btnZoomOut = null!;
+        private Panel pnlTimerBadge = null!;
+        private Label lblZoomPercent = null!;
+        private Button btnZoomMinus = null!, btnZoomPlus = null!;
 
         // AI Chat Controls
         private RichTextBox rtbAiChat = null!;
@@ -350,75 +357,151 @@ namespace student_desktop_app
             var topBar = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 65,
-                BackColor = Color.FromArgb(15, 23, 42)
+                Height = 68,
+                BackColor = Color.FromArgb(0, 51, 102) // ICTU Navy
             };
+
+            var pnlTopOrangeBorder = new Panel
+            {
+                Dock = DockStyle.Bottom,
+                Height = 3,
+                BackColor = Color.FromArgb(242, 101, 34) // ICTU Orange Accent
+            };
+            topBar.Controls.Add(pnlTopOrangeBorder);
+
+            if (File.Exists("ictu_logo.png"))
+            {
+                var picLogo = new PictureBox
+                {
+                    Image = Image.FromFile("ictu_logo.png"),
+                    SizeMode = PictureBoxSizeMode.Zoom,
+                    Size = new Size(48, 48),
+                    Location = new Point(14, 10),
+                    BackColor = Color.Transparent
+                };
+                topBar.Controls.Add(picLogo);
+            }
 
             lblExamTitle = new Label
             {
                 Text = _examData.ExamTitle,
                 ForeColor = Color.White,
-                Font = new Font("Segoe UI", 12F, FontStyle.Bold),
-                Location = new Point(20, 12),
+                Font = new Font("Segoe UI", 11.5F, FontStyle.Bold),
+                Location = new Point(68, 12),
                 AutoSize = true
             };
 
             lblStudentInfo = new Label
             {
-                Text = $"Thí sinh: {_studentName} ({_studentCode}) • ICTU Safe Exam Kiosk",
-                ForeColor = Color.FromArgb(148, 163, 184),
-                Font = new Font("Segoe UI", 9F),
-                Location = new Point(20, 38),
+                Text = $"Thí sinh: {_studentName} ({_studentCode}) • Khảo thí ICTU",
+                ForeColor = Color.FromArgb(226, 232, 240),
+                Font = new Font("Segoe UI", 8.5F),
+                Location = new Point(68, 37),
                 AutoSize = true
             };
 
-            // Zoom Controls
-            btnZoomOut = new Button
+            // Floating Centered Timer Pill
+            pnlTimerBadge = new Panel
             {
-                Text = "A−",
-                Anchor = AnchorStyles.Top | AnchorStyles.Right,
-                Location = new Point(this.Width - 300, 18),
-                Size = new Size(35, 28),
-                BackColor = Color.FromArgb(51, 65, 85),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
+                Size = new Size(160, 42),
+                BackColor = Color.FromArgb(239, 246, 255),
+                Location = new Point((this.ClientSize.Width - 160) / 2, 12)
             };
-            btnZoomOut.FlatAppearance.BorderSize = 0;
-            btnZoomOut.Click += (s, e) => AdjustFontSize(-1.5f);
-
-            btnZoomIn = new Button
+            pnlTimerBadge.Paint += (s, pe) =>
             {
-                Text = "A+",
-                Anchor = AnchorStyles.Top | AnchorStyles.Right,
-                Location = new Point(this.Width - 260, 18),
-                Size = new Size(35, 28),
-                BackColor = Color.FromArgb(51, 65, 85),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
+                using var pen = new Pen(Color.FromArgb(191, 219, 254), 1.5f);
+                pe.Graphics.DrawRectangle(pen, 0, 0, pnlTimerBadge.Width - 1, pnlTimerBadge.Height - 1);
             };
-            btnZoomIn.FlatAppearance.BorderSize = 0;
-            btnZoomIn.Click += (s, e) => AdjustFontSize(1.5f);
 
             lblTimer = new Label
             {
-                Text = "20:00",
-                ForeColor = Color.FromArgb(244, 63, 94),
-                Font = new Font("Consolas", 18F, FontStyle.Bold),
-                Anchor = AnchorStyles.Top | AnchorStyles.Right,
-                Location = new Point(this.Width - 130, 16),
-                AutoSize = true
+                Text = "⏱ 20:00",
+                ForeColor = Color.FromArgb(0, 51, 102),
+                Font = new Font("Consolas", 15F, FontStyle.Bold),
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleCenter
             };
+            pnlTimerBadge.Controls.Add(lblTimer);
+
+            topBar.Resize += (s, e) =>
+            {
+                pnlTimerBadge.Location = new Point((topBar.Width - pnlTimerBadge.Width) / 2, 12);
+            };
+
+            // Modern Zoom Control [ − ] [ 100% ] [ + ]
+            var pnlZoom = new Panel
+            {
+                Size = new Size(130, 34),
+                BackColor = Color.FromArgb(248, 250, 252),
+                Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                Location = new Point(this.ClientSize.Width - 150, 16)
+            };
+            pnlZoom.Paint += (s, pe) =>
+            {
+                using var pen = new Pen(Color.FromArgb(203, 213, 225), 1f);
+                pe.Graphics.DrawRectangle(pen, 0, 0, pnlZoom.Width - 1, pnlZoom.Height - 1);
+            };
+
+            btnZoomMinus = new Button
+            {
+                Text = "−",
+                Size = new Size(32, 34),
+                Dock = DockStyle.Left,
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.Transparent,
+                ForeColor = Color.FromArgb(71, 85, 105),
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+            btnZoomMinus.FlatAppearance.BorderSize = 0;
+
+            lblZoomPercent = new Label
+            {
+                Text = "100%",
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleCenter,
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(51, 65, 85)
+            };
+
+            btnZoomPlus = new Button
+            {
+                Text = "+",
+                Size = new Size(32, 34),
+                Dock = DockStyle.Right,
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.Transparent,
+                ForeColor = Color.FromArgb(71, 85, 105),
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+            btnZoomPlus.FlatAppearance.BorderSize = 0;
+
+            btnZoomMinus.Click += (s, e) =>
+            {
+                AdjustFontSize(-1.5f);
+                int pct = (int)Math.Round((_currentFontSize / 11.0f) * 100);
+                lblZoomPercent.Text = $"{pct}%";
+            };
+            btnZoomPlus.Click += (s, e) =>
+            {
+                AdjustFontSize(1.5f);
+                int pct = (int)Math.Round((_currentFontSize / 11.0f) * 100);
+                lblZoomPercent.Text = $"{pct}%";
+            };
+
+            pnlZoom.Controls.Add(lblZoomPercent);
+            pnlZoom.Controls.Add(btnZoomMinus);
+            pnlZoom.Controls.Add(btnZoomPlus);
 
             lblViolation = new Label
             {
                 Text = "CẢNH BÁO: 0 LẦN VI PHẠM",
                 ForeColor = Color.FromArgb(254, 202, 202),
                 BackColor = Color.FromArgb(159, 18, 57),
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
                 Anchor = AnchorStyles.Top | AnchorStyles.Right,
-                Location = new Point(this.Width - 550, 20),
+                Location = new Point(this.ClientSize.Width - 360, 20),
                 Padding = new Padding(6, 4, 6, 4),
                 AutoSize = true,
                 Visible = false
@@ -426,10 +509,9 @@ namespace student_desktop_app
 
             topBar.Controls.Add(lblExamTitle);
             topBar.Controls.Add(lblStudentInfo);
-            topBar.Controls.Add(btnZoomOut);
-            topBar.Controls.Add(btnZoomIn);
+            topBar.Controls.Add(pnlTimerBadge);
+            topBar.Controls.Add(pnlZoom);
             topBar.Controls.Add(lblViolation);
-            topBar.Controls.Add(lblTimer);
 
             // 2. Left Navigator Panel (Mục lục & Palette trạng thái 3 màu)
             var leftPnl = new Panel
@@ -501,16 +583,16 @@ namespace student_desktop_app
 
             var lblAiTitle = new Label
             {
-                Text = "AI GIÁM KHẢO VẤN ĐÁP",
+                Text = "TRỢ LÝ KHẢO THÍ TRỰC TUYẾN",
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(79, 70, 229),
+                ForeColor = Color.FromArgb(0, 74, 153), // ICTU Blue
                 Dock = DockStyle.Top,
                 Height = 25
             };
 
             var lblAiDesc = new Label
             {
-                Text = "Vấn đáp trực tiếp với Tác tử AI để làm rõ lập luận tự luận.",
+                Text = "Trao đổi, vấn đáp trực tuyến để làm rõ các ý chính trong câu hỏi tự luận.",
                 Font = new Font("Segoe UI", 8.5F),
                 ForeColor = Color.FromArgb(100, 116, 139),
                 Dock = DockStyle.Top,
@@ -525,7 +607,7 @@ namespace student_desktop_app
                 BorderStyle = BorderStyle.None,
                 Font = new Font("Segoe UI", 9.5F)
             };
-            rtbAiChat.AppendText("[AI Giám Khảo]: Chào bạn! Hãy làm bài tự tin. Cần vấn đáp làm rõ luận điểm hãy trao đổi tại đây.\n\n");
+            rtbAiChat.AppendText("[Cán bộ khảo thí]: Chào bạn! Hãy tập trung làm bài thi nghiêm túc. Nếu có thắc mắc lý thuyết hoặc cần trao đổi thêm về câu hỏi tự luận, hãy nhắn tại đây.\n\n");
 
             var bottomChat = new Panel
             {
@@ -620,6 +702,64 @@ namespace student_desktop_app
             };
             txtEssay.TextChanged += (s, e) => SaveEssayAnswer(txtEssay.Text);
 
+            pnlCodeHeader = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 34,
+                BackColor = Color.FromArgb(241, 245, 249),
+                Visible = false
+            };
+            lblCodeLang = new Label
+            {
+                Text = "Ngôn ngữ: SQL",
+                Font = new Font("Consolas", 9F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(0, 51, 102),
+                Location = new Point(8, 8),
+                AutoSize = true
+            };
+            btnResetCode = new Button
+            {
+                Text = "↺ Đặt lại mã ban đầu",
+                Font = new Font("Segoe UI", 8F),
+                ForeColor = Color.FromArgb(100, 116, 139),
+                Location = new Point(320, 5),
+                Size = new Size(130, 24),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.Transparent,
+                Cursor = Cursors.Hand
+            };
+            btnResetCode.FlatAppearance.BorderSize = 0;
+            btnResetCode.Click += (s, e) =>
+            {
+                if (_currentIndex >= 0 && _currentIndex < _examData.Questions.Count)
+                {
+                    var qItem = _examData.Questions[_currentIndex];
+                    if (MessageBox.Show("Bạn có muốn đặt lại mã nguồn ban đầu không?", "Xác nhận", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                    {
+                        txtCode.Text = qItem.StarterCode ?? "";
+                        SaveCodeAnswer(txtCode.Text);
+                    }
+                }
+            };
+            pnlCodeHeader.Controls.Add(lblCodeLang);
+            pnlCodeHeader.Controls.Add(btnResetCode);
+
+            txtCode = new TextBox
+            {
+                Multiline = true,
+                Dock = DockStyle.Fill,
+                Font = new Font("Consolas", 10F),
+                BackColor = Color.FromArgb(15, 23, 42),
+                ForeColor = Color.FromArgb(52, 211, 153),
+                ScrollBars = ScrollBars.Both,
+                WordWrap = false,
+                ShortcutsEnabled = false,
+                Visible = false
+            };
+            txtCode.TextChanged += (s, e) => SaveCodeAnswer(txtCode.Text);
+
+            pnlOptions.Controls.Add(txtCode);
+            pnlOptions.Controls.Add(pnlCodeHeader);
             pnlOptions.Controls.Add(txtEssay);
             pnlOptions.Controls.Add(rbD);
             pnlOptions.Controls.Add(rbC);
@@ -690,6 +830,7 @@ namespace student_desktop_app
             _currentFontSize = Math.Max(9.5f, Math.Min(15.0f, _currentFontSize + delta));
             lblQuestionBody.Font = new Font("Segoe UI", _currentFontSize, FontStyle.Regular);
             txtEssay.Font = new Font("Segoe UI", _currentFontSize, FontStyle.Regular);
+            txtCode.Font = new Font("Consolas", _currentFontSize, FontStyle.Regular);
         }
 
         private void BtnFlag_Click(object? sender, EventArgs e)
@@ -758,12 +899,14 @@ namespace student_desktop_app
                 if (c is Button b && b.Tag is int idx && idx < _examData.Questions.Count)
                 {
                     var qId = _examData.Questions[idx].Id;
-                    bool isAnswered = _mcqAnswers.ContainsKey(qId) || (_essayAnswers.ContainsKey(qId) && !string.IsNullOrWhiteSpace(_essayAnswers[qId]));
+                    bool isAnswered = _mcqAnswers.ContainsKey(qId) ||
+                                      (_essayAnswers.ContainsKey(qId) && !string.IsNullOrWhiteSpace(_essayAnswers[qId])) ||
+                                      (_codeAnswers.ContainsKey(qId) && !string.IsNullOrWhiteSpace(_codeAnswers[qId]));
                     bool isFlagged = _flaggedQuestions.Contains(qId);
 
                     if (idx == _currentIndex)
                     {
-                        b.BackColor = Color.FromArgb(79, 70, 229); // Purple selected
+                        b.BackColor = Color.FromArgb(0, 74, 153); // ICTU Blue selected
                         b.ForeColor = Color.White;
                     }
                     else if (isFlagged)
@@ -792,11 +935,14 @@ namespace student_desktop_app
             var q = _examData.Questions[index];
 
             string cloInfo = !string.IsNullOrEmpty(q.CloCode) ? $" • {q.CloCode}" : "";
-            lblQuestionHeader.Text = $"CÂU {index + 1} / {_examData.Questions.Count} • [{(q.Type == "mcq" ? "TRẮC NGHIỆM" : "TỰ LUẬN / VẤN ĐÁP")}]{cloInfo} • Độ khó: {q.Difficulty}";
+            string qTypeName = q.Type == "mcq" ? "TRẮC NGHIỆM" : (q.Type == "code" ? $"BÀI TẬP LẬP TRÌNH ({(q.ProgrammingLanguage ?? "CODE").ToUpper()})" : "TỰ LUẬN / VẤN ĐÁP");
+            lblQuestionHeader.Text = $"CÂU {index + 1} / {_examData.Questions.Count} • [{qTypeName}]{cloInfo} • Độ khó: {q.Difficulty}";
             lblQuestionBody.Text = q.QuestionText;
 
             if (q.Type == "mcq")
             {
+                pnlCodeHeader.Visible = false;
+                txtCode.Visible = false;
                 txtEssay.Visible = false;
                 rbA.Visible = rbB.Visible = rbC.Visible = rbD.Visible = true;
 
@@ -811,9 +957,22 @@ namespace student_desktop_app
                 rbC.Checked = saved == "C";
                 rbD.Checked = saved == "D";
             }
+            else if (q.Type == "code")
+            {
+                rbA.Visible = rbB.Visible = rbC.Visible = rbD.Visible = false;
+                txtEssay.Visible = false;
+                pnlCodeHeader.Visible = true;
+                txtCode.Visible = true;
+
+                lblCodeLang.Text = $"Ngôn ngữ: {(q.ProgrammingLanguage ?? "SQL").ToUpper()}";
+                _codeAnswers.TryGetValue(q.Id, out var savedCode);
+                txtCode.Text = savedCode ?? (q.StarterCode ?? "");
+            }
             else
             {
                 rbA.Visible = rbB.Visible = rbC.Visible = rbD.Visible = false;
+                pnlCodeHeader.Visible = false;
+                txtCode.Visible = false;
                 txtEssay.Visible = true;
                 _essayAnswers.TryGetValue(q.Id, out var savedEssay);
                 txtEssay.Text = savedEssay ?? "";
@@ -821,6 +980,15 @@ namespace student_desktop_app
 
             UpdateFlagButtonState(q.Id);
             UpdatePaletteColors();
+        }
+
+        private void SaveCodeAnswer(string codeText)
+        {
+            if (_currentIndex < 0 || _currentIndex >= _examData.Questions.Count) return;
+            var q = _examData.Questions[_currentIndex];
+            _codeAnswers[q.Id] = codeText;
+            UpdatePaletteColors();
+            SaveDraftToDisk();
         }
 
         private void SaveAnswer(string option)
@@ -853,6 +1021,7 @@ namespace student_desktop_app
                     SavedAt = DateTime.UtcNow,
                     McqAnswers = _mcqAnswers,
                     EssayAnswers = _essayAnswers,
+                    CodeAnswers = _codeAnswers,
                     Flagged = _flaggedQuestions.ToList()
                 };
                 string json = JsonSerializer.Serialize(draft);
@@ -886,6 +1055,14 @@ namespace student_desktop_app
                                 _essayAnswers[qId] = prop.Value.GetString() ?? "";
                         }
                     }
+                    if (doc.RootElement.TryGetProperty("CodeAnswers", out var codeElem))
+                    {
+                        foreach (var prop in codeElem.EnumerateObject())
+                        {
+                            if (int.TryParse(prop.Name, out int qId))
+                                _codeAnswers[qId] = prop.Value.GetString() ?? "";
+                        }
+                    }
                     if (doc.RootElement.TryGetProperty("Flagged", out var flaggedElem))
                     {
                         foreach (var item in flaggedElem.EnumerateArray())
@@ -906,7 +1083,11 @@ namespace student_desktop_app
                 _timeLeftSeconds--;
                 int m = _timeLeftSeconds / 60;
                 int sec = _timeLeftSeconds % 60;
-                lblTimer.Text = $"{m:D2}:{sec:D2}";
+                lblTimer.Text = $"⏱ {m:D2}:{sec:D2}";
+                if (_timeLeftSeconds <= 300)
+                {
+                    lblTimer.ForeColor = Color.FromArgb(225, 29, 72);
+                }
 
                 if (_timeLeftSeconds <= 0)
                 {
@@ -940,7 +1121,12 @@ namespace student_desktop_app
             int examId = _examData.ExamId > 0 ? _examData.ExamId : 1;
 
             var reply = await _api.SendOralChatAsync(_studentCode, examId, msg, currentQ);
-            rtbAiChat.AppendText($"[AI Giám Khảo]: {reply}\n\n");
+            string cleanReply = (reply ?? "Hãy tiếp tục hoàn thiện câu trả lời của bạn.")
+                .Replace("AI Giám Khảo:", "")
+                .Replace("AI Giám khảo:", "")
+                .Replace("Cán bộ khảo thí:", "")
+                .Trim();
+            rtbAiChat.AppendText($"[Cán bộ khảo thí]: {cleanReply}\n\n");
             rtbAiChat.ScrollToCaret();
             btnAiSend.Enabled = true;
         }
@@ -950,7 +1136,9 @@ namespace student_desktop_app
             _isInternalDialogOpen = true;
             try
             {
-                int answeredCount = _mcqAnswers.Count + _essayAnswers.Count(kv => !string.IsNullOrWhiteSpace(kv.Value));
+                int answeredCount = _mcqAnswers.Count +
+                                    _essayAnswers.Count(kv => !string.IsNullOrWhiteSpace(kv.Value)) +
+                                    _codeAnswers.Count(kv => !string.IsNullOrWhiteSpace(kv.Value));
                 int totalCount = _examData.Questions.Count;
 
                 string confirmMsg = $"Bạn đã làm {answeredCount}/{totalCount} câu.\nBạn có chắc chắn muốn nộp bài thi ngay bây giờ?";
@@ -976,11 +1164,13 @@ namespace student_desktop_app
             {
                 _mcqAnswers.TryGetValue(q.Id, out var mcq);
                 _essayAnswers.TryGetValue(q.Id, out var essay);
+                _codeAnswers.TryGetValue(q.Id, out var code);
                 answers.Add(new AnswerDto
                 {
                     QuestionId = q.Id,
                     SelectedOption = mcq,
-                    EssayAnswer = essay
+                    EssayAnswer = essay,
+                    CodeAnswer = code
                 });
             }
 

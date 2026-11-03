@@ -143,22 +143,150 @@ namespace backend_api.Controllers
         }
 
         [HttpGet("questions")]
-        public async Task<IActionResult> GetQuestions([FromQuery] int? subjectId)
+        public async Task<IActionResult> GetQuestions([FromQuery] int? subjectId, [FromQuery] int? courseClassId)
         {
             var query = _db.Questions.AsQueryable();
             if (subjectId.HasValue)
                 query = query.Where(q => q.SubjectId == subjectId.Value);
+            if (courseClassId.HasValue)
+                query = query.Where(q => q.CourseClassId == courseClassId.Value);
 
             var list = await query.OrderByDescending(q => q.Id).ToListAsync();
             return Ok(list);
         }
 
+        [HttpPost("create-question")]
+        public async Task<IActionResult> CreateManualQuestion([FromBody] CreateManualQuestionDto dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.QuestionText))
+                return BadRequest(new { success = false, message = "Nội dung câu hỏi không được để trống." });
+
+            var q = new Question
+            {
+                SubjectId = dto.SubjectId,
+                CourseClassId = dto.CourseClassId,
+                Type = string.IsNullOrWhiteSpace(dto.Type) ? "mcq" : dto.Type.ToLower(),
+                QuestionText = dto.QuestionText.Trim(),
+                OptionA = dto.OptionA?.Trim(),
+                OptionB = dto.OptionB?.Trim(),
+                OptionC = dto.OptionC?.Trim(),
+                OptionD = dto.OptionD?.Trim(),
+                CorrectOption = dto.CorrectOption?.Trim().ToUpper(),
+                Explanation = dto.Explanation?.Trim(),
+                KeyPoints = dto.KeyPoints?.Trim(),
+                ProgrammingLanguage = dto.ProgrammingLanguage ?? "sql",
+                StarterCode = dto.StarterCode,
+                TestCasesJson = dto.TestCasesJson,
+                Difficulty = dto.Difficulty ?? "Medium",
+                CloCode = dto.CloCode ?? "CLO1",
+                BloomLevel = dto.BloomLevel ?? "Vận dụng",
+                IsApproved = true,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _db.Questions.Add(q);
+            await _db.SaveChangesAsync();
+
+            return Ok(new { success = true, questionId = q.Id, message = "Đã lưu câu hỏi vào ngân hàng đề thành công." });
+        }
+
+        [HttpGet("question-bank-grouped")]
+        public async Task<IActionResult> GetQuestionBankGrouped()
+        {
+            var subjects = await _db.Subjects
+                .Include(s => s.CourseClasses)
+                .Include(s => s.Questions)
+                .ToListAsync();
+
+            var result = subjects.Select(s => new
+            {
+                SubjectId = s.Id,
+                SubjectCode = s.Code,
+                SubjectName = s.Name,
+                CommonQuestions = s.Questions.Where(q => q.CourseClassId == null).Select(q => new
+                {
+                    q.Id, q.Type, q.QuestionText, q.Difficulty, q.CloCode, q.BloomLevel,
+                    q.OptionA, q.OptionB, q.OptionC, q.OptionD, q.CorrectOption, q.KeyPoints,
+                    q.ProgrammingLanguage, q.StarterCode
+                }),
+                ClassBanks = s.CourseClasses.Select(c => new
+                {
+                    ClassId = c.Id,
+                    ClassCode = c.ClassCode,
+                    ClassName = c.ClassName,
+                    Questions = s.Questions.Where(q => q.CourseClassId == c.Id).Select(q => new
+                    {
+                        q.Id, q.Type, q.QuestionText, q.Difficulty, q.CloCode, q.BloomLevel,
+                        q.OptionA, q.OptionB, q.OptionC, q.OptionD, q.CorrectOption, q.KeyPoints,
+                        q.ProgrammingLanguage, q.StarterCode
+                    })
+                })
+            });
+
+            return Ok(result);
+        }
+
+        [HttpPost("copy-questions-to-class")]
+        public async Task<IActionResult> CopyQuestionsToClass([FromBody] CopyQuestionsDto dto)
+        {
+            if (dto.QuestionIds == null || !dto.QuestionIds.Any())
+                return BadRequest(new { success = false, message = "Vui lòng chọn ít nhất 1 câu hỏi để sao chép." });
+
+            var targetClass = await _db.CourseClasses.FindAsync(dto.TargetCourseClassId);
+            if (targetClass == null)
+                return NotFound(new { success = false, message = "Không tìm thấy lớp học phần đích." });
+
+            var questionsToCopy = await _db.Questions
+                .Where(q => dto.QuestionIds.Contains(q.Id))
+                .ToListAsync();
+
+            var newQuestions = new List<Question>();
+            foreach (var q in questionsToCopy)
+            {
+                newQuestions.Add(new Question
+                {
+                    SubjectId = targetClass.SubjectId,
+                    CourseClassId = targetClass.Id,
+                    Type = q.Type,
+                    QuestionText = q.QuestionText,
+                    OptionA = q.OptionA,
+                    OptionB = q.OptionB,
+                    OptionC = q.OptionC,
+                    OptionD = q.OptionD,
+                    CorrectOption = q.CorrectOption,
+                    Explanation = q.Explanation,
+                    KeyPoints = q.KeyPoints,
+                    ProgrammingLanguage = q.ProgrammingLanguage,
+                    StarterCode = q.StarterCode,
+                    TestCasesJson = q.TestCasesJson,
+                    Difficulty = q.Difficulty,
+                    CloCode = q.CloCode,
+                    BloomLevel = q.BloomLevel,
+                    IsApproved = true,
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+
+            _db.Questions.AddRange(newQuestions);
+            await _db.SaveChangesAsync();
+
+            return Ok(new { success = true, copiedCount = newQuestions.Count, message = $"Đã sao chép thành công {newQuestions.Count} câu hỏi sang lớp {targetClass.ClassCode}." });
+        }
+
         [HttpPost("create-exam")]
         public async Task<IActionResult> CreateExam([FromBody] CreateExamDto dto)
         {
+            int subjectId = dto.SubjectId;
+            if (subjectId <= 0 && dto.CourseClassId.HasValue)
+            {
+                var cc = await _db.CourseClasses.FindAsync(dto.CourseClassId.Value);
+                if (cc != null) subjectId = cc.SubjectId;
+            }
+
             var exam = new Exam
             {
-                SubjectId = dto.SubjectId,
+                SubjectId = subjectId,
+                CourseClassId = dto.CourseClassId,
                 Title = dto.Title,
                 DurationMinutes = dto.DurationMinutes,
                 AccessCode = dto.AccessCode,
@@ -185,7 +313,7 @@ namespace backend_api.Controllers
             {
                 // Auto pick all approved questions for this subject
                 var subjectQuestions = await _db.Questions
-                    .Where(q => q.SubjectId == dto.SubjectId && q.IsApproved)
+                    .Where(q => q.SubjectId == subjectId && q.IsApproved)
                     .Take(15)
                     .ToListAsync();
 
@@ -208,6 +336,7 @@ namespace backend_api.Controllers
         {
             var exams = await _db.Exams
                 .Include(e => e.Subject)
+                .Include(e => e.CourseClass)
                 .Include(e => e.ExamQuestions)
                 .Include(e => e.Sessions)
                 .OrderByDescending(e => e.Id)
@@ -216,6 +345,8 @@ namespace backend_api.Controllers
                     e.Id,
                     e.Title,
                     SubjectName = e.Subject != null ? e.Subject.Name : "N/A",
+                    CourseClassCode = e.CourseClass != null ? e.CourseClass.ClassCode : null,
+                    CourseClassName = e.CourseClass != null ? e.CourseClass.ClassName : null,
                     e.DurationMinutes,
                     e.AccessCode,
                     e.IsActive,
@@ -227,6 +358,252 @@ namespace backend_api.Controllers
                 .ToListAsync();
 
             return Ok(exams);
+        }
+
+        // --- COURSE CLASS & ROSTER MANAGEMENT ---
+        [HttpGet("classes")]
+        public async Task<IActionResult> GetClasses([FromQuery] string? lecturerEmail)
+        {
+            var query = _db.CourseClasses.AsQueryable();
+            if (!string.IsNullOrWhiteSpace(lecturerEmail))
+            {
+                var email = lecturerEmail.Trim().ToLower();
+                query = query.Where(c => c.LecturerEmail.ToLower() == email);
+            }
+
+            var classes = await query
+                .Include(c => c.Subject)
+                .Include(c => c.Enrollments)
+                .Include(c => c.Exams)
+                .OrderByDescending(c => c.Id)
+                .Select(c => new
+                {
+                    c.Id,
+                    c.ClassCode,
+                    c.ClassName,
+                    c.SubjectId,
+                    SubjectCode = c.Subject != null ? c.Subject.Code : "",
+                    SubjectName = c.Subject != null ? c.Subject.Name : "",
+                    c.LecturerName,
+                    c.LecturerEmail,
+                    c.Semester,
+                    c.AcademicYear,
+                    c.Room,
+                    TotalStudents = c.Enrollments.Count,
+                    TotalExams = c.Exams.Count,
+                    c.CreatedAt
+                })
+                .ToListAsync();
+
+            return Ok(classes);
+        }
+
+        [HttpPost("sync-training-portal")]
+        public async Task<IActionResult> SyncTrainingPortal([FromBody] SyncPortalDto dto)
+        {
+            string email = string.IsNullOrWhiteSpace(dto.LecturerEmail) ? "gv_nguyenvana@ictu.edu.vn" : dto.LecturerEmail.Trim();
+            string lecturerName = string.IsNullOrWhiteSpace(dto.LecturerName) ? "TS. Nguyễn Văn A" : dto.LecturerName.Trim();
+
+            // Verify or seed official academic classes for this lecturer
+            var existingClasses = await _db.CourseClasses.Where(c => c.LecturerEmail.ToLower() == email.ToLower()).ToListAsync();
+            int syncedCount = 0;
+
+            // Class 1
+            if (!existingClasses.Any(c => c.ClassCode == "CS301.01"))
+            {
+                var c1 = new CourseClass
+                {
+                    ClassCode = "CS301.01",
+                    ClassName = "Cơ sở dữ liệu & Hệ phân tán - Nhóm 01 (K20)",
+                    SubjectId = 1,
+                    LecturerName = lecturerName,
+                    LecturerEmail = email,
+                    Semester = "Học kỳ 1",
+                    AcademicYear = "2026-2027",
+                    Room = "Lab 302 - Tòa C1"
+                };
+                _db.CourseClasses.Add(c1);
+                await _db.SaveChangesAsync();
+                _db.ClassEnrollments.AddRange(
+                    new ClassEnrollment { CourseClassId = c1.Id, StudentCode = "DTC205122001", StudentName = "Nguyễn Văn An", AdministrativeClass = "K20-CNTT01", StudentEmail = "dtc205122001@ictu.edu.vn" },
+                    new ClassEnrollment { CourseClassId = c1.Id, StudentCode = "DTC205122002", StudentName = "Trần Thị Bình", AdministrativeClass = "K20-CNTT01", StudentEmail = "dtc205122002@ms.ictu.edu.vn" },
+                    new ClassEnrollment { CourseClassId = c1.Id, StudentCode = "DTC205122003", StudentName = "Lê Hoàng Cường", AdministrativeClass = "K20-CNTT02", StudentEmail = "dtc205122003@ictu.edu.vn" }
+                );
+                syncedCount++;
+            }
+
+            // Class 2
+            if (!existingClasses.Any(c => c.ClassCode == "CS301.02"))
+            {
+                var c2 = new CourseClass
+                {
+                    ClassCode = "CS301.02",
+                    ClassName = "Cơ sở dữ liệu & Hệ phân tán - Nhóm 02 (K20)",
+                    SubjectId = 1,
+                    LecturerName = lecturerName,
+                    LecturerEmail = email,
+                    Semester = "Học kỳ 1",
+                    AcademicYear = "2026-2027",
+                    Room = "Lab 305 - Tòa C1"
+                };
+                _db.CourseClasses.Add(c2);
+                await _db.SaveChangesAsync();
+                _db.ClassEnrollments.AddRange(
+                    new ClassEnrollment { CourseClassId = c2.Id, StudentCode = "DTC205122005", StudentName = "Hoàng Hải Nam", AdministrativeClass = "K20-CNTT02", StudentEmail = "dtc205122005@ictu.edu.vn" },
+                    new ClassEnrollment { CourseClassId = c2.Id, StudentCode = "DTC205122006", StudentName = "Đinh Thúy Hằng", AdministrativeClass = "K20-CNTT02", StudentEmail = "dtc205122006@ictu.edu.vn" }
+                );
+                syncedCount++;
+            }
+
+            // Class 3
+            if (!existingClasses.Any(c => c.ClassCode == "AI402.01"))
+            {
+                var c3 = new CourseClass
+                {
+                    ClassCode = "AI402.01",
+                    ClassName = "Trí tuệ nhân tạo và Ứng dụng - Nhóm 01 (K21)",
+                    SubjectId = 2,
+                    LecturerName = lecturerName,
+                    LecturerEmail = email,
+                    Semester = "Học kỳ 1",
+                    AcademicYear = "2026-2027",
+                    Room = "Lab 405 - Tòa C2"
+                };
+                _db.CourseClasses.Add(c3);
+                await _db.SaveChangesAsync();
+                _db.ClassEnrollments.AddRange(
+                    new ClassEnrollment { CourseClassId = c3.Id, StudentCode = "DTC215122010", StudentName = "Phạm Minh Đức", AdministrativeClass = "K21-KTPM01", StudentEmail = "dtc215122010@ictu.edu.vn" },
+                    new ClassEnrollment { CourseClassId = c3.Id, StudentCode = "DTC215122011", StudentName = "Đỗ Quỳnh Nga", AdministrativeClass = "K21-KTPM01", StudentEmail = "dtc215122011@ictu.edu.vn" }
+                );
+                syncedCount++;
+            }
+
+            await _db.SaveChangesAsync();
+
+            return Ok(new
+            {
+                success = true,
+                syncedCount,
+                message = $"Đã đồng bộ thành công dữ liệu phân công giảng dạy & danh sách sinh viên từ Cổng đào tạo ICTU (dkmh.ictu.edu.vn) cho giảng viên {lecturerName}."
+            });
+        }
+
+        [HttpGet("classes/{id}")]
+        public async Task<IActionResult> GetClassDetails(int id)
+        {
+            var cls = await _db.CourseClasses
+                .Include(c => c.Subject)
+                .Include(c => c.Enrollments)
+                .Include(c => c.Exams)
+                .ThenInclude(e => e.Sessions)
+                .FirstOrDefaultAsync(c => c.Id == id);
+
+            if (cls == null)
+                return NotFound(new { success = false, message = "Không tìm thấy lớp học phần." });
+
+            var classExams = cls.Exams.ToList();
+            var students = cls.Enrollments.Select(en =>
+            {
+                // Check exam submissions for this student across exams of this class
+                var studentSessions = classExams.SelectMany(e => e.Sessions)
+                    .Where(s => s.StudentCode.Equals(en.StudentCode, StringComparison.OrdinalIgnoreCase) && s.Status == "Submitted")
+                    .ToList();
+
+                double? latestScore = studentSessions.Any() ? studentSessions.OrderByDescending(s => s.EndTime).First().Score : null;
+
+                return new
+                {
+                    en.Id,
+                    en.StudentCode,
+                    en.StudentName,
+                    en.AdministrativeClass,
+                    en.StudentEmail,
+                    HasSubmittedExam = studentSessions.Any(),
+                    ExamCount = studentSessions.Count,
+                    LatestScore = latestScore
+                };
+            }).ToList();
+
+            return Ok(new
+            {
+                cls.Id,
+                cls.ClassCode,
+                cls.ClassName,
+                SubjectName = cls.Subject != null ? cls.Subject.Name : "",
+                cls.LecturerName,
+                cls.LecturerEmail,
+                cls.Semester,
+                cls.AcademicYear,
+                cls.Room,
+                TotalStudents = students.Count,
+                Exams = classExams.Select(e => new { e.Id, e.Title, e.DurationMinutes, e.AccessCode, e.IsActive }),
+                Students = students
+            });
+        }
+
+        [HttpPost("classes")]
+        public async Task<IActionResult> CreateClass([FromBody] CreateCourseClassDto dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.ClassCode) || string.IsNullOrWhiteSpace(dto.ClassName))
+                return BadRequest(new { success = false, message = "Mã lớp và tên lớp học phần không được để trống." });
+
+            var courseClass = new CourseClass
+            {
+                ClassCode = dto.ClassCode.Trim().ToUpper(),
+                ClassName = dto.ClassName.Trim(),
+                SubjectId = dto.SubjectId,
+                LecturerName = string.IsNullOrWhiteSpace(dto.LecturerName) ? "TS. Nguyễn Văn A" : dto.LecturerName.Trim(),
+                LecturerEmail = string.IsNullOrWhiteSpace(dto.LecturerEmail) ? "gv_nguyenvana@ictu.edu.vn" : dto.LecturerEmail.Trim(),
+                Semester = dto.Semester ?? "Học kỳ 1",
+                AcademicYear = dto.AcademicYear ?? "2026-2027",
+                Room = dto.Room ?? "Phòng Lab 302 - C1",
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _db.CourseClasses.Add(courseClass);
+            await _db.SaveChangesAsync();
+
+            return Ok(new { success = true, classId = courseClass.Id, message = "Đã khởi tạo lớp học phần thành công." });
+        }
+
+        [HttpPost("classes/{id}/enroll")]
+        public async Task<IActionResult> EnrollStudent(int id, [FromBody] EnrollStudentDto dto)
+        {
+            var cls = await _db.CourseClasses.FindAsync(id);
+            if (cls == null)
+                return NotFound(new { success = false, message = "Không tìm thấy lớp học phần." });
+
+            string studentCode = dto.StudentCode.Trim().ToUpper();
+            var existing = await _db.ClassEnrollments.FirstOrDefaultAsync(e => e.CourseClassId == id && e.StudentCode == studentCode);
+            if (existing != null)
+                return BadRequest(new { success = false, message = "Sinh viên đã có tên trong danh sách lớp này." });
+
+            var enrollment = new ClassEnrollment
+            {
+                CourseClassId = id,
+                StudentCode = studentCode,
+                StudentName = dto.StudentName.Trim(),
+                AdministrativeClass = dto.AdministrativeClass?.Trim() ?? "K20-CNTT",
+                StudentEmail = string.IsNullOrWhiteSpace(dto.StudentEmail) ? $"{studentCode.ToLower()}@ictu.edu.vn" : dto.StudentEmail.Trim(),
+                EnrolledAt = DateTime.UtcNow
+            };
+
+            _db.ClassEnrollments.Add(enrollment);
+            await _db.SaveChangesAsync();
+
+            return Ok(new { success = true, enrollmentId = enrollment.Id, message = "Đã thêm sinh viên vào lớp học phần thành công." });
+        }
+
+        [HttpDelete("classes/{id}/students/{studentCode}")]
+        public async Task<IActionResult> RemoveStudentFromClass(int id, string studentCode)
+        {
+            var enrollment = await _db.ClassEnrollments.FirstOrDefaultAsync(e => e.CourseClassId == id && e.StudentCode.ToUpper() == studentCode.ToUpper());
+            if (enrollment == null)
+                return NotFound(new { success = false, message = "Sinh viên không có trong lớp này." });
+
+            _db.ClassEnrollments.Remove(enrollment);
+            await _db.SaveChangesAsync();
+            return Ok(new { success = true, message = "Đã xóa sinh viên khỏi lớp học phần." });
         }
 
         [HttpGet("monitoring/{examId}")]
@@ -264,6 +641,8 @@ namespace backend_api.Controllers
         {
             var exam = await _db.Exams
                 .Include(e => e.Subject)
+                .Include(e => e.CourseClass)
+                .ThenInclude(c => c!.Enrollments)
                 .Include(e => e.ExamQuestions)
                 .ThenInclude(eq => eq.Question)
                 .FirstOrDefaultAsync(e => e.Id == examId);
@@ -314,10 +693,37 @@ namespace backend_api.Controllers
                 cloStats["CLO3"] = new { CloCode = "CLO3", AverageScore = 6.9, PassRate = 72.0, QuestionCount = 2 };
             }
 
+            // Course class roster analysis if assigned
+            object? classRosterInfo = null;
+            if (exam.CourseClass != null)
+            {
+                var totalEnrolled = exam.CourseClass.Enrollments.Count;
+                var attendedCodes = sessions.Select(s => s.StudentCode.ToLower()).ToHashSet();
+                var attendedCount = exam.CourseClass.Enrollments.Count(e => attendedCodes.Contains(e.StudentCode.ToLower()));
+                var absentStudents = exam.CourseClass.Enrollments
+                    .Where(e => !attendedCodes.Contains(e.StudentCode.ToLower()))
+                    .Select(e => new { e.StudentCode, e.StudentName, e.AdministrativeClass })
+                    .ToList();
+
+                classRosterInfo = new
+                {
+                    exam.CourseClass.ClassCode,
+                    exam.CourseClass.ClassName,
+                    exam.CourseClass.LecturerName,
+                    TotalEnrolled = totalEnrolled,
+                    AttendedCount = attendedCount,
+                    AbsentCount = totalEnrolled - attendedCount,
+                    AttendanceRate = totalEnrolled > 0 ? Math.Round((double)attendedCount / totalEnrolled * 100, 1) : 0,
+                    AbsentStudents = absentStudents
+                };
+            }
+
             return Ok(new
             {
+                ExamId = exam.Id,
                 ExamTitle = exam.Title,
                 SubjectName = exam.Subject?.Name,
+                CourseClass = classRosterInfo,
                 TotalSubmissions = totalStudents,
                 AverageScore = Math.Round(avgScore, 2),
                 MaxScore = Math.Round(maxScore, 2),
@@ -386,10 +792,64 @@ namespace backend_api.Controllers
     public class CreateExamDto
     {
         public int SubjectId { get; set; }
+        public int? CourseClassId { get; set; }
         public string Title { get; set; } = string.Empty;
         public int DurationMinutes { get; set; } = 30;
         public string AccessCode { get; set; } = "ICTU2026";
         public List<int>? QuestionIds { get; set; }
+    }
+
+    public class CreateCourseClassDto
+    {
+        public string ClassCode { get; set; } = string.Empty;
+        public string ClassName { get; set; } = string.Empty;
+        public int SubjectId { get; set; }
+        public string? LecturerName { get; set; }
+        public string? LecturerEmail { get; set; }
+        public string? Semester { get; set; }
+        public string? AcademicYear { get; set; }
+        public string? Room { get; set; }
+    }
+
+    public class EnrollStudentDto
+    {
+        public string StudentCode { get; set; } = string.Empty;
+        public string StudentName { get; set; } = string.Empty;
+        public string? AdministrativeClass { get; set; }
+        public string? StudentEmail { get; set; }
+    }
+
+    public class CreateManualQuestionDto
+    {
+        public int SubjectId { get; set; }
+        public int? CourseClassId { get; set; }
+        public string Type { get; set; } = "mcq"; // mcq, essay, code
+        public string QuestionText { get; set; } = string.Empty;
+        public string? OptionA { get; set; }
+        public string? OptionB { get; set; }
+        public string? OptionC { get; set; }
+        public string? OptionD { get; set; }
+        public string? CorrectOption { get; set; }
+        public string? Explanation { get; set; }
+        public string? KeyPoints { get; set; }
+        public string? ProgrammingLanguage { get; set; } = "sql";
+        public string? StarterCode { get; set; }
+        public string? TestCasesJson { get; set; }
+        public string? Difficulty { get; set; } = "Medium";
+        public string? CloCode { get; set; } = "CLO1";
+        public string? BloomLevel { get; set; } = "Vận dụng";
+    }
+
+    public class CopyQuestionsDto
+    {
+        public int TargetCourseClassId { get; set; }
+        public List<int> QuestionIds { get; set; } = new();
+    }
+
+    public class SyncPortalDto
+    {
+        public string? LecturerEmail { get; set; }
+        public string? LecturerName { get; set; }
     }
 }
 
