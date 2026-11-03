@@ -32,12 +32,9 @@
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col justify-between">
 
   <!-- Top Bar - ICTU Exam Header -->
-  <header class="bg-ictu-dark text-white border-b-4 border-ictu-accent py-3 px-6 flex items-center justify-between shadow-sm">
+  <header class="bg-ictu-dark text-white border-b-4 border-ictu-accent py-2.5 px-6 flex items-center justify-between shadow-sm">
     <div class="flex items-center space-x-3">
-      <div class="w-10 h-10 rounded-lg bg-white flex flex-col items-center justify-center px-1 shadow-xs">
-        <span class="text-ictu font-black text-sm leading-none tracking-tighter">ICTU</span>
-        <span class="text-[7px] font-bold text-ictu-accent uppercase tracking-widest mt-0.5">EXAM</span>
-      </div>
+      <img src="/images/ictu_logo.png" alt="ICTU Logo" class="w-10 h-10 object-contain rounded-full bg-white p-0.5 shadow-xs">
       <div>
         <h2 class="text-xs sm:text-sm font-bold tracking-tight uppercase" id="headerExamTitle">CỔNG KHẢO THÍ & ĐÁNH GIÁ CHUẨN ĐẦU RA TRỰC TUYẾN</h2>
         <p class="text-[11px] text-slate-300" id="headerStudentInfo">Trường Đại học Công nghệ Thông tin và Truyền thông - Đại học Thái Nguyên</p>
@@ -54,9 +51,7 @@
     <!-- STEP 1: LOGIN & START EXAM -->
     <div id="stepLogin" class="bg-white p-7 rounded-xl shadow-xs border border-slate-200 max-w-md mx-auto w-full">
       <div class="text-center mb-5 pb-4 border-b border-slate-100">
-        <div class="w-12 h-12 bg-ictu-light text-ictu rounded-xl flex items-center justify-center mx-auto text-xl mb-2.5">
-          <i class="fa-solid fa-graduation-cap"></i>
-        </div>
+        <img src="/images/ictu_logo.png" alt="ICTU Logo" class="w-14 h-14 object-contain mx-auto mb-2.5">
         <h3 class="text-lg font-bold text-slate-800 uppercase tracking-tight">Đăng Nhập Phòng Thi ICTU</h3>
         <p class="text-xs text-slate-500 mt-1">Sử dụng tài khoản sinh viên trường để nhận đề thi</p>
       </div>
@@ -137,6 +132,16 @@
             <!-- Essay Container -->
             <div id="essayContainer" class="hidden space-y-2 pt-2">
               <textarea id="essayInput" rows="6" placeholder="Nhập câu trả lời tự luận của bạn tại đây..." class="w-full p-3.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:border-ictu"></textarea>
+            </div>
+
+            <!-- Code Container (IT / Programming & SQL questions) -->
+            <div id="codeContainer" class="hidden space-y-2 pt-2">
+              <div class="flex items-center justify-between text-xs text-slate-600 font-mono bg-slate-100 px-3.5 py-2 rounded-t-lg border border-slate-300 border-b-0">
+                <span id="codeLangBadge" class="font-bold text-ictu"><i class="fa-solid fa-code mr-1.5"></i> Ngôn ngữ: SQL</span>
+                <button type="button" onclick="resetStarterCode()" class="text-slate-500 hover:text-ictu text-[11px] underline">Đặt lại mã mẫu</button>
+              </div>
+              <textarea id="codeInput" rows="11" placeholder="Nhập mã nguồn / câu truy vấn của bạn tại đây..." spellcheck="false" class="w-full p-3.5 font-mono text-xs bg-slate-900 text-emerald-400 rounded-b-lg border border-slate-700 focus:outline-none focus:border-ictu"></textarea>
+              <p class="text-[11px] text-slate-500 italic"><i class="fa-solid fa-circle-info mr-1 text-ictu"></i> Bài thi lập trình được kiểm thử tự động theo các ca kiểm thử mẫu của học phần.</p>
             </div>
           </div>
 
@@ -408,16 +413,29 @@
       const q = questionsList[idx];
 
       document.getElementById('currentQIndex').innerText = `Câu ${idx + 1} / ${questionsList.length}`;
-      document.getElementById('currentQType').innerText = q.type === 'mcq' ? `Trắc Nghiệm • ${q.difficulty}` : `Tự Luận / Vấn Đáp • ${q.difficulty}`;
+      if (q.type === 'mcq') {
+        document.getElementById('currentQType').innerText = `Trắc Nghiệm • ${q.difficulty || 'Trung bình'}`;
+      } else if (q.type === 'code') {
+        document.getElementById('currentQType').innerText = `Bài tập Lập trình (${(q.programmingLanguage || 'code').toUpperCase()}) • ${q.difficulty || 'Vận dụng'}`;
+      } else {
+        document.getElementById('currentQType').innerText = `Tự Luận / Vấn Đáp • ${q.difficulty || 'Trung bình'}`;
+      }
       document.getElementById('currentQText').innerText = q.questionText;
 
       // Update palette active
-      questionsList.forEach((_, i) => {
+      questionsList.forEach((qItem, i) => {
         const b = document.getElementById(`palBtn_${i}`);
         if (b) {
+          const ans = studentAnswers[qItem.id];
+          const hasAnswer = ans && (
+            ans.selectedOption ||
+            (ans.essayAnswer && ans.essayAnswer.trim().length > 0) ||
+            (ans.codeAnswer && ans.codeAnswer.trim().length > 0)
+          );
+
           if (i === idx) {
             b.className = "py-1.5 rounded-md border border-ictu bg-ictu text-white text-xs font-bold";
-          } else if (studentAnswers[questionsList[i].id]) {
+          } else if (hasAnswer) {
             b.className = "py-1.5 rounded-md border border-emerald-400 bg-emerald-50 text-emerald-800 text-xs font-bold";
           } else {
             b.className = "py-1.5 rounded-md border border-slate-200 text-xs font-bold text-slate-600 hover:bg-ictu-light";
@@ -427,40 +445,71 @@
 
       const mcqBox = document.getElementById('mcqOptionsContainer');
       const essayBox = document.getElementById('essayContainer');
+      const codeBox = document.getElementById('codeContainer');
 
       if (q.type === 'mcq') {
         mcqBox.classList.remove('hidden');
         essayBox.classList.add('hidden');
+        codeBox.classList.add('hidden');
         const saved = studentAnswers[q.id]?.selectedOption || "";
 
         mcqBox.innerHTML = `
           <label class="flex items-center p-3 rounded-lg border border-slate-200 hover:border-ictu hover:bg-ictu-light/30 cursor-pointer space-x-3 text-sm transition">
             <input type="radio" name="opt" value="A" ${saved === 'A' ? 'checked' : ''} onchange="markAnswered('${q.id}', 'A')" class="accent-ictu">
-            <span><b>A.</b> ${q.optionA}</span>
+            <span><b>A.</b> ${q.optionA || ''}</span>
           </label>
           <label class="flex items-center p-3 rounded-lg border border-slate-200 hover:border-ictu hover:bg-ictu-light/30 cursor-pointer space-x-3 text-sm transition">
             <input type="radio" name="opt" value="B" ${saved === 'B' ? 'checked' : ''} onchange="markAnswered('${q.id}', 'B')" class="accent-ictu">
-            <span><b>B.</b> ${q.optionB}</span>
+            <span><b>B.</b> ${q.optionB || ''}</span>
           </label>
           <label class="flex items-center p-3 rounded-lg border border-slate-200 hover:border-ictu hover:bg-ictu-light/30 cursor-pointer space-x-3 text-sm transition">
             <input type="radio" name="opt" value="C" ${saved === 'C' ? 'checked' : ''} onchange="markAnswered('${q.id}', 'C')" class="accent-ictu">
-            <span><b>C.</b> ${q.optionC}</span>
+            <span><b>C.</b> ${q.optionC || ''}</span>
           </label>
           <label class="flex items-center p-3 rounded-lg border border-slate-200 hover:border-ictu hover:bg-ictu-light/30 cursor-pointer space-x-3 text-sm transition">
             <input type="radio" name="opt" value="D" ${saved === 'D' ? 'checked' : ''} onchange="markAnswered('${q.id}', 'D')" class="accent-ictu">
-            <span><b>D.</b> ${q.optionD}</span>
+            <span><b>D.</b> ${q.optionD || ''}</span>
           </label>
         `;
+      } else if (q.type === 'code') {
+        mcqBox.classList.add('hidden');
+        essayBox.classList.add('hidden');
+        codeBox.classList.remove('hidden');
+
+        const lang = (q.programmingLanguage || 'sql').toUpperCase();
+        document.getElementById('codeLangBadge').innerHTML = `<i class="fa-solid fa-code mr-1.5"></i> Ngôn ngữ: ${lang}`;
+
+        const codeVal = studentAnswers[q.id]?.codeAnswer !== undefined ? studentAnswers[q.id].codeAnswer : (q.starterCode || '');
+        const codeInput = document.getElementById('codeInput');
+        codeInput.value = codeVal;
+        codeInput.oninput = (e) => {
+          if (!studentAnswers[q.id]) studentAnswers[q.id] = {};
+          studentAnswers[q.id].codeAnswer = e.target.value;
+          const b = document.getElementById(`palBtn_${idx}`);
+          if (b && e.target.value.trim().length > 5) b.classList.add('bg-emerald-50', 'text-emerald-800');
+        };
       } else {
         mcqBox.classList.add('hidden');
         essayBox.classList.remove('hidden');
+        codeBox.classList.add('hidden');
         document.getElementById('essayInput').value = studentAnswers[q.id]?.essayAnswer || "";
         document.getElementById('essayInput').oninput = (e) => {
           if (!studentAnswers[q.id]) studentAnswers[q.id] = {};
           studentAnswers[q.id].essayAnswer = e.target.value;
           const b = document.getElementById(`palBtn_${idx}`);
-          if (b && e.target.value.length > 5) b.classList.add('bg-emerald-50', 'text-emerald-800');
+          if (b && e.target.value.trim().length > 5) b.classList.add('bg-emerald-50', 'text-emerald-800');
         };
+      }
+    }
+
+    function resetStarterCode() {
+      const q = questionsList[currentIndex];
+      if (!q || q.type !== 'code') return;
+      if (confirm("Bạn có muốn đặt lại mã nguồn ban đầu không? Nội dung bạn đã nhập sẽ bị đặt lại.")) {
+        const starter = q.starterCode || '';
+        document.getElementById('codeInput').value = starter;
+        if (!studentAnswers[q.id]) studentAnswers[q.id] = {};
+        studentAnswers[q.id].codeAnswer = starter;
       }
     }
 
@@ -471,6 +520,10 @@
         const val = document.getElementById('essayInput').value;
         if (!studentAnswers[q.id]) studentAnswers[q.id] = {};
         studentAnswers[q.id].essayAnswer = val;
+      } else if (q.type === 'code') {
+        const val = document.getElementById('codeInput').value;
+        if (!studentAnswers[q.id]) studentAnswers[q.id] = {};
+        studentAnswers[q.id].codeAnswer = val;
       }
     }
 
@@ -497,7 +550,8 @@
       const answersPayload = questionsList.map(q => ({
         questionId: q.id,
         selectedOption: studentAnswers[q.id]?.selectedOption || null,
-        essayAnswer: studentAnswers[q.id]?.essayAnswer || null
+        essayAnswer: studentAnswers[q.id]?.essayAnswer || null,
+        codeAnswer: studentAnswers[q.id]?.codeAnswer || null
       }));
 
       try {

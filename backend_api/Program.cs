@@ -106,6 +106,53 @@ using (var scope = app.Services.CreateScope())
                 alterCmd.ExecuteNonQuery();
             }
 
+            if (!existingCols.Contains("CourseClassId"))
+            {
+                using var alterCmd = conn.CreateCommand();
+                alterCmd.CommandText = "ALTER TABLE \"Questions\" ADD COLUMN \"CourseClassId\" INTEGER NULL;";
+                alterCmd.ExecuteNonQuery();
+            }
+
+            if (!existingCols.Contains("ProgrammingLanguage"))
+            {
+                using var alterCmd = conn.CreateCommand();
+                alterCmd.CommandText = "ALTER TABLE \"Questions\" ADD COLUMN \"ProgrammingLanguage\" TEXT DEFAULT 'sql';";
+                alterCmd.ExecuteNonQuery();
+            }
+
+            if (!existingCols.Contains("StarterCode"))
+            {
+                using var alterCmd = conn.CreateCommand();
+                alterCmd.CommandText = "ALTER TABLE \"Questions\" ADD COLUMN \"StarterCode\" TEXT NULL;";
+                alterCmd.ExecuteNonQuery();
+            }
+
+            if (!existingCols.Contains("TestCasesJson"))
+            {
+                using var alterCmd = conn.CreateCommand();
+                alterCmd.CommandText = "ALTER TABLE \"Questions\" ADD COLUMN \"TestCasesJson\" TEXT NULL;";
+                alterCmd.ExecuteNonQuery();
+            }
+
+            // Safe migration for ExamAnswers table (CodeAnswer)
+            var answerCols = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = "PRAGMA table_info(\"ExamAnswers\");";
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    answerCols.Add(reader.GetString(1));
+                }
+            }
+
+            if (!answerCols.Contains("CodeAnswer"))
+            {
+                using var alterCmd = conn.CreateCommand();
+                alterCmd.CommandText = "ALTER TABLE \"ExamAnswers\" ADD COLUMN \"CodeAnswer\" TEXT NULL;";
+                alterCmd.ExecuteNonQuery();
+            }
+
             // Safe migration for CourseClassId in Exams table
             var examCols = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             using (var cmd = conn.CreateCommand())

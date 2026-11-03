@@ -53,7 +53,7 @@ namespace student_desktop_app
                 Text = "CỔNG KHẢO THÍ TRỰC TUYẾN ICTU",
                 ForeColor = Color.White,
                 Font = new Font("Segoe UI", 12.5F, FontStyle.Bold, GraphicsUnit.Point),
-                Location = new Point(20, 18),
+                Location = new Point(85, 18),
                 AutoSize = true
             };
 
@@ -62,9 +62,27 @@ namespace student_desktop_app
                 Text = "Trường Đại học Công nghệ Thông tin & Truyền thông • Đại học Thái Nguyên",
                 ForeColor = Color.FromArgb(226, 232, 240),
                 Font = new Font("Segoe UI", 8.5F, FontStyle.Regular, GraphicsUnit.Point),
-                Location = new Point(20, 50),
+                Location = new Point(85, 48),
                 AutoSize = true
             };
+
+            if (System.IO.File.Exists("ictu_logo.png"))
+            {
+                var picLogo = new PictureBox
+                {
+                    Image = Image.FromFile("ictu_logo.png"),
+                    SizeMode = PictureBoxSizeMode.Zoom,
+                    Size = new Size(58, 58),
+                    Location = new Point(16, 14),
+                    BackColor = Color.Transparent
+                };
+                pnlHeader.Controls.Add(picLogo);
+            }
+            else
+            {
+                lblLogo.Location = new Point(20, 18);
+                lblSub.Location = new Point(20, 50);
+            }
 
             pnlHeader.Controls.Add(lblLogo);
             pnlHeader.Controls.Add(lblSub);

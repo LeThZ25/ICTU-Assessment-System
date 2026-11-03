@@ -32,7 +32,9 @@ namespace backend_api.Models
     {
         public int Id { get; set; }
         public int SubjectId { get; set; }
-        public string Type { get; set; } = "mcq"; // mcq or essay
+        public int? CourseClassId { get; set; } // Nullable: null for general subject bank, or assigned to specific class
+        public CourseClass? CourseClass { get; set; }
+        public string Type { get; set; } = "mcq"; // mcq, essay, code
         public string QuestionText { get; set; } = string.Empty;
         public string? OptionA { get; set; }
         public string? OptionB { get; set; }
@@ -41,6 +43,9 @@ namespace backend_api.Models
         public string? CorrectOption { get; set; } // A, B, C, D
         public string? Explanation { get; set; }
         public string? KeyPoints { get; set; }
+        public string? ProgrammingLanguage { get; set; } = "sql"; // sql, python, csharp, cpp
+        public string? StarterCode { get; set; }
+        public string? TestCasesJson { get; set; }
         public string Difficulty { get; set; } = "Medium"; // Easy, Medium, Hard
         public string CloCode { get; set; } = "CLO1"; // CLO1, CLO2, CLO3, CLO4
         public string BloomLevel { get; set; } = "Thông hiểu"; // Nhận biết, Thông hiểu, Vận dụng, Vận dụng cao
@@ -81,6 +86,7 @@ namespace backend_api.Models
 
         public List<ClassEnrollment> Enrollments { get; set; } = new();
         public List<Exam> Exams { get; set; } = new();
+        public List<Question> Questions { get; set; } = new();
     }
 
     public class ClassEnrollment
@@ -136,6 +142,7 @@ namespace backend_api.Models
         public Question? Question { get; set; }
         public string? SelectedOption { get; set; }
         public string? EssayAnswer { get; set; }
+        public string? CodeAnswer { get; set; }
         public double Score { get; set; }
         public string? AiFeedback { get; set; }
     }
