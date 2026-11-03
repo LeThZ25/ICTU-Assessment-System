@@ -32,7 +32,7 @@
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col justify-between">
 
   <!-- Top Bar - ICTU Exam Header -->
-  <header class="bg-ictu-dark text-white border-b-4 border-ictu-accent py-2.5 px-6 flex items-center justify-between shadow-sm">
+  <header class="bg-ictu-dark text-white border-b-4 border-ictu-accent py-2.5 px-6 flex items-center justify-between shadow-sm relative">
     <div class="flex items-center space-x-3">
       <img src="/images/ictu_logo.png" alt="ICTU Logo" class="w-10 h-10 object-contain rounded-full bg-white p-0.5 shadow-xs">
       <div>
@@ -40,9 +40,31 @@
         <p class="text-[11px] text-slate-300" id="headerStudentInfo">Trường Đại học Công nghệ Thông tin và Truyền thông - Đại học Thái Nguyên</p>
       </div>
     </div>
-    <div id="examTimerBox" class="hidden flex items-center space-x-2 bg-white text-ictu-dark px-3.5 py-1.5 rounded-lg font-mono text-sm font-bold shadow-xs">
+
+    <!-- Centered Digital Timer (Strictly centered horizontally) -->
+    <div id="examTimerBox" class="hidden absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 flex items-center space-x-2 bg-white text-ictu-dark px-4 py-1.5 rounded-lg font-mono text-sm font-bold shadow-md border border-blue-200">
       <i class="fa-regular fa-clock text-ictu-accent"></i>
       <span id="examTimer">20:00</span>
+    </div>
+
+    <!-- Right Controls: Zoom & Proctor Exit -->
+    <div class="flex items-center space-x-2.5">
+      <!-- Modern Zoom Pill Control -->
+      <div class="flex items-center bg-white/10 hover:bg-white/15 rounded-lg border border-white/20 px-1 py-0.5 text-xs transition">
+        <button type="button" onclick="adjustWebFontSize(-1)" title="Giảm cỡ chữ" class="w-6 h-6 flex items-center justify-center text-white/90 hover:text-white hover:bg-white/20 rounded font-bold transition">
+          <i class="fa-solid fa-minus text-[10px]"></i>
+        </button>
+        <span id="lblWebZoom" class="px-2 text-[11px] font-semibold text-white/90 select-none">100%</span>
+        <button type="button" onclick="adjustWebFontSize(1)" title="Tăng cỡ chữ" class="w-6 h-6 flex items-center justify-center text-white/90 hover:text-white hover:bg-white/20 rounded font-bold transition">
+          <i class="fa-solid fa-plus text-[10px]"></i>
+        </button>
+      </div>
+
+      <!-- Proctor Emergency Exit (Desktop Kiosk) -->
+      <button type="button" id="btnDesktopProctorExit" onclick="handleDesktopProctorExit()" class="hidden px-2.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold transition flex items-center space-x-1 shadow-xs">
+        <i class="fa-solid fa-shield-halved"></i>
+        <span>Giám Thị</span>
+      </button>
     </div>
   </header>
 
@@ -208,9 +230,14 @@
         <p class="text-xs text-slate-700 leading-relaxed" id="resFeedback"></p>
       </div>
 
-      <button onclick="location.reload()" class="w-full bg-ictu hover:bg-ictu-dark text-white font-semibold py-2.5 rounded-lg text-xs transition">
-        Quay Về Trang Đăng Nhập
-      </button>
+      <div class="flex space-x-3 pt-2">
+        <button onclick="location.reload()" class="flex-1 bg-ictu hover:bg-ictu-dark text-white font-semibold py-2.5 rounded-lg text-xs transition">
+          <i class="fa-solid fa-rotate-left mr-1.5"></i> Về Trang Đăng Nhập
+        </button>
+        <button id="btnExitDesktopApp" onclick="exitDesktopApp()" class="hidden flex-1 bg-rose-600 hover:bg-rose-700 text-white font-semibold py-2.5 rounded-lg text-xs transition">
+          <i class="fa-solid fa-power-off mr-1.5"></i> Thoát Phòng Thi (Kiosk)
+        </button>
+      </div>
     </div>
 
   </main>
@@ -614,8 +641,59 @@
       }
     }
 
+    let currentZoomPercent = 100;
+    function adjustWebFontSize(delta) {
+      currentZoomPercent = Math.max(80, Math.min(140, currentZoomPercent + delta * 10));
+      const lbl = document.getElementById('lblWebZoom');
+      if (lbl) lbl.innerText = `${currentZoomPercent}%`;
+      const qText = document.getElementById('currentQText');
+      const essay = document.getElementById('essayInput');
+      const code = document.getElementById('codeInput');
+      const mcq = document.getElementById('mcqOptionsContainer');
+
+      const ratio = currentZoomPercent / 100;
+      if (qText) qText.style.fontSize = `${1.0 * ratio}rem`;
+      if (essay) essay.style.fontSize = `${0.875 * ratio}rem`;
+      if (code) code.style.fontSize = `${0.8 * ratio}rem`;
+      if (mcq) mcq.style.fontSize = `${0.875 * ratio}rem`;
+    }
+
+    function checkDesktopKioskMode() {
+      const isDesktop = window.chrome && window.chrome.webview;
+      const urlParams = new URLSearchParams(window.location.search);
+      if (isDesktop || urlParams.get('mode') === 'desktop_kiosk') {
+        const btnProctor = document.getElementById('btnDesktopProctorExit');
+        if (btnProctor) btnProctor.classList.remove('hidden');
+        const btnExit = document.getElementById('btnExitDesktopApp');
+        if (btnExit) btnExit.classList.remove('hidden');
+      }
+    }
+
+    function handleDesktopProctorExit() {
+      if (window.chrome && window.chrome.webview) {
+        window.chrome.webview.postMessage(JSON.stringify({ action: 'proctorExit' }));
+      } else {
+        const pin = prompt("Nhập mã PIN Giám thị để thoát phòng thi:");
+        if (pin === "ICTU2026") {
+          alert("Xác thực giám thị thành công.");
+          window.location.href = "/index.html";
+        } else if (pin !== null) {
+          alert("Sai mã PIN Giám thị!");
+        }
+      }
+    }
+
+    function exitDesktopApp() {
+      if (window.chrome && window.chrome.webview) {
+        window.chrome.webview.postMessage(JSON.stringify({ action: 'exit' }));
+      } else {
+        window.location.href = "/index.html";
+      }
+    }
+
     window.addEventListener('DOMContentLoaded', () => {
       loadAvailableExams();
+      checkDesktopKioskMode();
     });
   </script>
 </body>
