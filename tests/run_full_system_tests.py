@@ -383,7 +383,9 @@ def run_tests():
 
     # TC-POL-01
     t0 = time.time()
-    with open("d:/ICTU Assesment System/backend_api/wwwroot/index.html", "r", encoding="utf-8") as f:
+    root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    index_html_path = os.path.join(root_dir, "backend_api", "wwwroot", "index.html")
+    with open(index_html_path, "r", encoding="utf-8") as f:
         html = f.read()
     vendors = ["groq", "qwen", "llama", "gemini"]
     found_vendors = [v for v in vendors if v in html.lower()]
@@ -411,7 +413,7 @@ def run_tests():
     print("=" * 70)
 
     # Write Markdown Report
-    report_path = "d:/ICTU Assesment System/TEST_REPORT_ICTU.md"
+    report_path = os.path.join(root_dir, "TEST_REPORT_ICTU.md")
     with open(report_path, "w", encoding="utf-8") as f:
         f.write("# BÁO CÁO KIỂM THỬ HỆ THỐNG ĐÁNH GIÁ SINH VIÊN & AI AGENT — ICTU\n\n")
         f.write(f"- **Ngày kiểm thử:** {time.strftime('%d/%m/%Y %H:%M:%S')}\n")
