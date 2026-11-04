@@ -416,42 +416,45 @@
       </section>
 
       <!-- ================================================================= -->
-      <!-- SECTION 2: THỜI KHÓA BIỂU (SCHEDULE - EXACT SCREENSHOT 1!)        -->
+      <!-- SECTION 2: THỜI KHÓA BIỂU (SCHEDULE - DYNAMIC ACADEMIC PLAN)      -->
       <!-- ================================================================= -->
       <section id="sec-timetable" class="lms-section hidden">
 
         <!-- Filter Bar (#f0f6fc) with 3 Floating-Label Outlined Select Boxes -->
-        <div class="bg-[#f0f6fc] py-4 px-4 flex flex-wrap items-center justify-center gap-4 border-b border-slate-200">
+        <div class="bg-[#f0f6fc] py-4 px-4 flex flex-wrap items-center justify-center gap-4 border-b border-slate-200 relative">
 
-          <!-- Box 1: Năm học -->
+          <!-- Box 1: Năm học (Tính từ năm sinh viên nhập học đến hiện tại) -->
           <div class="relative w-36">
-            <label class="absolute -top-2 left-2.5 bg-[#f0f6fc] px-1 text-[11px] font-medium text-slate-700">Năm học</label>
-            <select id="selScheduleYear" onchange="updateScheduleWeekHeading()" class="w-full bg-transparent border-[1.5px] border-slate-800 rounded-md px-3 py-2 text-[13px] font-medium text-slate-800 focus:outline-none appearance-none">
+            <label class="absolute -top-2 left-2.5 bg-[#f0f6fc] px-1 text-[11px] font-medium text-slate-700 z-10">Năm học</label>
+            <select id="selScheduleYear" onchange="onScheduleYearOrSemesterChange()" class="w-full bg-transparent border-[1.5px] border-slate-800 rounded-md px-3 py-2 pr-7 text-[13px] font-medium text-slate-800 focus:outline-none cursor-pointer">
               <option value="2025-2026" selected>2025-2026</option>
-              <option value="2026-2027">2026-2027</option>
+              <option value="2024-2025">2024-2025</option>
+              <option value="2023-2024">2023-2024</option>
             </select>
           </div>
 
-          <!-- Box 2: Học kỳ -->
+          <!-- Box 2: Học kỳ (Theo kế hoạch nhà trường: 3 kỳ/năm hoặc 2 kỳ/năm) -->
           <div class="relative w-36">
-            <label class="absolute -top-2 left-2.5 bg-[#f0f6fc] px-1 text-[11px] font-medium text-slate-700">Học kỳ</label>
-            <select id="selScheduleSemester" onchange="updateScheduleWeekHeading()" class="w-full bg-transparent border-[1.5px] border-slate-800 rounded-md px-3 py-2 text-[13px] font-medium text-slate-800 focus:outline-none appearance-none">
+            <label class="absolute -top-2 left-2.5 bg-[#f0f6fc] px-1 text-[11px] font-medium text-slate-700 z-10">Học kỳ</label>
+            <select id="selScheduleSemester" onchange="onScheduleYearOrSemesterChange()" class="w-full bg-transparent border-[1.5px] border-slate-800 rounded-md px-3 py-2 pr-7 text-[13px] font-medium text-slate-800 focus:outline-none cursor-pointer">
               <option value="Học kỳ 1">Học kỳ 1</option>
               <option value="Học kỳ 2" selected>Học kỳ 2</option>
-              <option value="Học kỳ hè">Học kỳ hè</option>
+              <option value="Học kỳ 3">Học kỳ 3</option>
             </select>
           </div>
 
-          <!-- Box 3: Tuần -->
-          <div class="relative w-56">
-            <label class="absolute -top-2 left-2.5 bg-[#f0f6fc] px-1 text-[11px] font-medium text-slate-700">Tuần</label>
-            <select id="selScheduleWeek" onchange="updateScheduleWeekHeading()" class="w-full bg-transparent border-[1.5px] border-slate-800 rounded-md px-3 py-2 text-[13px] font-medium text-slate-800 focus:outline-none appearance-none">
-              <option value="23/03/2026 - 29/03/2026">23/03/2026 - 29/03/2026</option>
-              <option value="30/03/2026 - 05/04/2026" selected>30/03/2026 - 05/04/2026</option>
-              <option value="06/04/2026 - 12/04/2026">06/04/2026 - 12/04/2026</option>
-              <option value="13/04/2026 - 19/04/2026">13/04/2026 - 19/04/2026</option>
+          <!-- Box 3: Tuần (Từ tuần bắt đầu có lịch học đến hết kế hoạch giảng dạy) -->
+          <div class="relative w-60">
+            <label class="absolute -top-2 left-2.5 bg-[#f0f6fc] px-1 text-[11px] font-medium text-slate-700 z-10">Tuần</label>
+            <select id="selScheduleWeek" onchange="updateScheduleWeekHeading()" class="w-full bg-transparent border-[1.5px] border-slate-800 rounded-md px-3 py-2 pr-7 text-[13px] font-medium text-slate-800 focus:outline-none cursor-pointer">
             </select>
           </div>
+
+          <!-- Nút điều chỉnh Kế hoạch Phòng Đào tạo -->
+          <button type="button" onclick="openTrainingPlanModal()" title="Cấu hình Kế hoạch giảng dạy của Phòng Đào tạo" class="sm:absolute sm:right-4 px-2.5 py-1.5 rounded-md border border-slate-300 bg-white/80 hover:bg-white text-[11px] font-semibold text-slate-600 hover:text-ictu transition flex items-center space-x-1.5 shadow-2xs">
+            <i class="fa-solid fa-sliders text-ictu"></i>
+            <span>Kế hoạch Phòng ĐT</span>
+          </button>
 
         </div>
 
@@ -1002,6 +1005,92 @@
   </div>
 
   <!-- ===================================================================== -->
+  <!-- MODAL 3: CẤU HÌNH KẾ HOẠCH GIẢNG DẠY - PHÒNG ĐÀO TẠO                 -->
+  <!-- ===================================================================== -->
+  <div id="trainingPlanModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-2xs z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-lg w-full p-6 space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-8 h-8 rounded-lg bg-blue-50 text-ictu flex items-center justify-center">
+            <i class="fa-solid fa-calendar-days text-sm"></i>
+          </div>
+          <div>
+            <h4 class="text-sm font-bold text-slate-800">Kế Hoạch Giảng Dạy • Phòng Đào Tạo</h4>
+            <p class="text-[11px] text-slate-500">Điều chỉnh động Năm nhập học, Số kỳ/năm và Tuần kế hoạch giảng dạy</p>
+          </div>
+        </div>
+        <button type="button" onclick="closeTrainingPlanModal()" class="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center text-xs">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3.5 text-xs">
+        <!-- 1. Năm nhập học của sinh viên -->
+        <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+          <label class="font-bold text-slate-700 block">1. Năm sinh viên nhập học trường (Tính năm học đến hiện tại):</label>
+          <select id="cfgAdmissionYear" class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-800 font-medium focus:outline-none focus:border-ictu">
+            <option value="0">Tự động nhận diện theo Mã SV (VD: DTC235210069 &rarr; 2023)</option>
+            <option value="2025">Nhập học năm 2025 (Khóa K24: 2025-2026)</option>
+            <option value="2024">Nhập học năm 2024 (Khóa K23: 2024-2025 &rarr; 2025-2026)</option>
+            <option value="2023">Nhập học năm 2023 (Khóa K22: 2023-2024 &rarr; 2025-2026)</option>
+            <option value="2022">Nhập học năm 2022 (Khóa K21: 2022-2023 &rarr; 2025-2026)</option>
+            <option value="2021">Nhập học năm 2021 (Khóa K20: 2021-2022 &rarr; 2025-2026)</option>
+          </select>
+        </div>
+
+        <!-- 2. Số học kỳ mỗi năm theo kế hoạch nhà trường -->
+        <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+          <label class="font-bold text-slate-700 block">2. Số kỳ học / năm theo kế hoạch nhà trường:</label>
+          <select id="cfgSemestersPerYear" class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-800 font-medium focus:outline-none focus:border-ictu">
+            <option value="3">3 học kỳ / năm (Học kỳ 1, Học kỳ 2, Học kỳ 3 - Mặc định ICTU)</option>
+            <option value="2">2 học kỳ / năm (Học kỳ 1, Học kỳ 2)</option>
+          </select>
+        </div>
+
+        <!-- 3. Khung thời gian tuần học của Học kỳ đang chọn -->
+        <div class="p-3 rounded-xl bg-blue-50/50 border border-blue-200/70 space-y-2.5">
+          <div class="flex items-center justify-between">
+            <label class="font-bold text-slate-800">3. Kế hoạch tuần học của kỳ đang chọn:</label>
+            <span id="cfgTargetSemBadge" class="px-2 py-0.5 rounded bg-ictu text-white font-bold text-[10px]">2025-2026 • Học kỳ 2</span>
+          </div>
+          <p class="text-[11px] text-slate-500 leading-relaxed">
+            Hiển thị xuyên suốt từ <b>Tuần bắt đầu có lịch học</b> đến <b>Khi hết kế hoạch giảng dạy</b> để sinh viên chủ động xem trước lịch học các tuần tiếp theo.
+          </p>
+          <div class="grid grid-cols-2 gap-2.5">
+            <div>
+              <label class="text-[11px] font-semibold text-slate-600 block mb-1">Ngày bắt đầu có lịch học (Thứ 2):</label>
+              <input type="date" id="cfgSemStartDate" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-800 font-medium focus:outline-none focus:border-ictu">
+            </div>
+            <div>
+              <label class="text-[11px] font-semibold text-slate-600 block mb-1">Ngày hết kế hoạch giảng dạy (CN):</label>
+              <input type="date" id="cfgSemEndDate" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-800 font-medium focus:outline-none focus:border-ictu">
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-2.5 pt-1">
+            <div>
+              <label class="text-[11px] font-semibold text-slate-600 block mb-1">Nghỉ lễ/Tết từ ngày (tuỳ chọn):</label>
+              <input type="date" id="cfgHolidayStart" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-800 font-medium focus:outline-none focus:border-ictu">
+            </div>
+            <div>
+              <label class="text-[11px] font-semibold text-slate-600 block mb-1">Đến hết ngày (tuỳ chọn):</label>
+              <input type="date" id="cfgHolidayEnd" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-800 font-medium focus:outline-none focus:border-ictu">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end space-x-2 pt-2 border-t border-slate-100">
+        <button type="button" onclick="closeTrainingPlanModal()" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-100 font-semibold text-xs transition">
+          Đóng
+        </button>
+        <button type="button" onclick="saveTrainingPlanConfig()" class="px-4 py-2 rounded-lg bg-ictu hover:bg-ictu-dark text-white font-semibold text-xs transition shadow-2xs">
+          <i class="fa-solid fa-floppy-disk mr-1"></i> Áp Dụng Kế Hoạch Đào Tạo
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
   <!-- JAVASCRIPT CONTROLLER                                                 -->
   <!-- ===================================================================== -->
   <script>
@@ -1140,20 +1229,193 @@
     }
 
     // -----------------------------------------------------------------------
-    // 3. WEEKLY SCHEDULE 7-COLUMN GRID (EXACT MATCH TO SCREENSHOT 1!)
+    // 3. DYNAMIC ACADEMIC PLAN & WEEKLY SCHEDULE ENGINE (PHÒNG ĐÀO TẠO)
+    //    - Năm học: xếp từ năm sinh viên nhập học trường tính đến hiện tại
+    //    - Học kỳ: theo kế hoạch nhà trường (3 kỳ/năm hoặc 2 kỳ/năm)
+    //    - Tuần học: hiện xuyên suốt từ tuần bắt đầu có lịch học đến khi hết
+    //      kế hoạch giảng dạy (không cắt cụt ở tuần hiện tại để SV xem lịch tuần sau)
     // -----------------------------------------------------------------------
-    const weekDatesMap = {
-      "23/03/2026 - 29/03/2026": ["23/03/2026", "24/03/2026", "25/03/2026", "26/03/2026", "27/03/2026", "28/03/2026", "29/03/2026"],
-      "30/03/2026 - 05/04/2026": ["30/03/2026", "31/03/2026", "01/04/2026", "02/04/2026", "03/04/2026", "04/04/2026", "05/04/2026"],
-      "06/04/2026 - 12/04/2026": ["06/04/2026", "07/04/2026", "08/04/2026", "09/04/2026", "10/04/2026", "11/04/2026", "12/04/2026"],
-      "13/04/2026 - 19/04/2026": ["13/04/2026", "14/04/2026", "15/04/2026", "16/04/2026", "17/04/2026", "18/04/2026", "19/04/2026"]
+    let trainingPlanState = {
+      semestersPerYear: 3, // Mặc định trường có 3 học kỳ / năm (Học kỳ 1, Học kỳ 2, Học kỳ 3)
+      currentAcademicYearStart: 2025,
+      admissionYearOverride: 0,
+      currentAcademicYear: "2025-2026",
+      currentSemester: "Học kỳ 2",
+      currentWeek: "30/03/2026 - 05/04/2026",
+      semesterPlans: {
+        "2025-2026|Học kỳ 1": { startDate: "2025-08-18", endDate: "2026-01-11", holidayStart: "", holidayEnd: "" },
+        "2025-2026|Học kỳ 2": { startDate: "2026-01-19", endDate: "2026-06-07", holidayStart: "2026-02-09", holidayEnd: "2026-03-01" },
+        "2025-2026|Học kỳ 3": { startDate: "2026-06-08", endDate: "2026-08-16", holidayStart: "", holidayEnd: "" },
+        "2024-2025|Học kỳ 1": { startDate: "2024-08-19", endDate: "2025-01-12", holidayStart: "", holidayEnd: "" },
+        "2024-2025|Học kỳ 2": { startDate: "2025-01-13", endDate: "2025-06-01", holidayStart: "2025-01-27", holidayEnd: "2025-02-09" },
+        "2024-2025|Học kỳ 3": { startDate: "2025-06-02", endDate: "2025-08-10", holidayStart: "", holidayEnd: "" },
+        "2023-2024|Học kỳ 1": { startDate: "2023-09-04", endDate: "2024-01-21", holidayStart: "", holidayEnd: "" },
+        "2023-2024|Học kỳ 2": { startDate: "2024-01-22", endDate: "2024-06-09", holidayStart: "2024-02-05", holidayEnd: "2024-02-18" },
+        "2023-2024|Học kỳ 3": { startDate: "2024-06-10", endDate: "2024-08-11", holidayStart: "", holidayEnd: "" }
+      }
     };
 
+    function detectStudentAdmissionYear() {
+      if (trainingPlanState.admissionYearOverride && trainingPlanState.admissionYearOverride >= 2018) {
+        return trainingPlanState.admissionYearOverride;
+      }
+      if (cachedDashboardData && cachedDashboardData.trainingPlan && cachedDashboardData.trainingPlan.admissionYear) {
+        return cachedDashboardData.trainingPlan.admissionYear;
+      }
+      const m = (currentStudentCode || "").match(/(?:DTC|SV)(\d{2})/i);
+      if (m && m[1]) {
+        const y = 2000 + parseInt(m[1], 10);
+        if (y >= 2018 && y <= trainingPlanState.currentAcademicYearStart) return y;
+      }
+      return 2023;
+    }
+
+    function formatDateDdMmYyyy(dateObj) {
+      const dd = String(dateObj.getDate()).padStart(2, '0');
+      const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const yyyy = dateObj.getFullYear();
+      return `${dd}/${mm}/${yyyy}`;
+    }
+
+    function parseIsoDateLocal(isoStr) {
+      if (!isoStr) return null;
+      const parts = isoStr.split('-').map(Number);
+      if (parts.length !== 3 || isNaN(parts[0])) return null;
+      return new Date(parts[0], parts[1] - 1, parts[2]);
+    }
+
+    function getDefaultSemesterPlan(academicYear, semester) {
+      const key = `${academicYear}|${semester}`;
+      if (trainingPlanState.semesterPlans[key]) {
+        return trainingPlanState.semesterPlans[key];
+      }
+      const startYear = parseInt((academicYear || "2025-2026").split('-')[0], 10) || 2025;
+      const endYear = startYear + 1;
+      if (semester === "Học kỳ 1") {
+        return { startDate: `${startYear}-08-18`, endDate: `${endYear}-01-11`, holidayStart: "", holidayEnd: "" };
+      } else if (semester === "Học kỳ 3") {
+        return { startDate: `${endYear}-06-08`, endDate: `${endYear}-08-16`, holidayStart: "", holidayEnd: "" };
+      }
+      return { startDate: `${endYear}-01-19`, endDate: `${endYear}-06-07`, holidayStart: `${endYear}-02-09`, holidayEnd: `${endYear}-03-01` };
+    }
+
+    function generateWeeksForSemesterPlan(academicYear, semester) {
+      const plan = getDefaultSemesterPlan(academicYear, semester);
+      let start = parseIsoDateLocal(plan.startDate) || new Date(2026, 0, 19);
+      let end = parseIsoDateLocal(plan.endDate) || new Date(2026, 5, 7);
+      const holStart = parseIsoDateLocal(plan.holidayStart);
+      const holEnd = parseIsoDateLocal(plan.holidayEnd);
+
+      // Căn chỉnh ngày bắt đầu về Thứ 2 gần nhất
+      const day = start.getDay();
+      const diffToMonday = day === 0 ? -6 : 1 - day;
+      start = new Date(start.getFullYear(), start.getMonth(), start.getDate() + diffToMonday);
+
+      const weeks = [];
+      let cursor = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+      let safety = 0;
+
+      while (cursor <= end && safety < 40) {
+        safety++;
+        const weekEnd = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + 6);
+
+        // Kiểm tra xem tuần này có nằm trọn trong kỳ nghỉ lễ/Tết của Phòng Đào tạo không
+        const isHolidayWeek = holStart && holEnd && cursor >= holStart && weekEnd <= holEnd;
+        if (!isHolidayWeek) {
+          weeks.push(`${formatDateDdMmYyyy(cursor)} - ${formatDateDdMmYyyy(weekEnd)}`);
+        }
+        cursor = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + 7);
+      }
+
+      return weeks;
+    }
+
+    function syncScheduleFiltersFromPlan(resetToActiveWeek = false) {
+      const yearSelect = document.getElementById('selScheduleYear');
+      const semSelect = document.getElementById('selScheduleSemester');
+      if (!yearSelect || !semSelect) return;
+
+      // 1. Tính danh sách Năm học từ năm sinh viên nhập học đến năm học hiện tại
+      const admissionYear = detectStudentAdmissionYear();
+      const currentStartYear = trainingPlanState.currentAcademicYearStart || 2025;
+      const prevYearVal = yearSelect.value;
+
+      const years = [];
+      for (let y = currentStartYear; y >= admissionYear; y--) {
+        years.push(`${y}-${y + 1}`);
+      }
+      yearSelect.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join("");
+      if (!resetToActiveWeek && years.includes(prevYearVal)) {
+        yearSelect.value = prevYearVal;
+      } else {
+        yearSelect.value = trainingPlanState.currentAcademicYear || years[0];
+      }
+
+      // 2. Tính danh sách Học kỳ theo kế hoạch nhà trường (3 kỳ/năm hoặc 2 kỳ/năm)
+      const semCount = trainingPlanState.semestersPerYear === 2 ? 2 : 3;
+      const prevSemVal = semSelect.value;
+      const semesters = [];
+      for (let s = 1; s <= semCount; s++) {
+        semesters.push(`Học kỳ ${s}`);
+      }
+      semSelect.innerHTML = semesters.map(s => `<option value="${s}">${s}</option>`).join("");
+      if (!resetToActiveWeek && semesters.includes(prevSemVal)) {
+        semSelect.value = prevSemVal;
+      } else {
+        semSelect.value = semesters.includes(trainingPlanState.currentSemester) ? trainingPlanState.currentSemester : semesters[0];
+      }
+
+      // 3. Sinh danh sách Tuần học xuyên suốt từ tuần bắt đầu có lịch học đến hết kế hoạch giảng dạy
+      populateScheduleWeeksDropdown(resetToActiveWeek);
+    }
+
+    function populateScheduleWeeksDropdown(selectCurrentWeek = false) {
+      const yearVal = document.getElementById('selScheduleYear')?.value || "2025-2026";
+      const semVal = document.getElementById('selScheduleSemester')?.value || "Học kỳ 2";
+      const weekSelect = document.getElementById('selScheduleWeek');
+      if (!weekSelect) return;
+
+      const prevWeekVal = weekSelect.value;
+      const weeks = generateWeeksForSemesterPlan(yearVal, semVal);
+
+      weekSelect.innerHTML = weeks.map(w => `<option value="${w}">${w}</option>`).join("");
+
+      const defaultActiveWeek = trainingPlanState.currentWeek || "30/03/2026 - 05/04/2026";
+      if (!selectCurrentWeek && weeks.includes(prevWeekVal)) {
+        weekSelect.value = prevWeekVal;
+      } else if (weeks.includes(defaultActiveWeek)) {
+        weekSelect.value = defaultActiveWeek;
+      } else if (weeks.length > 0) {
+        weekSelect.value = weeks[0];
+      }
+
+      updateScheduleWeekHeading();
+    }
+
+    function onScheduleYearOrSemesterChange() {
+      populateScheduleWeeksDropdown(false);
+    }
+
+    function getSevenDatesFromWeekLabel(weekVal) {
+      const parts = (weekVal || "30/03/2026 - 05/04/2026").split(' - ');
+      const startParts = (parts[0] || "30/03/2026").split('/').map(Number);
+      if (startParts.length === 3 && !isNaN(startParts[0])) {
+        const monday = new Date(startParts[2], startParts[1] - 1, startParts[0]);
+        const result = [];
+        for (let i = 0; i < 7; i++) {
+          const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i);
+          result.push(formatDateDdMmYyyy(d));
+        }
+        return result;
+      }
+      return ["30/03/2026", "31/03/2026", "01/04/2026", "02/04/2026", "03/04/2026", "04/04/2026", "05/04/2026"];
+    }
+
     function updateScheduleWeekHeading() {
-      const weekVal = document.getElementById('selScheduleWeek').value;
+      const weekVal = document.getElementById('selScheduleWeek')?.value || "30/03/2026 - 05/04/2026";
       const parts = weekVal.split(' - ');
       const titleEl = document.getElementById('lblScheduleWeekTitle');
-      if (parts.length === 2) {
+      if (titleEl && parts.length === 2) {
         titleEl.innerText = `Tuần bắt đầu từ ${parts[0]} đến ${parts[1]}`;
       }
       renderWeeklyScheduleGrid();
@@ -1163,20 +1425,31 @@
       const grid = document.getElementById('weeklyScheduleGrid');
       if (!grid) return;
 
+      const yearVal = document.getElementById('selScheduleYear')?.value || "2025-2026";
+      const semVal = document.getElementById('selScheduleSemester')?.value || "Học kỳ 2";
       const weekVal = document.getElementById('selScheduleWeek')?.value || "30/03/2026 - 05/04/2026";
-      const dates = weekDatesMap[weekVal] || weekDatesMap["30/03/2026 - 05/04/2026"];
+      const dates = getSevenDatesFromWeekLabel(weekVal);
       const dayNames = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"];
 
-      const classes = (cachedDashboardData && cachedDashboardData.classes) ? cachedDashboardData.classes : [
+      const allClasses = (cachedDashboardData && cachedDashboardData.classes) ? cachedDashboardData.classes : [
         {
           className: "Phát triển ứng dụng di động-2-25 (CNTTQT K22B. KNUK22.K2.D1.N01)",
           room: "Học trên lớp",
           lecturerName: "Vũ Huy Hoàng",
           lecturerShort: "Vũ Huy...",
           dayOfWeek: 5,
-          period: "Tiết 3 - 5"
+          period: "Tiết 3 - 5",
+          academicYear: "2025-2026",
+          semesterLabel: "Học kỳ 2"
         }
       ];
+
+      // Hiển thị lịch học xuyên suốt tất cả các tuần nằm trong kế hoạch giảng dạy của học kỳ
+      const classes = allClasses.filter(c => {
+        const cYear = c.academicYear || "2025-2026";
+        const cSem = c.semesterLabel || "Học kỳ 2";
+        return cYear === yearVal && cSem === semVal;
+      });
 
       grid.innerHTML = dayNames.map((dayName, colIdx) => {
         const dayNumber = colIdx + 2; // 2 = Thứ 2, 5 = Thứ 5, 8 = Chủ nhật
@@ -1227,6 +1500,67 @@
       }).join("");
     }
 
+    function openTrainingPlanModal() {
+      const yearVal = document.getElementById('selScheduleYear')?.value || "2025-2026";
+      const semVal = document.getElementById('selScheduleSemester')?.value || "Học kỳ 2";
+      const plan = getDefaultSemesterPlan(yearVal, semVal);
+
+      document.getElementById('cfgAdmissionYear').value = String(trainingPlanState.admissionYearOverride || 0);
+      document.getElementById('cfgSemestersPerYear').value = String(trainingPlanState.semestersPerYear || 3);
+      document.getElementById('cfgTargetSemBadge').innerText = `${yearVal} • ${semVal}`;
+      document.getElementById('cfgSemStartDate').value = plan.startDate || "2026-01-19";
+      document.getElementById('cfgSemEndDate').value = plan.endDate || "2026-06-07";
+      document.getElementById('cfgHolidayStart').value = plan.holidayStart || "";
+      document.getElementById('cfgHolidayEnd').value = plan.holidayEnd || "";
+
+      document.getElementById('trainingPlanModal').classList.remove('hidden');
+    }
+
+    function closeTrainingPlanModal() {
+      document.getElementById('trainingPlanModal').classList.add('hidden');
+    }
+
+    async function saveTrainingPlanConfig() {
+      const admOverride = parseInt(document.getElementById('cfgAdmissionYear').value, 10) || 0;
+      const semPerYear = parseInt(document.getElementById('cfgSemestersPerYear').value, 10) || 3;
+      const yearVal = document.getElementById('selScheduleYear')?.value || "2025-2026";
+      const semVal = document.getElementById('selScheduleSemester')?.value || "Học kỳ 2";
+      const startDate = document.getElementById('cfgSemStartDate').value;
+      const endDate = document.getElementById('cfgSemEndDate').value;
+      const holidayStart = document.getElementById('cfgHolidayStart').value;
+      const holidayEnd = document.getElementById('cfgHolidayEnd').value;
+
+      trainingPlanState.admissionYearOverride = admOverride;
+      trainingPlanState.semestersPerYear = semPerYear;
+      trainingPlanState.semesterPlans[`${yearVal}|${semVal}`] = {
+        startDate: startDate || "2026-01-19",
+        endDate: endDate || "2026-06-07",
+        holidayStart: holidayStart || "",
+        holidayEnd: holidayEnd || ""
+      };
+
+      try {
+        await fetch('/api/student/training-plan', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            studentCode: currentStudentCode,
+            semestersPerYear: semPerYear,
+            admissionYearOverride: admOverride,
+            academicYear: yearVal,
+            semester: semVal,
+            startDate: startDate,
+            endDate: endDate,
+            holidayStart: holidayStart,
+            holidayEnd: holidayEnd
+          })
+        });
+      } catch (e) {}
+
+      closeTrainingPlanModal();
+      syncScheduleFiltersFromPlan(false);
+    }
+
     // -----------------------------------------------------------------------
     // 4. LOAD STUDENT LMS DASHBOARD DATA FROM C# BACKEND
     // -----------------------------------------------------------------------
@@ -1241,6 +1575,23 @@
           currentStudentName = data.student.fullName || currentStudentName;
           currentStudentCode = data.student.studentCode || currentStudentCode;
           currentStudentEmail = data.student.email || currentStudentEmail;
+        }
+        if (data.trainingPlan) {
+          if (data.trainingPlan.semestersPerYear) trainingPlanState.semestersPerYear = data.trainingPlan.semestersPerYear;
+          if (data.trainingPlan.currentAcademicYearStart) trainingPlanState.currentAcademicYearStart = data.trainingPlan.currentAcademicYearStart;
+          if (data.trainingPlan.currentAcademicYear) trainingPlanState.currentAcademicYear = data.trainingPlan.currentAcademicYear;
+          if (data.trainingPlan.currentSemester) trainingPlanState.currentSemester = data.trainingPlan.currentSemester;
+          if (data.trainingPlan.currentWeek) trainingPlanState.currentWeek = data.trainingPlan.currentWeek;
+          if (data.trainingPlan.semesterPlans) {
+            Object.entries(data.trainingPlan.semesterPlans).forEach(([k, v]) => {
+              trainingPlanState.semesterPlans[k] = {
+                startDate: v.startDate || v.StartDate || "2026-01-19",
+                endDate: v.endDate || v.EndDate || "2026-06-07",
+                holidayStart: v.holidayStart || v.HolidayStart || "",
+                holidayEnd: v.holidayEnd || v.HolidayEnd || ""
+              };
+            });
+          }
         }
         updateStudentIdentityUI();
 
@@ -1260,7 +1611,7 @@
         }
 
         // 2. Render Weekly Schedule Grid & Course Class Cards
-        renderWeeklyScheduleGrid();
+        syncScheduleFiltersFromPlan(false);
         renderClassCards(classes);
 
         // 3. Render Competency & Learning Path
@@ -2213,7 +2564,7 @@
 
     window.addEventListener('DOMContentLoaded', async () => {
       checkDesktopKioskMode();
-      renderWeeklyScheduleGrid();
+      syncScheduleFiltersFromPlan(true);
       await loadAvailableExams();
       await loadStudentDashboard();
     });

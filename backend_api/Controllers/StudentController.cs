@@ -23,6 +23,161 @@ namespace backend_api.Controllers
         private readonly IAiServiceClient _aiClient;
         private readonly IHubContext<ExamHub> _hub;
 
+        // Kế hoạch giảng dạy của Phòng Đào tạo (hỗ trợ cập nhật động theo kế hoạch nhà trường)
+        private static TrainingPlanConfigDto _trainingPlanConfig = CreateDefaultTrainingPlan();
+
+        private static TrainingPlanConfigDto CreateDefaultTrainingPlan()
+        {
+            return new TrainingPlanConfigDto
+            {
+                SemestersPerYear = 3, // Trường áp dụng 3 học kỳ / năm (Học kỳ 1, Học kỳ 2, Học kỳ 3)
+                CurrentAcademicYearStart = 2025, // Năm học hiện tại: 2025-2026
+                CurrentAcademicYear = "2025-2026",
+                CurrentSemester = "Học kỳ 2",
+                CurrentWeek = "30/03/2026 - 05/04/2026",
+                SemesterPlans = new Dictionary<string, SemesterSchedulePlanDto>
+                {
+                    // Năm học 2025-2026 (3 học kỳ theo kế hoạch Phòng Đào tạo)
+                    ["2025-2026|Học kỳ 1"] = new SemesterSchedulePlanDto
+                    {
+                        AcademicYear = "2025-2026",
+                        Semester = "Học kỳ 1",
+                        StartDate = "2025-08-18", // Tuần bắt đầu có lịch học HK1
+                        EndDate = "2026-01-11",   // Hết kế hoạch giảng dạy HK1
+                        HolidayStart = "",
+                        HolidayEnd = ""
+                    },
+                    ["2025-2026|Học kỳ 2"] = new SemesterSchedulePlanDto
+                    {
+                        AcademicYear = "2025-2026",
+                        Semester = "Học kỳ 2",
+                        StartDate = "2026-01-19", // Tuần bắt đầu có lịch học HK2 (19/01/2026 - 25/01/2026)
+                        EndDate = "2026-06-07",   // Hết kế hoạch giảng dạy HK2 (01/06/2026 - 07/06/2026)
+                        HolidayStart = "2026-02-09", // Nghỉ Tết Nguyên Đán theo kế hoạch Phòng Đào tạo
+                        HolidayEnd = "2026-03-01"
+                    },
+                    ["2025-2026|Học kỳ 3"] = new SemesterSchedulePlanDto
+                    {
+                        AcademicYear = "2025-2026",
+                        Semester = "Học kỳ 3",
+                        StartDate = "2026-06-08", // Tuần bắt đầu có lịch học HK3
+                        EndDate = "2026-08-16",   // Hết kế hoạch giảng dạy HK3
+                        HolidayStart = "",
+                        HolidayEnd = ""
+                    },
+                    // Năm học 2024-2025
+                    ["2024-2025|Học kỳ 1"] = new SemesterSchedulePlanDto
+                    {
+                        AcademicYear = "2024-2025",
+                        Semester = "Học kỳ 1",
+                        StartDate = "2024-08-19",
+                        EndDate = "2025-01-12"
+                    },
+                    ["2024-2025|Học kỳ 2"] = new SemesterSchedulePlanDto
+                    {
+                        AcademicYear = "2024-2025",
+                        Semester = "Học kỳ 2",
+                        StartDate = "2025-01-13",
+                        EndDate = "2025-06-01",
+                        HolidayStart = "2025-01-27",
+                        HolidayEnd = "2025-02-09"
+                    },
+                    ["2024-2025|Học kỳ 3"] = new SemesterSchedulePlanDto
+                    {
+                        AcademicYear = "2024-2025",
+                        Semester = "Học kỳ 3",
+                        StartDate = "2025-06-02",
+                        EndDate = "2025-08-10"
+                    },
+                    // Năm học 2023-2024 (Năm nhập học khóa K22 - DTC23)
+                    ["2023-2024|Học kỳ 1"] = new SemesterSchedulePlanDto
+                    {
+                        AcademicYear = "2023-2024",
+                        Semester = "Học kỳ 1",
+                        StartDate = "2023-09-04",
+                        EndDate = "2024-01-21"
+                    },
+                    ["2023-2024|Học kỳ 2"] = new SemesterSchedulePlanDto
+                    {
+                        AcademicYear = "2023-2024",
+                        Semester = "Học kỳ 2",
+                        StartDate = "2024-01-22",
+                        EndDate = "2024-06-09",
+                        HolidayStart = "2024-02-05",
+                        HolidayEnd = "2024-02-18"
+                    },
+                    ["2023-2024|Học kỳ 3"] = new SemesterSchedulePlanDto
+                    {
+                        AcademicYear = "2023-2024",
+                        Semester = "Học kỳ 3",
+                        StartDate = "2024-06-10",
+                        EndDate = "2024-08-11"
+                    }
+                }
+            };
+        }
+
+        private static int ExtractAdmissionYear(string studentCode, string? adminClass)
+        {
+            if (_trainingPlanConfig.AdmissionYearOverride.HasValue && _trainingPlanConfig.AdmissionYearOverride.Value >= 2018)
+                return _trainingPlanConfig.AdmissionYearOverride.Value;
+
+            // Trích xuất năm nhập học từ mã sinh viên (VD: DTC235210069 -> 23 -> 2023; DTC24... -> 2024; DTC20... -> 2020)
+            var match = System.Text.RegularExpressions.Regex.Match(studentCode ?? "", @"(?:DTC|SV)(\d{2})", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (match.Success && int.TryParse(match.Groups[1].Value, out int yy))
+            {
+                int year = 2000 + yy;
+                if (year >= 2018 && year <= _trainingPlanConfig.CurrentAcademicYearStart)
+                    return year;
+            }
+
+            // Hoặc từ tên lớp hành chính (VD: K22 -> nhập học 2023, K21 -> 2022, K23 -> 2024)
+            var kMatch = System.Text.RegularExpressions.Regex.Match(adminClass ?? "", @"K(\d{2})", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (kMatch.Success && int.TryParse(kMatch.Groups[1].Value, out int kCohort))
+            {
+                int year = 2001 + kCohort; // K22 = 2023
+                if (year >= 2018 && year <= _trainingPlanConfig.CurrentAcademicYearStart)
+                    return year;
+            }
+
+            return 2023;
+        }
+
+        private static object BuildStudentAcademicPlan(string studentCode, string? adminClass)
+        {
+            int admissionYear = ExtractAdmissionYear(studentCode, adminClass);
+            int currentStartYear = _trainingPlanConfig.CurrentAcademicYearStart;
+            if (admissionYear > currentStartYear) admissionYear = currentStartYear;
+
+            // 1. Xếp năm học từ khi sinh viên nhập học trường tính đến hiện tại (mới nhất lên đầu)
+            var academicYears = new List<string>();
+            for (int y = currentStartYear; y >= admissionYear; y--)
+            {
+                academicYears.Add($"{y}-{y + 1}");
+            }
+
+            // 2. Danh sách học kỳ theo kế hoạch nhà trường (2 kỳ/năm hoặc 3 kỳ/năm)
+            int semCount = _trainingPlanConfig.SemestersPerYear <= 2 ? 2 : 3;
+            var semesters = new List<string>();
+            for (int s = 1; s <= semCount; s++)
+            {
+                semesters.Add($"Học kỳ {s}");
+            }
+
+            return new
+            {
+                AdmissionYear = admissionYear,
+                CurrentAcademicYearStart = currentStartYear,
+                CurrentAcademicYear = _trainingPlanConfig.CurrentAcademicYear,
+                CurrentSemester = _trainingPlanConfig.CurrentSemester,
+                CurrentWeek = _trainingPlanConfig.CurrentWeek,
+                SemestersPerYear = semCount,
+                AcademicYears = academicYears,
+                Semesters = semesters,
+                SemesterPlans = _trainingPlanConfig.SemesterPlans
+            };
+        }
+
         public StudentController(ApplicationDbContext db, IAiServiceClient aiClient, IHubContext<ExamHub> hub)
         {
             _db = db;
@@ -242,8 +397,10 @@ namespace backend_api.Controllers
                     FullName = fullName,
                     AdministrativeClass = adminClass,
                     Email = email,
-                    Department = userAcc?.Department ?? "Khoa Công nghệ Thông tin - ICTU"
+                    Department = userAcc?.Department ?? "Khoa Công nghệ Thông tin - ICTU",
+                    AdmissionYear = ExtractAdmissionYear(code, adminClass)
                 },
+                TrainingPlan = BuildStudentAcademicPlan(code, adminClass),
                 Classes = orderedClasses,
                 ActiveExams = activeExams,
                 History = history,
@@ -642,6 +799,94 @@ namespace backend_api.Controllers
 
             return Ok(history);
         }
+
+        [HttpGet("training-plan")]
+        public IActionResult GetTrainingPlan([FromQuery] string? studentCode = "DTC235210069", [FromQuery] string? adminClass = "CNTTQT K22B")
+        {
+            return Ok(new
+            {
+                Success = true,
+                TrainingPlan = BuildStudentAcademicPlan(studentCode ?? "DTC235210069", adminClass)
+            });
+        }
+
+        [HttpPut("training-plan")]
+        public IActionResult UpdateTrainingPlan([FromBody] UpdateTrainingPlanDto dto)
+        {
+            if (dto.SemestersPerYear == 2 || dto.SemestersPerYear == 3)
+            {
+                _trainingPlanConfig.SemestersPerYear = dto.SemestersPerYear;
+            }
+
+            if (dto.AdmissionYearOverride.HasValue)
+            {
+                _trainingPlanConfig.AdmissionYearOverride = dto.AdmissionYearOverride.Value >= 2018 ? dto.AdmissionYearOverride.Value : null;
+            }
+
+            if (!string.IsNullOrWhiteSpace(dto.AcademicYear) && !string.IsNullOrWhiteSpace(dto.Semester))
+            {
+                string key = $"{dto.AcademicYear.Trim()}|{dto.Semester.Trim()}";
+                if (!_trainingPlanConfig.SemesterPlans.TryGetValue(key, out var existing))
+                {
+                    existing = new SemesterSchedulePlanDto
+                    {
+                        AcademicYear = dto.AcademicYear.Trim(),
+                        Semester = dto.Semester.Trim()
+                    };
+                    _trainingPlanConfig.SemesterPlans[key] = existing;
+                }
+
+                if (!string.IsNullOrWhiteSpace(dto.StartDate))
+                    existing.StartDate = dto.StartDate.Trim();
+                if (!string.IsNullOrWhiteSpace(dto.EndDate))
+                    existing.EndDate = dto.EndDate.Trim();
+                if (dto.HolidayStart != null)
+                    existing.HolidayStart = dto.HolidayStart.Trim();
+                if (dto.HolidayEnd != null)
+                    existing.HolidayEnd = dto.HolidayEnd.Trim();
+            }
+
+            return Ok(new
+            {
+                Success = true,
+                Message = "Đã cập nhật Kế hoạch giảng dạy của Phòng Đào tạo thành công.",
+                TrainingPlan = BuildStudentAcademicPlan(dto.StudentCode ?? "DTC235210069", "CNTTQT K22B")
+            });
+        }
+    }
+
+    public class TrainingPlanConfigDto
+    {
+        public int SemestersPerYear { get; set; } = 3;
+        public int CurrentAcademicYearStart { get; set; } = 2025;
+        public int? AdmissionYearOverride { get; set; }
+        public string CurrentAcademicYear { get; set; } = "2025-2026";
+        public string CurrentSemester { get; set; } = "Học kỳ 2";
+        public string CurrentWeek { get; set; } = "30/03/2026 - 05/04/2026";
+        public Dictionary<string, SemesterSchedulePlanDto> SemesterPlans { get; set; } = new();
+    }
+
+    public class SemesterSchedulePlanDto
+    {
+        public string AcademicYear { get; set; } = string.Empty;
+        public string Semester { get; set; } = string.Empty;
+        public string StartDate { get; set; } = string.Empty;
+        public string EndDate { get; set; } = string.Empty;
+        public string HolidayStart { get; set; } = string.Empty;
+        public string HolidayEnd { get; set; } = string.Empty;
+    }
+
+    public class UpdateTrainingPlanDto
+    {
+        public string? StudentCode { get; set; }
+        public int SemestersPerYear { get; set; }
+        public int? AdmissionYearOverride { get; set; }
+        public string? AcademicYear { get; set; }
+        public string? Semester { get; set; }
+        public string? StartDate { get; set; }
+        public string? EndDate { get; set; }
+        public string? HolidayStart { get; set; }
+        public string? HolidayEnd { get; set; }
     }
 
     public class StudentLoginDto
