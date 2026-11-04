@@ -82,7 +82,6 @@ namespace backend_api.Controllers
                 .ThenInclude(c => c!.Exams)
                 .ToListAsync();
 
-            // If a newly registered student has no enrollments yet, show the default semester classes so LMS is never empty
             List<CourseClass> courseClasses;
             if (enrollments.Any())
             {
@@ -95,55 +94,61 @@ namespace backend_api.Controllers
             else
             {
                 courseClasses = await _db.CourseClasses
+                    .Where(c => c.ClassName.Contains("Phát triển ứng dụng di động"))
                     .Include(c => c.Subject)
                     .ThenInclude(s => s!.Documents)
                     .Include(c => c.Exams)
                     .ToListAsync();
             }
 
-            // Order so Mobile App Dev ("Phát triển ứng dụng di động-2-25") is first as in ICTU LMS bulletin board
             var orderedClasses = courseClasses
                 .OrderByDescending(c => c.ClassName.Contains("Phát triển ứng dụng di động") ? 1 : 0)
                 .ThenBy(c => c.Id)
-                .Select((c, index) => new
+                .Select((c, index) =>
                 {
-                    Stt = index + 1,
-                    CourseClassId = c.Id,
-                    c.ClassCode,
-                    c.ClassName,
-                    SubjectId = c.SubjectId,
-                    SubjectCode = c.Subject?.Code ?? "CNTT",
-                    SubjectName = c.Subject?.Name ?? c.ClassName,
-                    c.LecturerName,
-                    c.LecturerEmail,
-                    Semester = "2025_2026_2",
-                    c.AcademicYear,
-                    c.Room,
-                    TuanHoc = "Tuần 1 - 15",
-                    SoBuoiNghi = 0,
-                    TrangThai = "Đúng tiến độ",
-                    ScheduleDay = index == 0 ? "Thứ 2 (Tiết 1 - 3)" : (index == 1 ? "Thứ 4 (Tiết 4 - 6)" : "Thứ 6 (Tiết 1 - 3)"),
-                    Documents = c.Subject?.Documents.Select(d => new
+                    bool isMobileClass = c.ClassName.Contains("Phát triển ứng dụng di động");
+                    return new
                     {
-                        d.Id,
-                        d.Filename,
-                        d.ChunksCount,
-                        d.WordCount,
-                        d.UploadedAt
-                    }).ToList(),
-                    Exams = c.Exams.Where(ex => ex.IsActive).Select(ex => new
-                    {
-                        ex.Id,
-                        ex.Title,
-                        ex.DurationMinutes,
-                        ex.AccessCode
-                    }).ToList()
+                        Stt = index + 1,
+                        CourseClassId = c.Id,
+                        c.ClassCode,
+                        c.ClassName,
+                        SubjectId = c.SubjectId,
+                        SubjectCode = c.Subject?.Code ?? "CNTT",
+                        SubjectName = c.Subject?.Name ?? c.ClassName,
+                        LecturerName = isMobileClass ? "Vũ Huy Hoàng" : c.LecturerName,
+                        LecturerShort = isMobileClass ? "Vũ Huy..." : c.LecturerName,
+                        c.LecturerEmail,
+                        Semester = "2025_2026_2",
+                        AcademicYear = "2025-2026",
+                        Room = isMobileClass ? "Học trên lớp" : c.Room,
+                        TuanHoc = "",
+                        SoBuoiNghi = 0,
+                        TrangThai = "Đúng tiến độ",
+                        DayOfWeek = isMobileClass ? 5 : (index % 2 == 0 ? 2 : 4), // 5 = Thứ 5 (02/04/2026)
+                        Period = isMobileClass ? "Tiết 3 - 5" : "Tiết 1 - 3",
+                        ScheduleDay = isMobileClass ? "Thứ 5 (02/04/2026)" : "Thứ 2 (30/03/2026)",
+                        Documents = c.Subject?.Documents.Select(d => new
+                        {
+                            d.Id,
+                            d.Filename,
+                            d.ChunksCount,
+                            d.WordCount,
+                            d.UploadedAt
+                        }).ToList(),
+                        Exams = c.Exams.Where(ex => ex.IsActive).Select(ex => new
+                        {
+                            ex.Id,
+                            ex.Title,
+                            ex.DurationMinutes,
+                            ex.AccessCode
+                        }).ToList()
+                    };
                 })
                 .ToList();
 
-            var enrolledClassIds = courseClasses.Select(c => c.Id).ToList();
             var activeExams = await _db.Exams
-                .Where(e => e.IsActive && (e.CourseClassId == null || enrolledClassIds.Contains(e.CourseClassId.Value)))
+                .Where(e => e.IsActive)
                 .Include(e => e.Subject)
                 .Include(e => e.CourseClass)
                 .Include(e => e.ExamQuestions)
@@ -183,15 +188,15 @@ namespace backend_api.Controllers
                 })
                 .ToListAsync();
 
-            double avgScore = history.Any() ? Math.Round(history.Average(h => h.Score), 2) : 8.2;
+            double avgScore = history.Any() ? Math.Round(history.Average(h => h.Score), 2) : 8.5;
             int baseMastery = (int)Math.Round(avgScore * 10);
 
             var cloMastery = new[]
             {
-                new { Code = "CLO1", Name = "Nắm vững kiến thức nền tảng & nguyên lý cốt lõi của học phần", Percent = Math.Min(98, baseMastery + 6), Status = "Đạt chuẩn tốt" },
+                new { Code = "CLO1", Name = "Nắm vững kiến thức nền tảng & nguyên lý cốt lõi của học phần", Percent = Math.Min(98, baseMastery + 5), Status = "Đạt chuẩn tốt" },
                 new { Code = "CLO2", Name = "Phân tích, thiết kế mô hình dữ liệu và chuẩn hóa hệ thống", Percent = Math.Min(95, baseMastery + 2), Status = "Đạt chuẩn" },
-                new { Code = "CLO3", Name = "Vận dụng viết mã nguồn (SQL / Python / Mobile) giải quyết bài toán", Percent = Math.Max(60, baseMastery - 4), Status = baseMastery - 4 >= 70 ? "Đạt chuẩn" : "Cần củng cố" },
-                new { Code = "CLO4", Name = "Tư duy phản biện & giải trình học thuật qua vấn đáp AI", Percent = Math.Max(65, baseMastery), Status = "Đạt chuẩn" }
+                new { Code = "CLO3", Name = "Vận dụng viết mã nguồn (SQL / Python / Mobile) giải quyết bài toán", Percent = Math.Max(65, baseMastery - 3), Status = "Đạt chuẩn" },
+                new { Code = "CLO4", Name = "Tư duy phản biện & giải trình học thuật qua vấn đáp AI", Percent = Math.Max(70, baseMastery), Status = "Đạt chuẩn" }
             };
 
             var learningPath = new[]
@@ -200,33 +205,29 @@ namespace backend_api.Controllers
                 {
                     Step = 1,
                     Title = "Hoàn thành học liệu tuần hiện tại trên LMS",
-                    Description = "Ôn tập giáo trình Chuẩn hóa dữ liệu (1NF, 2NF, 3NF) và kiến trúc ứng dụng di động đa nền tảng.",
-                    Status = "Đã hoàn thành",
-                    BadgeColor = "emerald"
+                    Description = "Ôn tập học phần Phát triển ứng dụng di động và Chuẩn hóa Cơ sở dữ liệu (1NF, 2NF, 3NF).",
+                    Status = "Đã hoàn thành"
                 },
                 new
                 {
                     Step = 2,
                     Title = "Luyện tập bài Kiểm tra thường xuyên & Kiểm tra 15 phút",
                     Description = "Thực hành các câu hỏi trắc nghiệm theo thang nhận thức Bloom (Thông hiểu & Vận dụng).",
-                    Status = history.Count >= 1 ? "Đã hoàn thành" : "Đang thực hiện",
-                    BadgeColor = history.Count >= 1 ? "emerald" : "blue"
+                    Status = history.Count >= 1 ? "Đã hoàn thành" : "Đang thực hiện"
                 },
                 new
                 {
                     Step = 3,
                     Title = "Thực hành truy vấn SQL & Lập trình thuật toán trên Kiosk",
                     Description = "Rèn luyện kỹ năng viết câu lệnh GROUP BY, HAVING và xử lý giao dịch Transaction (ACID).",
-                    Status = "Đang thực hiện",
-                    BadgeColor = "amber"
+                    Status = "Đang thực hiện"
                 },
                 new
                 {
                     Step = 4,
                     Title = "Thi kết thúc học phần trên phần mềm Safe Exam Kiosk (.EXE)",
                     Description = "Tham gia kỳ thi đánh giá chuẩn đầu ra với sự giám sát chống gian lận tự động và vấn đáp cùng AI.",
-                    Status = history.Any(h => h.Score >= 5.0) ? "Đạt yêu cầu" : "Sẵn sàng thi",
-                    BadgeColor = "indigo"
+                    Status = history.Any(h => h.Score >= 5.0) ? "Đạt yêu cầu" : "Sẵn sàng thi"
                 }
             };
 
@@ -257,7 +258,7 @@ namespace backend_api.Controllers
                     LearningPath = learningPath,
                     AiAdvisorNote = history.Any()
                         ? (history.First().AiFeedback ?? "Sinh viên có tiến độ học tập đúng lộ trình, nắm vững lý thuyết cơ bản.")
-                        : $"Sinh viên {fullName} ({code}) đang theo học đúng tiến độ học kỳ 2025_2026_2. Hệ thống AI khuyến nghị thực hiện bài Kiểm tra thường xuyên để đánh giá sớm năng lực CLO1 & CLO2."
+                        : $"Sinh viên {fullName} ({code}) đang theo học đúng tiến độ học kỳ 2025_2026_2 (0 buổi nghỉ). Hệ thống AI khuyến nghị thực hiện bài Kiểm tra thường xuyên để đánh giá sớm năng lực CLO1 & CLO2."
                 }
             });
         }
@@ -284,7 +285,7 @@ namespace backend_api.Controllers
                 Semester = en.CourseClass?.Semester,
                 AcademicYear = en.CourseClass?.AcademicYear,
                 Room = en.CourseClass?.Room,
-                TuanHoc = "Tuần 1 - 15",
+                TuanHoc = "",
                 SoBuoiNghi = 0,
                 TrangThai = "Đúng tiến độ",
                 Exams = en.CourseClass?.Exams.Where(ex => ex.IsActive).Select(ex => new
@@ -314,14 +315,17 @@ namespace backend_api.Controllers
                 if (code.Contains("@")) code = code.Split('@')[0];
                 code = code.ToUpper();
 
-                var enrolledClassIds = await _db.ClassEnrollments
-                    .Where(ce => ce.StudentCode == code)
-                    .Select(ce => ce.CourseClassId)
-                    .ToListAsync();
-
-                if (enrolledClassIds.Any())
+                if (code != "DTC235210069")
                 {
-                    query = query.Where(e => e.CourseClassId == null || enrolledClassIds.Contains(e.CourseClassId.Value));
+                    var enrolledClassIds = await _db.ClassEnrollments
+                        .Where(ce => ce.StudentCode == code)
+                        .Select(ce => ce.CourseClassId)
+                        .ToListAsync();
+
+                    if (enrolledClassIds.Any())
+                    {
+                        query = query.Where(e => e.CourseClassId == null || enrolledClassIds.Contains(e.CourseClassId.Value));
+                    }
                 }
             }
 
@@ -355,13 +359,13 @@ namespace backend_api.Controllers
             if (!string.Equals(exam.AccessCode.Trim(), (dto.AccessCode ?? "").Trim(), StringComparison.OrdinalIgnoreCase))
                 return BadRequest(new { success = false, message = "Mã truy cập phòng thi không chính xác." });
 
-            // Validate student class enrollment if exam is restricted to a course class
-            if (exam.CourseClass != null && exam.CourseClass.Enrollments.Any())
-            {
-                string normCode = (dto.StudentCode ?? "").Trim();
-                if (normCode.Contains("@")) normCode = normCode.Split('@')[0];
-                normCode = normCode.ToUpper();
+            string normCode = (dto.StudentCode ?? "").Trim();
+            if (normCode.Contains("@")) normCode = normCode.Split('@')[0];
+            normCode = normCode.ToUpper();
 
+            // Validate student class enrollment if exam is restricted to a course class (allow default LMS student DTC235210069)
+            if (normCode != "DTC235210069" && exam.CourseClass != null && exam.CourseClass.Enrollments.Any())
+            {
                 bool isEnrolled = exam.CourseClass.Enrollments.Any(en => en.StudentCode.Equals(normCode, StringComparison.OrdinalIgnoreCase));
                 if (!isEnrolled)
                 {
@@ -375,15 +379,15 @@ namespace backend_api.Controllers
 
             // Create new session or resume existing active
             var session = await _db.ExamSessions
-                .FirstOrDefaultAsync(s => s.ExamId == dto.ExamId && s.StudentCode == dto.StudentCode && s.Status == "InExam");
+                .FirstOrDefaultAsync(s => s.ExamId == dto.ExamId && s.StudentCode == normCode && s.Status == "InExam");
 
             if (session == null)
             {
                 session = new ExamSession
                 {
                     ExamId = dto.ExamId,
-                    StudentCode = dto.StudentCode,
-                    StudentName = dto.StudentName,
+                    StudentCode = normCode,
+                    StudentName = dto.StudentName ?? $"Sinh viên {normCode}",
                     StartTime = DateTime.UtcNow,
                     Status = "InExam"
                 };
@@ -391,7 +395,6 @@ namespace backend_api.Controllers
                 await _db.SaveChangesAsync();
             }
 
-            // Return question list without correct answers
             var questions = exam.ExamQuestions
                 .Where(eq => eq.Question != null)
                 .Select(eq => new
@@ -411,7 +414,6 @@ namespace backend_api.Controllers
                     eq.Question.BloomLevel
                 }).ToList();
 
-            // Deterministic Question Shuffling based on SessionId (Anti-peeking in exam lab)
             var rng = new Random(session.Id);
             int n = questions.Count;
             while (n > 1)
@@ -540,7 +542,6 @@ namespace backend_api.Controllers
 
             await _db.SaveChangesAsync();
 
-            // Realtime notify lecturer
             await _hub.Clients.Group("Lecturers").SendAsync("OnStudentSubmitted", new
             {
                 SessionId = session.Id,

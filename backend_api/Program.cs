@@ -58,7 +58,6 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     db.Database.EnsureCreated();
 
-    // Auto-create Users table if DB existed before
     try
     {
         db.Database.ExecuteSqlRaw(@"
@@ -74,7 +73,6 @@ using (var scope = app.Services.CreateScope())
             );
         ");
 
-        // Safe migration for CloCode and BloomLevel in Questions table
         try
         {
             var conn = db.Database.GetDbConnection();
@@ -134,7 +132,6 @@ using (var scope = app.Services.CreateScope())
                 alterCmd.ExecuteNonQuery();
             }
 
-            // Safe migration for ExamAnswers table (CodeAnswer)
             var answerCols = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             using (var cmd = conn.CreateCommand())
             {
@@ -153,7 +150,6 @@ using (var scope = app.Services.CreateScope())
                 alterCmd.ExecuteNonQuery();
             }
 
-            // Safe migration for CourseClassId in Exams table
             var examCols = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             using (var cmd = conn.CreateCommand())
             {
@@ -172,7 +168,6 @@ using (var scope = app.Services.CreateScope())
                 alterCmd.ExecuteNonQuery();
             }
 
-            // Create CourseClasses table if not exists
             using (var cmd = conn.CreateCommand())
             {
                 cmd.CommandText = @"
@@ -215,7 +210,7 @@ using (var scope = app.Services.CreateScope())
                 SubjectId = 1,
                 LecturerName = "TS. Nguyễn Văn A",
                 LecturerEmail = "gv_nguyenvana@ictu.edu.vn",
-                Semester = "2025_2026_2",
+                Semester = "Học kỳ 2",
                 AcademicYear = "2025-2026",
                 Room = "Lab 302 - Tòa C1"
             };
@@ -226,7 +221,7 @@ using (var scope = app.Services.CreateScope())
                 SubjectId = 2,
                 LecturerName = "ThS. Lê Thị B",
                 LecturerEmail = "gv_lethib@ictu.edu.vn",
-                Semester = "2025_2026_2",
+                Semester = "Học kỳ 2",
                 AcademicYear = "2025-2026",
                 Room = "Lab 405 - Tòa C2"
             };
@@ -250,7 +245,7 @@ using (var scope = app.Services.CreateScope())
             }
         }
 
-        // Ensure LMS Mobile App Development class & student Pham Hong Ngoc (DTC235210069) exist
+        // Ensure LMS Mobile App Development class & student Pham Hong Ngoc (DTC235210069) exist matching screenshot
         if (!db.Subjects.Any(s => s.Code == "MOB205"))
         {
             var mobSub = new backend_api.Models.Subject
@@ -267,36 +262,46 @@ using (var scope = app.Services.CreateScope())
                 ClassCode = "CNTTQT K22B. KNUK22.K2.D1.N01",
                 ClassName = "Phát triển ứng dụng di động-2-25 (CNTTQT K22B. KNUK22.K2.D1.N01)",
                 SubjectId = mobSub.Id,
-                LecturerName = "TS. Nguyễn Văn A",
-                LecturerEmail = "gv_nguyenvana@ictu.edu.vn",
-                Semester = "2025_2026_2",
+                LecturerName = "Vũ Huy Hoàng",
+                LecturerEmail = "vuhuyhoang@ictu.edu.vn",
+                Semester = "Học kỳ 2",
                 AcademicYear = "2025-2026",
-                Room = "Phòng C5-201"
+                Room = "Học trên lớp"
             };
             db.CourseClasses.Add(mobClass);
             db.SaveChanges();
 
-            db.ClassEnrollments.AddRange(
-                new backend_api.Models.ClassEnrollment { CourseClassId = mobClass.Id, StudentCode = "DTC235210069", StudentName = "Phạm Hồng Ngọc", AdministrativeClass = "CNTTQT K22B", StudentEmail = "dtc235210069@ictu.edu.vn" },
-                new backend_api.Models.ClassEnrollment { CourseClassId = mobClass.Id, StudentCode = "DTC205122001", StudentName = "Nguyễn Văn An", AdministrativeClass = "K20-CNTT01", StudentEmail = "dtc205122001@ictu.edu.vn" },
-                new backend_api.Models.ClassEnrollment { CourseClassId = mobClass.Id, StudentCode = "DTC205122002", StudentName = "Trần Thị Bình", AdministrativeClass = "K20-CNTT01", StudentEmail = "dtc205122002@ms.ictu.edu.vn" }
+            db.ClassEnrollments.Add(
+                new backend_api.Models.ClassEnrollment
+                {
+                    CourseClassId = mobClass.Id,
+                    StudentCode = "DTC235210069",
+                    StudentName = "Phạm Hồng Ngọc",
+                    AdministrativeClass = "CNTTQT K22B",
+                    StudentEmail = "dtc235210069@ictu.edu.vn"
+                }
             );
             db.SaveChanges();
         }
-
-        // Ensure DTC235210069 is also enrolled in CS301.01 and AI402.01 so all exams work seamlessly
-        var csClass = db.CourseClasses.FirstOrDefault(c => c.ClassCode == "CS301.01");
-        if (csClass != null && !db.ClassEnrollments.Any(e => e.CourseClassId == csClass.Id && e.StudentCode == "DTC235210069"))
+        else
         {
-            db.ClassEnrollments.Add(new backend_api.Models.ClassEnrollment
+            // Ensure LecturerName is Vũ Huy Hoàng and DTC235210069 only has this 1 class as in screenshot
+            var mobClass = db.CourseClasses.FirstOrDefault(c => c.ClassName.Contains("Phát triển ứng dụng di động"));
+            if (mobClass != null)
             {
-                CourseClassId = csClass.Id,
-                StudentCode = "DTC235210069",
-                StudentName = "Phạm Hồng Ngọc",
-                AdministrativeClass = "CNTTQT K22B",
-                StudentEmail = "dtc235210069@ictu.edu.vn"
-            });
-            db.SaveChanges();
+                mobClass.LecturerName = "Vũ Huy Hoàng";
+                mobClass.Room = "Học trên lớp";
+                mobClass.Semester = "Học kỳ 2";
+                mobClass.AcademicYear = "2025-2026";
+                var extraEnrollments = db.ClassEnrollments
+                    .Where(e => e.StudentCode == "DTC235210069" && e.CourseClassId != mobClass.Id)
+                    .ToList();
+                if (extraEnrollments.Any())
+                {
+                    db.ClassEnrollments.RemoveRange(extraEnrollments);
+                }
+                db.SaveChanges();
+            }
         }
 
         // Ensure additional formative exams (15-minute quiz & regular test) and coding question exist
@@ -306,7 +311,7 @@ using (var scope = app.Services.CreateScope())
             {
                 SubjectId = 1,
                 Type = "code",
-                QuestionText = "Viết câu truy vấn SQL lấy danh sách Mã sinh viên (StudentCode), Họ tên (FullName) và Điểm trung bình (AvgScore) của các sinh viên có điểm trung bình >= 8.0 từ bảngKetQuaThi, sắp xếp giảm dần theo AvgScore.",
+                QuestionText = "Viết câu truy vấn SQL lấy danh sách Mã sinh viên (StudentCode), Họ tên (FullName) và Điểm trung bình (AvgScore) của các sinh viên có điểm trung bình >= 8.0 từ bảng KetQuaThi, sắp xếp giảm dần theo AvgScore.",
                 ProgrammingLanguage = "sql",
                 StarterCode = "SELECT StudentCode, FullName, AVG(Score) AS AvgScore\nFROM KetQuaThi\n-- Viết tiếp mệnh đề GROUP BY, HAVING và ORDER BY dưới đây:\n",
                 KeyPoints = "GROUP BY StudentCode, FullName HAVING AVG(Score) >= 8.0 ORDER BY AvgScore DESC",
