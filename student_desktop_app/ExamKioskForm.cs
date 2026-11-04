@@ -25,6 +25,9 @@ namespace student_desktop_app
         private readonly string[] _blacklistedProcesses = new[] { "anydesk", "teamviewer", "ultraviewer", "discord", "obs64" };
 
         private int _violationCount = 0;
+        private int _activeSessionId = 0;
+        private string _activeStudentCode = "DTC235210069";
+        private string _activeStudentName = "Phạm Hồng Ngọc";
         private bool _isInternalDialogOpen = false;
         private bool _isFormFullyLoaded = false;
         private DateTime _lastDeactivateViolation = DateTime.MinValue;
@@ -76,11 +79,11 @@ namespace student_desktop_app
             this.TopMost = true; // Lock on top of all windows
             this.KeyPreview = true;
             this.BackColor = Color.FromArgb(0, 51, 102); // ICTU Navy
-            this.Text = "Cổng Khảo Thí Trực Tuyến & Giám Sát Phòng Thi An Toàn - ICTU";
+            this.Text = "LMS For Students & Cổng Khảo Thí An Toàn - ICTU (v3.2.98)";
 
             this.Shown += (s, e) => { _isFormFullyLoaded = true; };
 
-            this.Deactivate += async (s, e) =>
+            this.Deactivate += (s, e) =>
             {
                 if (!_isFormFullyLoaded || _isInternalDialogOpen) return;
 
@@ -95,9 +98,7 @@ namespace student_desktop_app
                 if ((DateTime.UtcNow - _lastDeactivateViolation).TotalSeconds < 6) return;
                 _lastDeactivateViolation = DateTime.UtcNow;
 
-                _violationCount++;
-                System.Media.SystemSounds.Beep.Play();
-                await _api.LogViolationAsync(0, "KIOSK_STUDENT", "Sinh viên Kiosk", "WindowDeactivated (Alt+Tab)", "Thí sinh mất tiêu điểm cửa sổ phòng thi an toàn");
+                TriggerViolation("WindowDeactivated (Alt+Tab)", "Thí sinh mất tiêu điểm cửa sổ phòng thi an toàn");
             };
 
             this.FormClosing += (s, e) =>
@@ -156,7 +157,7 @@ namespace student_desktop_app
 
             var lblTitle = new Label
             {
-                Text = "CỔNG KHẢO THÍ TRỰC TUYẾN ICTU",
+                Text = "LMS FOR STUDENTS & KHẢO THÍ ICTU",
                 Font = new Font("Segoe UI", 12F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(0, 51, 102),
                 TextAlign = ContentAlignment.MiddleCenter,
@@ -193,7 +194,7 @@ namespace student_desktop_app
 
             _btnRetry = new Button
             {
-                Text = "KẾT NỐI LẠI PHÒNG THI",
+                Text = "KẾT NỐI LẠI HỆ THỐNG LMS",
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                 ForeColor = Color.White,
                 BackColor = Color.FromArgb(0, 74, 153),
@@ -269,7 +270,7 @@ namespace student_desktop_app
                     }
                     else
                     {
-                        ShowFallbackScreen($"Không thể tải trang thi: {e.WebErrorStatus}. Kiểm tra lại Backend API.");
+                        ShowFallbackScreen($"Không thể tải cổng LMS: {e.WebErrorStatus}. Vui lòng kiểm tra lại Backend API (cổng 5000).");
                     }
                 };
 
@@ -311,6 +312,20 @@ namespace student_desktop_app
                     {
                         HandleProctorExit();
                     }
+                    else if (action == "examStarted")
+                    {
+                        if (doc.RootElement.TryGetProperty("sessionId", out var sidElem) && sidElem.TryGetInt32(out int sid))
+                            _activeSessionId = sid;
+                        if (doc.RootElement.TryGetProperty("studentCode", out var scElem))
+                            _activeStudentCode = scElem.GetString() ?? _activeStudentCode;
+                        if (doc.RootElement.TryGetProperty("studentName", out var snElem))
+                            _activeStudentName = snElem.GetString() ?? _activeStudentName;
+                        _violationCount = 0;
+                    }
+                    else if (action == "examEnded")
+                    {
+                        _activeSessionId = 0;
+                    }
                 }
             }
             catch { }
@@ -333,7 +348,7 @@ namespace student_desktop_app
         private void SetupProcessScanner()
         {
             _processScanTimer = new System.Windows.Forms.Timer { Interval = 10000 };
-            _processScanTimer.Tick += async (s, e) =>
+            _processScanTimer.Tick += (s, e) =>
             {
                 try
                 {
@@ -346,9 +361,7 @@ namespace student_desktop_app
                             if (pName.Contains(black) && !_reportedProcesses.Contains(pName))
                             {
                                 _reportedProcesses.Add(pName);
-                                _violationCount++;
-                                System.Media.SystemSounds.Beep.Play();
-                                await _api.LogViolationAsync(0, "KIOSK_STUDENT", "Sinh viên Kiosk", $"BlacklistedProcess ({pName})", $"Phát hiện phần mềm chia sẻ màn hình/điều khiển từ xa: {p.ProcessName}");
+                                TriggerViolation($"BlacklistedProcess ({pName})", $"Phát hiện phần mềm chia sẻ màn hình/điều khiển từ xa: {p.ProcessName}");
                             }
                         }
                     }
@@ -390,7 +403,24 @@ namespace student_desktop_app
         {
             _violationCount++;
             System.Media.SystemSounds.Beep.Play();
-            await _api.LogViolationAsync(0, "KIOSK_STUDENT", "Sinh viên Kiosk", type, details);
+
+            try
+            {
+                if (_webView != null && _webView.CoreWebView2 != null)
+                {
+                    string jsonMsg = JsonSerializer.Serialize(new
+                    {
+                        eventType = "nativeViolation",
+                        violationCount = _violationCount,
+                        type = type,
+                        details = details
+                    });
+                    _webView.CoreWebView2.PostWebMessageAsJson(jsonMsg);
+                }
+            }
+            catch { }
+
+            await _api.LogViolationAsync(_activeSessionId, _activeStudentCode, _activeStudentName, type, details);
         }
 
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
@@ -484,4 +514,3 @@ namespace student_desktop_app
         }
     }
 }
-

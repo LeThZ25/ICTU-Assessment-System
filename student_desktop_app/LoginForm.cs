@@ -1,20 +1,19 @@
 using System;
 using System.Drawing;
-using System.Text.RegularExpressions;
 using System.Windows.Forms;
 
 namespace student_desktop_app
 {
     public class LoginForm : Form
     {
-        private TextBox txtEmailOrCode;
-        private TextBox txtStudentName;
-        private TextBox txtAccessCode;
-        private Label lblProviderDetect;
-        private Button btnLogin;
-        private Button btnMockGoogle;
-        private Button btnMockMicrosoft;
-        private Label lblStatus;
+        private TextBox txtEmailOrCode = null!;
+        private TextBox txtStudentName = null!;
+        private TextBox txtAccessCode = null!;
+        private Label lblProviderDetect = null!;
+        private Button btnLogin = null!;
+        private Button btnMockGoogle = null!;
+        private Button btnMockMicrosoft = null!;
+        private Label lblStatus = null!;
         private readonly ApiClient _api;
 
         public LoginForm()
@@ -25,7 +24,7 @@ namespace student_desktop_app
 
         private void InitializeComponent()
         {
-            this.Text = "Hệ Thống Khảo Thí & Đánh Giá Năng Lực Sinh Viên ICTU";
+            this.Text = "LMS For Students & Cổng Khảo Thí Trực Tuyến ICTU (v3.2.98)";
             this.Size = new Size(540, 600);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -89,10 +88,10 @@ namespace student_desktop_app
 
             // SSO Buttons
             var lblSso = new Label { Text = "Đăng Nhập Nhanh Qua Cổng Trường:", Location = new Point(45, 105), AutoSize = true, Font = new Font("Segoe UI", 8.5F, FontStyle.Bold), ForeColor = Color.FromArgb(71, 85, 105) };
-            
+
             btnMockGoogle = new Button
             {
-                Text = "G Google Workspace (ictu.edu.vn)",
+                Text = "G Google ICTU (DTC235210069)",
                 Location = new Point(45, 128),
                 Width = 215,
                 Height = 36,
@@ -104,8 +103,8 @@ namespace student_desktop_app
             btnMockGoogle.FlatAppearance.BorderColor = Color.FromArgb(226, 232, 240);
             btnMockGoogle.Click += (s, e) =>
             {
-                txtEmailOrCode.Text = "dtc205122001@ictu.edu.vn";
-                txtStudentName.Text = "Nguyễn Văn An";
+                txtEmailOrCode.Text = "dtc235210069@ictu.edu.vn";
+                txtStudentName.Text = "Phạm Hồng Ngọc";
             };
 
             btnMockMicrosoft = new Button
@@ -128,7 +127,7 @@ namespace student_desktop_app
 
             // Form inputs
             var lblCode = new Label { Text = "Email Trường / Mã Sinh Viên:", Location = new Point(45, 180), AutoSize = true, Font = new Font("Segoe UI", 9F, FontStyle.Bold) };
-            txtEmailOrCode = new TextBox { Text = "dtc205122001@ictu.edu.vn", Location = new Point(45, 205), Width = 440, Height = 32 };
+            txtEmailOrCode = new TextBox { Text = "dtc235210069@ictu.edu.vn", Location = new Point(45, 205), Width = 440, Height = 32 };
             txtEmailOrCode.TextChanged += TxtEmailOrCode_TextChanged;
 
             lblProviderDetect = new Label
@@ -141,7 +140,7 @@ namespace student_desktop_app
             };
 
             var lblName = new Label { Text = "Họ và Tên Sinh Viên:", Location = new Point(45, 268), AutoSize = true, Font = new Font("Segoe UI", 9F, FontStyle.Bold) };
-            txtStudentName = new TextBox { Text = "Nguyễn Văn An", Location = new Point(45, 292), Width = 440, Height = 32 };
+            txtStudentName = new TextBox { Text = "Phạm Hồng Ngọc", Location = new Point(45, 292), Width = 440, Height = 32 };
 
             var lblAccess = new Label { Text = "Mã Phòng Thi (Access Code):", Location = new Point(45, 335), AutoSize = true, Font = new Font("Segoe UI", 9F, FontStyle.Bold) };
             txtAccessCode = new TextBox { Text = "ICTU2026", Location = new Point(45, 360), Width = 440, Height = 32, Font = new Font("Segoe UI", 10F, FontStyle.Bold) };
@@ -217,16 +216,7 @@ namespace student_desktop_app
                 return;
             }
 
-            // Extract pure StudentCode from email or string
-            string studentCode = input;
-            if (studentCode.Contains("@"))
-            {
-                studentCode = studentCode.Split('@')[0].ToUpper();
-            }
-            else
-            {
-                studentCode = studentCode.ToUpper();
-            }
+            string studentCode = input.Contains("@") ? input.Split('@')[0].ToUpper() : input.ToUpper();
 
             btnLogin.Enabled = false;
             lblStatus.Text = "Đang kết nối API và lấy dữ liệu đề thi...";

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Phòng Thi Trực Tuyến & Đánh Giá Chuẩn Đầu Ra - ICTU</title>
+  <title>LMS For Students - Cổng Học Tập & Khảo Thí Trực Tuyến ICTU (v3.2.98)</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -11,9 +11,11 @@
         extend: {
           colors: {
             ictu: {
-              DEFAULT: '#004A99',
+              DEFAULT: '#005bb5',
               dark: '#003366',
-              light: '#E6F0FA',
+              light: '#e8f0fe',
+              banner: '#0066cc',
+              green: '#65a30d',
               accent: '#F26522',
               gold: '#FFB800'
             }
@@ -25,249 +27,1491 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-    body { font-family: 'Inter', sans-serif; user-select: none; }
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Dancing+Script:wght@700&display=swap');
+    body { font-family: 'Inter', sans-serif; user-select: none; background-color: #f8fafc; }
+    .font-script { font-family: 'Dancing Script', cursive; }
+    /* Custom scrollbar for sidebar */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+    .lms-nav-item {
+      display: flex;
+      align-items: center;
+      width: 100%;
+      padding: 0.6rem 0.85rem;
+      border-radius: 0.5rem;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: #475569;
+      transition: all 0.15s ease;
+    }
+    .lms-nav-item:hover {
+      background-color: #f1f5f9;
+      color: #1e293b;
+    }
+    .lms-nav-item.active {
+      background-color: #e8f0fe;
+      color: #1967d2;
+      font-weight: 600;
+    }
+    .lms-nav-item.active i.nav-icon {
+      color: #1967d2;
+    }
+    .lms-nav-item i.nav-icon {
+      width: 1.5rem;
+      color: #64748b;
+      font-size: 0.95rem;
+      text-align: center;
+      margin-right: 0.65rem;
+    }
+    .lms-badge-lock {
+      margin-left: 0.45rem;
+      padding: 0.1rem 0.4rem;
+      background-color: #ef4444;
+      color: #ffffff;
+      font-size: 0.625rem;
+      font-weight: 700;
+      border-radius: 0.25rem;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+    .lms-badge-open {
+      margin-left: 0.45rem;
+      padding: 0.1rem 0.4rem;
+      background-color: #10b981;
+      color: #ffffff;
+      font-size: 0.625rem;
+      font-weight: 700;
+      border-radius: 0.25rem;
+      text-transform: uppercase;
+    }
+    .ictu-banner-bg {
+      background: linear-gradient(100deg, #0284c7 0%, #2563eb 55%, #005bb5 100%);
+      position: relative;
+      overflow: hidden;
+    }
+    .typing-cursor::after {
+      content: '▋';
+      display: inline-block;
+      animation: blink 0.8s infinite;
+      color: #005bb5;
+      margin-left: 2px;
+    }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
   </style>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col justify-between">
+<body class="text-slate-800 h-screen flex overflow-hidden">
 
-  <!-- Top Bar - ICTU Exam Header -->
-  <header class="bg-ictu-dark text-white border-b-4 border-ictu-accent py-2.5 px-6 flex items-center justify-between shadow-sm relative">
-    <div class="flex items-center space-x-3">
-      <img src="/images/ictu_logo.png" alt="ICTU Logo" class="w-10 h-10 object-contain rounded-full bg-white p-0.5 shadow-xs">
+  <!-- ===================================================================== -->
+  <!-- LEFT SIDEBAR: ICTU LMS FOR STUDENTS (v3.2.98)                         -->
+  <!-- ===================================================================== -->
+  <aside id="lmsSidebar" class="w-64 bg-white border-r border-slate-200 flex-shrink-0 flex flex-col justify-between h-screen overflow-y-auto transition-all duration-200 z-30">
+    <div class="p-3.5 space-y-4">
+
+      <!-- 1. LMS Brand Header -->
+      <div class="flex items-center space-x-3 px-1 pt-1">
+        <div class="flex flex-col items-center justify-center bg-lime-50 border border-lime-200 rounded-lg px-2 py-1 shadow-2xs">
+          <span class="text-lg font-black tracking-tighter leading-none text-lime-700">LMS</span>
+          <span class="text-[7px] font-bold uppercase tracking-tight text-lime-600 mt-0.5">FOR STUDENTS</span>
+        </div>
+        <div>
+          <span class="inline-block px-2 py-0.5 bg-blue-50 text-blue-600 text-[11px] font-bold rounded border border-blue-100">LMS - v3.2.98</span>
+          <p class="text-[11px] text-slate-500 font-medium mt-0.5">lms.ictu.edu.vn</p>
+        </div>
+      </div>
+
+      <!-- 2. Student Profile Card (Click to switch student / login) -->
+      <div onclick="openAccountModal()" title="Nhấn để chuyển đổi tài khoản sinh viên" class="bg-slate-50 hover:bg-slate-100/80 border border-slate-200/90 rounded-xl p-3 flex items-center justify-between cursor-pointer transition shadow-2xs">
+        <div class="flex items-center space-x-2.5 min-w-0">
+          <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-600 to-sky-400 text-white flex items-center justify-center font-bold text-sm flex-shrink-0 shadow-xs border-2 border-white relative">
+            <span id="sidebarAvatarText">PN</span>
+            <span class="w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full absolute bottom-0 right-0"></span>
+          </div>
+          <div class="truncate">
+            <p class="text-xs font-bold text-slate-800 truncate" id="sidebarStudentName">Phạm Hồng Ngọc</p>
+            <p class="text-[11px] text-slate-500 font-medium truncate" id="sidebarStudentCode">DTC235210069</p>
+          </div>
+        </div>
+        <i class="fa-solid fa-bars-staggered text-slate-400 text-xs ml-1 flex-shrink-0"></i>
+      </div>
+
+      <!-- 3. Primary Dashboard Button -->
       <div>
-        <h2 class="text-xs sm:text-sm font-bold tracking-tight uppercase" id="headerExamTitle">CỔNG KHẢO THÍ & ĐÁNH GIÁ CHUẨN ĐẦU RA TRỰC TUYẾN</h2>
-        <p class="text-[11px] text-slate-300" id="headerStudentInfo">Trường Đại học Công nghệ Thông tin và Truyền thông - Đại học Thái Nguyên</p>
-      </div>
-    </div>
-
-    <!-- Centered Digital Timer (Strictly centered horizontally) -->
-    <div id="examTimerBox" class="hidden absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 flex items-center space-x-2 bg-white text-ictu-dark px-4 py-1.5 rounded-lg font-mono text-sm font-bold shadow-md border border-blue-200">
-      <i class="fa-regular fa-clock text-ictu-accent"></i>
-      <span id="examTimer">20:00</span>
-    </div>
-
-    <!-- Right Controls: Zoom & Proctor Exit -->
-    <div class="flex items-center space-x-2.5">
-      <!-- Modern Zoom Pill Control -->
-      <div class="flex items-center bg-white/10 hover:bg-white/15 rounded-lg border border-white/20 px-1 py-0.5 text-xs transition">
-        <button type="button" onclick="adjustWebFontSize(-1)" title="Giảm cỡ chữ" class="w-6 h-6 flex items-center justify-center text-white/90 hover:text-white hover:bg-white/20 rounded font-bold transition">
-          <i class="fa-solid fa-minus text-[10px]"></i>
-        </button>
-        <span id="lblWebZoom" class="px-2 text-[11px] font-semibold text-white/90 select-none">100%</span>
-        <button type="button" onclick="adjustWebFontSize(1)" title="Tăng cỡ chữ" class="w-6 h-6 flex items-center justify-center text-white/90 hover:text-white hover:bg-white/20 rounded font-bold transition">
-          <i class="fa-solid fa-plus text-[10px]"></i>
+        <button onclick="switchLmsSection('bulletin')" id="nav-bulletin" class="lms-nav-item active">
+          <i class="fa-solid fa-chart-line nav-icon"></i>
+          <span>Bảng tin LMS</span>
         </button>
       </div>
 
-      <!-- Proctor Emergency Exit (Desktop Kiosk) -->
-      <button type="button" id="btnDesktopProctorExit" onclick="handleDesktopProctorExit()" class="hidden px-2.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold transition flex items-center space-x-1 shadow-xs">
-        <i class="fa-solid fa-shield-halved"></i>
-        <span>Giám Thị</span>
-      </button>
-    </div>
-  </header>
+      <!-- 4. Section: HỌC TẬP -->
+      <div class="space-y-0.5">
+        <p class="px-2.5 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-700">HỌC TẬP</p>
 
-  <main class="max-w-5xl mx-auto w-full p-4 flex-1 flex flex-col justify-center">
+        <button onclick="switchLmsSection('timetable')" id="nav-timetable" class="lms-nav-item">
+          <i class="fa-solid fa-calendar-days nav-icon"></i>
+          <span>Thời khóa biểu</span>
+        </button>
 
-    <!-- STEP 1: LOGIN & START EXAM -->
-    <div id="stepLogin" class="bg-white p-7 rounded-xl shadow-xs border border-slate-200 max-w-md mx-auto w-full">
-      <div class="text-center mb-5 pb-4 border-b border-slate-100">
-        <img src="/images/ictu_logo.png" alt="ICTU Logo" class="w-14 h-14 object-contain mx-auto mb-2.5">
-        <h3 class="text-lg font-bold text-slate-800 uppercase tracking-tight">Đăng Nhập Phòng Thi ICTU</h3>
-        <p class="text-xs text-slate-500 mt-1">Sử dụng tài khoản sinh viên trường để nhận đề thi</p>
+        <button onclick="switchLmsSection('classes')" id="nav-classes" class="lms-nav-item">
+          <i class="fa-solid fa-book-open nav-icon"></i>
+          <span>Lớp học phần</span>
+        </button>
+
+        <button onclick="switchLmsSection('regular-test')" id="nav-regular-test" class="lms-nav-item">
+          <i class="fa-solid fa-flag nav-icon"></i>
+          <span>Kiểm tra thường xuyên</span>
+        </button>
+
+        <button onclick="switchLmsSection('quiz-15')" id="nav-quiz-15" class="lms-nav-item">
+          <i class="fa-solid fa-clipboard-check nav-icon"></i>
+          <span>Kiểm tra 15 phút</span>
+          <span id="badgeQuiz15" class="lms-badge-lock">KHÓA</span>
+        </button>
+
+        <button onclick="switchLmsSection('final-exam')" id="nav-final-exam" class="lms-nav-item">
+          <i class="fa-solid fa-award nav-icon"></i>
+          <span>Thi kết thúc học phần</span>
+          <span id="badgeFinalExam" class="lms-badge-lock">KHÓA</span>
+        </button>
+
+        <button onclick="switchLmsSection('projects')" id="nav-projects" class="lms-nav-item">
+          <i class="fa-solid fa-folder nav-icon"></i>
+          <span>Dự án</span>
+        </button>
+
+        <button onclick="switchLmsSection('qa-lecturer')" id="nav-qa-lecturer" class="lms-nav-item">
+          <i class="fa-solid fa-comments nav-icon"></i>
+          <span>Hỏi đáp với giảng viên</span>
+        </button>
       </div>
 
-      <!-- Quick SSO Buttons -->
-      <div class="grid grid-cols-2 gap-2.5 mb-4">
-        <button type="button" onclick="quickFillStudent('dtc205122001@ictu.edu.vn', 'Nguyễn Văn An')" class="p-2.5 border border-slate-200 hover:border-ictu hover:bg-ictu-light/40 rounded-lg text-left transition flex items-center space-x-2.5">
-          <i class="fa-brands fa-google text-red-500 text-sm"></i>
-          <div class="truncate">
-            <p class="text-[11px] font-bold text-slate-700 leading-tight">Google ICTU</p>
-            <p class="text-[9px] text-slate-400 truncate">@ictu.edu.vn</p>
-          </div>
-        </button>
-        <button type="button" onclick="quickFillStudent('dtc205122002@ms.ictu.edu.vn', 'Trần Thị Bình')" class="p-2.5 border border-slate-200 hover:border-ictu hover:bg-ictu-light/40 rounded-lg text-left transition flex items-center space-x-2.5">
-          <i class="fa-brands fa-microsoft text-sky-600 text-sm"></i>
-          <div class="truncate">
-            <p class="text-[11px] font-bold text-slate-700 leading-tight">Microsoft 365</p>
-            <p class="text-[9px] text-slate-400 truncate">@ms.ictu.edu.vn</p>
-          </div>
+      <!-- 5. Section: KẾT QUẢ -->
+      <div class="space-y-0.5">
+        <p class="px-2.5 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-700">KẾT QUẢ</p>
+
+        <button onclick="switchLmsSection('scores')" id="nav-scores" class="lms-nav-item">
+          <i class="fa-solid fa-magnifying-glass nav-icon"></i>
+          <span>Tra cứu điểm</span>
         </button>
       </div>
 
-      <form onsubmit="handleStartExam(event)" class="space-y-3.5">
-        <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">Email Trường / Mã Sinh Viên (DTC...)</label>
-          <input type="text" id="inpStudentCode" required value="dtc205122001@ictu.edu.vn" oninput="detectDomain(this.value)" class="w-full px-3.5 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:border-ictu font-medium">
-          <span id="detectedDomainBadge" class="text-[11px] text-emerald-600 font-semibold mt-1 block">✓ Đăng nhập Google Workspace ICTU</span>
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">Họ Và Tên Thí Sinh</label>
-          <input type="text" id="inpStudentName" required value="Nguyễn Văn An" class="w-full px-3.5 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:border-ictu">
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">Ca Thi / Lớp Học Phần</label>
-          <select id="inpExamId" class="w-full px-3.5 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:border-ictu">
-            <option value="1">Đánh giá Kiểm tra Chuẩn đầu ra CSDL - Lớp CS301.01</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">Mã Phòng Thi (Access Code)</label>
-          <input type="text" id="inpAccessCode" required value="ICTU2026" class="w-full px-3.5 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:border-ictu font-mono font-bold text-ictu bg-slate-50">
-        </div>
+      <!-- 6. Section: HỆ THỐNG -->
+      <div class="space-y-0.5">
+        <p class="px-2.5 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-700">HỆ THỐNG</p>
 
-        <div class="p-3 bg-amber-50 border border-amber-200 rounded-lg text-[11px] text-amber-900 flex items-start space-x-2">
-          <i class="fa-solid fa-shield-halved text-amber-600 mt-0.5"></i>
-          <span>Phòng thi được giám sát tự động theo Quy chế thi ICTU (nghiêm cấm chuyển cửa sổ, Alt+Tab, sao chép dữ liệu).</span>
-        </div>
-
-        <button type="submit" id="btnStart" class="w-full bg-ictu hover:bg-ictu-dark text-white font-semibold py-2.5 rounded-lg transition text-sm flex items-center justify-center">
-          <i class="fa-solid fa-lock mr-2"></i> Vào Phòng Thi An Toàn
+        <button onclick="switchLmsSection('settings')" id="nav-settings" class="lms-nav-item">
+          <i class="fa-solid fa-gear nav-icon"></i>
+          <span>Cài đặt</span>
         </button>
-      </form>
-    </div>
 
-    <!-- STEP 2: EXAM WORKSPACE -->
-    <div id="stepExam" class="hidden space-y-4">
-      <div class="bg-white border border-slate-200 border-l-4 border-l-ictu p-3 rounded-lg flex items-center justify-between text-xs">
-        <span class="flex items-center font-medium text-slate-700">
-          <i class="fa-solid fa-shield-halved mr-2 text-ictu"></i> Chế độ giám sát quy chế thi trực tuyến đang hoạt động
+        <button onclick="switchLmsSection('support')" id="nav-support" class="lms-nav-item">
+          <i class="fa-solid fa-phone-volume nav-icon"></i>
+          <span>Trợ giúp kỹ thuật</span>
+        </button>
+
+        <button onclick="switchLmsSection('profile')" id="nav-profile" class="lms-nav-item">
+          <i class="fa-solid fa-id-badge nav-icon"></i>
+          <span>Hồ sơ của bạn</span>
+        </button>
+
+        <button onclick="switchLmsSection('seb-kiosk')" id="nav-seb-kiosk" class="lms-nav-item">
+          <i class="fa-solid fa-download nav-icon"></i>
+          <span>Tải phần mềm thi SEB</span>
+        </button>
+
+        <button onclick="openAccountModal()" class="lms-nav-item text-rose-600 hover:text-rose-700">
+          <i class="fa-solid fa-arrow-right-from-bracket nav-icon !text-rose-500"></i>
+          <span>Đăng xuất</span>
+        </button>
+      </div>
+
+      <!-- 7. Section: LIÊN KẾT -->
+      <div class="space-y-0.5 pb-4">
+        <p class="px-2.5 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-700">LIÊN KẾT</p>
+
+        <button onclick="switchLmsSection('ictu-portal')" id="nav-ictu-portal" class="lms-nav-item">
+          <i class="fa-solid fa-globe nav-icon"></i>
+          <span>ictu.edu.vn</span>
+        </button>
+      </div>
+
+    </div>
+  </aside>
+
+  <!-- ===================================================================== -->
+  <!-- MAIN CONTENT AREA                                                     -->
+  <!-- ===================================================================== -->
+  <div class="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-slate-50/60">
+
+    <!-- TOP HEADER BAR -->
+    <header id="topHeaderBar" class="bg-white border-b border-slate-200 px-5 py-2.5 flex items-center justify-between flex-shrink-0 z-20 relative">
+      <div class="flex items-center space-x-3.5">
+        <button id="btnToggleSidebar" onclick="toggleSidebar()" class="w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition">
+          <i class="fa-solid fa-bars text-sm"></i>
+        </button>
+        <div>
+          <h1 id="headerExamTitle" class="text-sm sm:text-base font-bold text-slate-800 uppercase tracking-tight">BẢNG TIN ICTU</h1>
+          <p id="headerStudentInfo" class="text-[11px] text-slate-500 hidden sm:block">Hệ thống Quản lý Học tập & Khảo thí Thông minh ICTU</p>
+        </div>
+      </div>
+
+      <!-- Centered Digital Timer (Visible during active exam) -->
+      <div id="examTimerBox" class="hidden absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 flex items-center space-x-2 bg-ictu-dark text-white px-4 py-1.5 rounded-lg font-mono text-sm font-bold shadow-md border border-blue-400">
+        <i class="fa-regular fa-clock text-ictu-gold"></i>
+        <span id="examTimer">20:00</span>
+      </div>
+
+      <!-- Right Controls: Kiosk Status, Font Zoom, Proctor Exit -->
+      <div class="flex items-center space-x-2.5">
+        <span id="kioskModeBadge" class="hidden md:inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 mr-1.5"></span> Safe Exam Sẵn Sàng
         </span>
-        <span id="antiCheatWarnCount" class="px-2.5 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 font-bold">0 Lần Cảnh Báo</span>
+
+        <!-- Modern Zoom Pill Control -->
+        <div class="flex items-center bg-slate-100 hover:bg-slate-200/70 rounded-lg border border-slate-200 px-1 py-0.5 text-xs transition">
+          <button type="button" onclick="adjustWebFontSize(-1)" title="Giảm cỡ chữ" class="w-6 h-6 flex items-center justify-center text-slate-700 hover:bg-white rounded font-bold transition">
+            <i class="fa-solid fa-minus text-[10px]"></i>
+          </button>
+          <span id="lblWebZoom" class="px-2 text-[11px] font-semibold text-slate-700 select-none">100%</span>
+          <button type="button" onclick="adjustWebFontSize(1)" title="Tăng cỡ chữ" class="w-6 h-6 flex items-center justify-center text-slate-700 hover:bg-white rounded font-bold transition">
+            <i class="fa-solid fa-plus text-[10px]"></i>
+          </button>
+        </div>
+
+        <!-- Quick Account Switch Button -->
+        <button type="button" id="btnHeaderAccount" onclick="openAccountModal()" class="px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-semibold transition flex items-center space-x-1.5">
+          <i class="fa-solid fa-user-check text-ictu"></i>
+          <span class="hidden sm:inline" id="headerShortCode">DTC235210069</span>
+        </button>
+
+        <!-- Proctor Emergency Exit (Desktop Kiosk) -->
+        <button type="button" id="btnDesktopProctorExit" onclick="handleDesktopProctorExit()" class="hidden px-2.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold transition flex items-center space-x-1 shadow-xs">
+          <i class="fa-solid fa-shield-halved"></i>
+          <span>Giám Thị</span>
+        </button>
       </div>
+    </header>
 
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <!-- Question Area -->
-        <div class="md:col-span-2 bg-white p-6 rounded-xl border border-slate-200 flex flex-col justify-between space-y-4">
-          <div class="space-y-4">
-            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-              <span class="text-xs font-bold text-ictu uppercase tracking-wide" id="currentQType">Câu hỏi</span>
-              <span class="text-xs font-semibold px-2.5 py-0.5 bg-slate-100 text-slate-600 rounded" id="currentQIndex">1 / 5</span>
+    <!-- SCROLLABLE MAIN WORKSPACE -->
+    <main class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+
+      <!-- ================================================================= -->
+      <!-- SECTION 1: BẢNG TIN LMS (BULLETIN BOARD - DEFAULT VIEW)           -->
+      <!-- ================================================================= -->
+      <section id="sec-bulletin" class="lms-section space-y-5">
+
+        <!-- 1A. ICTU LMS Blue Banner (Matching Screenshot 100%) -->
+        <div class="ictu-banner-bg rounded-none sm:rounded-lg shadow-sm text-white p-5 sm:px-8 sm:py-6 flex flex-col lg:flex-row items-center justify-between gap-6 border border-blue-500">
+          <!-- Decorative wave circles bottom-left -->
+          <div class="absolute -bottom-12 -left-12 w-44 h-44 rounded-full border-4 border-white/15 pointer-events-none"></div>
+          <div class="absolute -bottom-16 -left-16 w-56 h-56 rounded-full border-2 border-white/10 pointer-events-none"></div>
+          <div class="absolute -bottom-8 left-16 w-36 h-36 rounded-full border-4 border-white/15 pointer-events-none"></div>
+
+          <!-- Left Banner Content -->
+          <div class="flex items-start space-x-4 z-10 max-w-xl">
+            <div class="bg-white rounded-lg p-2 shadow-md flex-shrink-0 flex flex-col items-center justify-center w-14 h-14">
+              <span class="text-base font-black text-lime-600 leading-none">LMS</span>
+              <span class="text-[6px] font-bold text-lime-700 uppercase mt-0.5">FOR STUDENTS</span>
             </div>
-
-            <p class="text-base font-semibold text-slate-800 leading-relaxed" id="currentQText"></p>
-
-            <!-- MCQ Options Container -->
-            <div id="mcqOptionsContainer" class="space-y-2.5 pt-2"></div>
-
-            <!-- Essay Container -->
-            <div id="essayContainer" class="hidden space-y-2 pt-2">
-              <textarea id="essayInput" rows="6" placeholder="Nhập câu trả lời tự luận của bạn tại đây..." class="w-full p-3.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:border-ictu"></textarea>
-            </div>
-
-            <!-- Code Container (IT / Programming & SQL questions) -->
-            <div id="codeContainer" class="hidden space-y-2 pt-2">
-              <div class="flex items-center justify-between text-xs text-slate-600 font-mono bg-slate-100 px-3.5 py-2 rounded-t-lg border border-slate-300 border-b-0">
-                <span id="codeLangBadge" class="font-bold text-ictu"><i class="fa-solid fa-code mr-1.5"></i> Ngôn ngữ: SQL</span>
-                <button type="button" onclick="resetStarterCode()" class="text-slate-500 hover:text-ictu text-[11px] underline">Đặt lại mã mẫu</button>
-              </div>
-              <textarea id="codeInput" rows="11" placeholder="Nhập mã nguồn / câu truy vấn của bạn tại đây..." spellcheck="false" class="w-full p-3.5 font-mono text-xs bg-slate-900 text-emerald-400 rounded-b-lg border border-slate-700 focus:outline-none focus:border-ictu"></textarea>
-              <p class="text-[11px] text-slate-500 italic"><i class="fa-solid fa-circle-info mr-1 text-ictu"></i> Bài thi lập trình được kiểm thử tự động theo các ca kiểm thử mẫu của học phần.</p>
+            <div class="space-y-1.5">
+              <p class="text-amber-300 font-bold text-sm sm:text-base tracking-wide">Các bạn Sinh viên ICTU ơi...!</p>
+              <h2 class="text-base sm:text-xl font-extrabold uppercase tracking-tight leading-snug">
+                LMS ĐÃ CÓ PHIÊN BẢN DÀNH CHO THIẾT BỊ DI ĐỘNG &amp; SAFE EXAM KIOSK
+              </h2>
+              <p class="font-script text-lg sm:text-2xl text-sky-100 pt-1">
+                Quét mã QR truy cập App Store hoặc CH Play để tải nào...!
+              </p>
             </div>
           </div>
 
-          <div class="flex items-center justify-between pt-4 border-t border-slate-100">
-            <button onclick="prevQuestion()" id="btnPrev" class="px-4 py-2 rounded-lg border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition">
-              <i class="fa-solid fa-chevron-left mr-1"></i> Câu trước
+          <!-- Right Banner QR & Mockups -->
+          <div class="flex items-center space-x-5 z-10">
+            <div class="text-center">
+              <span class="text-[11px] font-semibold text-sky-100 block mb-1">ios</span>
+              <div class="w-20 h-20 bg-white p-1.5 rounded-lg shadow-md flex items-center justify-center">
+                <i class="fa-solid fa-qrcode text-5xl text-slate-800"></i>
+              </div>
+            </div>
+            <div class="text-center">
+              <span class="text-[11px] font-semibold text-sky-100 block mb-1">android</span>
+              <div class="w-20 h-20 bg-white p-1.5 rounded-lg shadow-md flex items-center justify-center">
+                <i class="fa-solid fa-qrcode text-5xl text-slate-800"></i>
+              </div>
+            </div>
+            <!-- Phone Mockups Illustration -->
+            <div class="hidden xl:flex items-end space-x-2 pl-2">
+              <div class="w-14 h-24 bg-slate-900 rounded-xl p-1 border-2 border-slate-700 shadow-lg transform -rotate-6">
+                <div class="w-full h-full bg-white rounded-lg p-1 flex flex-col justify-between">
+                  <div class="h-2 bg-blue-600 rounded-xs"></div>
+                  <div class="space-y-1">
+                    <div class="h-1.5 bg-slate-200 rounded-xs"></div>
+                    <div class="h-1.5 bg-slate-200 rounded-xs"></div>
+                    <div class="h-1.5 bg-rose-400 rounded-xs w-2/3"></div>
+                  </div>
+                  <div class="h-3 bg-emerald-500 rounded-xs"></div>
+                </div>
+              </div>
+              <div class="w-16 h-28 bg-slate-900 rounded-xl p-1 border-2 border-slate-600 shadow-xl z-10">
+                <div class="w-full h-full bg-gradient-to-b from-blue-600 to-sky-500 rounded-lg p-1.5 flex flex-col justify-between text-[7px] text-white font-bold">
+                  <span>ICTU LMS</span>
+                  <div class="bg-white/20 rounded p-1 text-[6px]">Đúng tiến độ</div>
+                  <div class="bg-white text-blue-700 rounded text-center py-0.5">Vào học</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 1B. Current Semester Course Classes Table (Exact match to Screenshot!) -->
+        <div class="bg-white border border-slate-200 shadow-2xs overflow-hidden">
+          <div class="bg-[#0066cc] text-white px-4 py-3 font-bold text-sm">
+            Các lớp học phần học kỳ hiện tại (<span id="lblCurrentSemester">2025_2026_2</span>)
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs sm:text-[13px]">
+              <thead class="bg-[#f2f7ff] text-slate-800 border-b border-slate-200">
+                <tr>
+                  <th class="py-3 px-4 font-bold w-14 text-center">STT</th>
+                  <th class="py-3 px-4 font-bold">Tên lớp học phần</th>
+                  <th class="py-3 px-4 font-bold text-center">Tuần học</th>
+                  <th class="py-3 px-4 font-bold text-center">Số buổi nghỉ</th>
+                  <th class="py-3 px-4 font-bold text-right pr-6">Trạng thái</th>
+                </tr>
+              </thead>
+              <tbody id="bulletinClassesTableBody" class="divide-y divide-slate-100 text-slate-700">
+                <tr class="hover:bg-slate-50 transition">
+                  <td class="py-4 px-4 text-center font-medium">1</td>
+                  <td class="py-4 px-4 font-medium text-slate-800">Phát triển ứng dụng di động-2-25 (CNTTQT K22B. KNUK22.K2.D1.N01)</td>
+                  <td class="py-4 px-4 text-center text-slate-500"></td>
+                  <td class="py-4 px-4 text-center font-medium">0</td>
+                  <td class="py-4 px-4 text-right pr-6 font-medium text-slate-700">Đúng tiến độ</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 1C. Module 2 Core Dashboard: Active Exams, AI Competency & Personal Learning Path -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 pt-1">
+
+          <!-- Left 2 Cols: Lộ trình học tập cá nhân hóa & Chuẩn đầu ra CLO -->
+          <div class="lg:col-span-2 bg-white rounded-xl border border-slate-200 p-5 shadow-2xs space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-2">
+              <div>
+                <h3 class="text-sm font-bold text-slate-800 flex items-center">
+                  <i class="fa-solid fa-route text-ictu mr-2"></i>
+                  Lộ Trình Học Tập Cá Nhân Hóa &amp; Đánh Giá Năng Lực AI
+                </h3>
+                <p class="text-xs text-slate-500 mt-0.5">Phân tích tự động theo kết quả kiểm tra và chuẩn đầu ra học phần (CLO)</p>
+              </div>
+              <button onclick="switchLmsSection('scores')" class="text-xs font-semibold text-ictu hover:underline flex items-center">
+                Xem chi tiết bảng điểm <i class="fa-solid fa-arrow-right ml-1"></i>
+              </button>
+            </div>
+
+            <!-- AI Advisor Feedback Box -->
+            <div class="p-3.5 rounded-lg bg-blue-50/70 border border-blue-200/80 flex items-start space-x-3">
+              <div class="w-8 h-8 rounded-lg bg-ictu text-white flex items-center justify-center font-bold text-xs flex-shrink-0 mt-0.5">
+                AI
+              </div>
+              <div class="text-xs leading-relaxed text-slate-700">
+                <span class="font-bold text-ictu-dark block mb-0.5">Nhận xét năng lực &amp; Khuyến nghị học tập:</span>
+                <span id="dashboardAiNote">Đang đồng bộ nhận xét năng lực cá nhân hóa...</span>
+              </div>
+            </div>
+
+            <!-- CLO Mastery Progress Bars -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" id="dashboardCloGrid"></div>
+
+            <!-- 4-Step Learning Roadmap -->
+            <div class="space-y-2 pt-1" id="dashboardRoadmapList"></div>
+          </div>
+
+          <!-- Right 1 Col: Ca Thi & Bài Kiểm Tra Đang Mở -->
+          <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-2xs flex flex-col justify-between space-y-4">
+            <div class="space-y-3">
+              <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <h3 class="text-sm font-bold text-slate-800 flex items-center">
+                  <i class="fa-solid fa-shield-halved text-rose-600 mr-2"></i>
+                  Ca Thi &amp; Kiểm Tra Đang Mở
+                </h3>
+                <span id="dashboardActiveExamCount" class="px-2 py-0.5 text-[11px] font-bold bg-emerald-50 text-emerald-700 rounded-full border border-emerald-200">3 ca thi</span>
+              </div>
+
+              <div id="dashboardActiveExamsList" class="space-y-2.5 max-h-[340px] overflow-y-auto pr-1"></div>
+            </div>
+
+            <div class="pt-3 border-t border-slate-100">
+              <button onclick="switchLmsSection('final-exam')" class="w-full bg-ictu hover:bg-ictu-dark text-white font-semibold py-2.5 px-4 rounded-lg text-xs transition flex items-center justify-center shadow-xs">
+                <i class="fa-solid fa-lock mr-2"></i> Mở Cổng Thi An Toàn (Safe Exam)
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- SECTION 2: THỜI KHÓA BIỂU (TIMETABLE)                             -->
+      <!-- ================================================================= -->
+      <section id="sec-timetable" class="lms-section hidden space-y-5">
+        <div class="bg-white rounded-xl border border-slate-200 p-6 shadow-2xs space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-2">
+            <div>
+              <h3 class="text-base font-bold text-slate-800">Thời Khóa Biểu Học Kỳ Hiện Tại (2025_2026_2)</h3>
+              <p class="text-xs text-slate-500 mt-0.5">Lịch học lý thuyết, thực hành phòng Lab và lịch thi dự kiến của sinh viên</p>
+            </div>
+            <span class="px-3 py-1 bg-blue-50 text-ictu text-xs font-bold rounded-lg border border-blue-200">Tuần học hiện tại: Tuần 10</span>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs border border-slate-200">
+              <thead class="bg-[#0066cc] text-white">
+                <tr>
+                  <th class="py-3 px-4 font-bold">Thứ / Ca học</th>
+                  <th class="py-3 px-4 font-bold">Mã lớp học phần</th>
+                  <th class="py-3 px-4 font-bold">Tên học phần</th>
+                  <th class="py-3 px-4 font-bold">Phòng học</th>
+                  <th class="py-3 px-4 font-bold">Giảng viên giảng dạy</th>
+                  <th class="py-3 px-4 font-bold text-center">Trạng thái</th>
+                </tr>
+              </thead>
+              <tbody id="timetableTableBody" class="divide-y divide-slate-200"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- SECTION 3: LỚP HỌC PHẦN (COURSE CLASSES & LEARNING MATERIALS)     -->
+      <!-- ================================================================= -->
+      <section id="sec-classes" class="lms-section hidden space-y-5">
+        <div class="bg-white rounded-xl border border-slate-200 p-6 shadow-2xs space-y-4">
+          <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+            <div>
+              <h3 class="text-base font-bold text-slate-800">Danh Sách Lớp Học Phần &amp; Đề Cương Học Liệu Số</h3>
+              <p class="text-xs text-slate-500 mt-0.5">Theo dõi tiến độ chuyên cần, tải tài liệu bài giảng và làm bài kiểm tra theo từng môn học</p>
+            </div>
+          </div>
+          <div id="studentClassesCards" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+        </div>
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- SECTION 4: KIỂM TRA THƯỜNG XUYÊN & KIỂM TRA 15 PHÚT               -->
+      <!-- ================================================================= -->
+      <section id="sec-assessments-list" class="lms-section hidden space-y-5">
+        <div class="bg-white rounded-xl border border-slate-200 p-6 shadow-2xs space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-3">
+            <div>
+              <h3 id="assessmentListHeading" class="text-base font-bold text-slate-800">Danh Sách Bài Kiểm Tra</h3>
+              <p id="assessmentListSub" class="text-xs text-slate-500 mt-0.5">Chọn ca kiểm tra và nhập mã phòng thi (mặc định: ICTU2026) để mở khóa bài làm</p>
+            </div>
+            <div class="flex items-center space-x-2">
+              <span class="px-3 py-1 bg-amber-50 text-amber-800 border border-amber-200 rounded-lg text-xs font-semibold">
+                <i class="fa-solid fa-key mr-1"></i> Mã mở khóa mẫu: <b>ICTU2026</b>
+              </span>
+            </div>
+          </div>
+
+          <div id="categoryExamsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+        </div>
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- SECTION 5: CỔNG THI AN TOÀN & PHÒNG THI KIOSK (FINAL EXAM FLOW)   -->
+      <!-- (Preserves all IDs: stepLogin, stepExam, stepResult for tests!)   -->
+      <!-- ================================================================= -->
+      <section id="sec-final-exam" class="lms-section hidden">
+
+        <!-- STEP 1: LOGIN & START EXAM -->
+        <div id="stepLogin" class="bg-white p-7 rounded-xl shadow-xs border border-slate-200 max-w-lg mx-auto w-full my-2">
+          <div class="text-center mb-5 pb-4 border-b border-slate-100">
+            <img src="/images/ictu_logo.png" alt="ICTU Logo" class="w-14 h-14 object-contain mx-auto mb-2.5">
+            <div class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-600 border border-rose-200 mb-1">
+              <i class="fa-solid fa-lock mr-1"></i> CHẾ ĐỘ KHÓA PHÒNG THI AN TOÀN (SAFE EXAM)
+            </div>
+            <h3 class="text-lg font-bold text-slate-800 uppercase tracking-tight">Xác Thực Vào Phòng Thi ICTU</h3>
+            <p class="text-xs text-slate-500 mt-1">Sử dụng tài khoản sinh viên trường và Mã phòng thi do Cán bộ coi thi cung cấp</p>
+          </div>
+
+          <!-- Quick SSO Student Switch Buttons -->
+          <div class="grid grid-cols-3 gap-2 mb-4">
+            <button type="button" onclick="quickFillStudent('dtc235210069@ictu.edu.vn', 'Phạm Hồng Ngọc')" class="p-2 border border-slate-200 hover:border-ictu hover:bg-ictu-light/40 rounded-lg text-left transition flex items-center space-x-2">
+              <i class="fa-solid fa-user-graduate text-ictu text-xs"></i>
+              <div class="truncate">
+                <p class="text-[11px] font-bold text-slate-700 leading-tight truncate">Phạm Hồng Ngọc</p>
+                <p class="text-[9px] text-slate-400 truncate">DTC235210069</p>
+              </div>
             </button>
-            <button onclick="nextQuestion()" id="btnNext" class="px-4 py-2 rounded-lg bg-ictu text-white text-xs font-semibold hover:bg-ictu-dark transition">
-              Câu tiếp <i class="fa-solid fa-chevron-right ml-1"></i>
+            <button type="button" onclick="quickFillStudent('dtc205122001@ictu.edu.vn', 'Nguyễn Văn An')" class="p-2 border border-slate-200 hover:border-ictu hover:bg-ictu-light/40 rounded-lg text-left transition flex items-center space-x-2">
+              <i class="fa-brands fa-google text-red-500 text-xs"></i>
+              <div class="truncate">
+                <p class="text-[11px] font-bold text-slate-700 leading-tight truncate">Nguyễn Văn An</p>
+                <p class="text-[9px] text-slate-400 truncate">@ictu.edu.vn</p>
+              </div>
+            </button>
+            <button type="button" onclick="quickFillStudent('dtc205122002@ms.ictu.edu.vn', 'Trần Thị Bình')" class="p-2 border border-slate-200 hover:border-ictu hover:bg-ictu-light/40 rounded-lg text-left transition flex items-center space-x-2">
+              <i class="fa-brands fa-microsoft text-sky-600 text-xs"></i>
+              <div class="truncate">
+                <p class="text-[11px] font-bold text-slate-700 leading-tight truncate">Trần Thị Bình</p>
+                <p class="text-[9px] text-slate-400 truncate">@ms.ictu.edu.vn</p>
+              </div>
+            </button>
+          </div>
+
+          <form onsubmit="handleStartExam(event)" class="space-y-3.5">
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Email Trường / Mã Sinh Viên (DTC...)</label>
+              <input type="text" id="inpStudentCode" required value="dtc235210069@ictu.edu.vn" oninput="detectDomain(this.value)" class="w-full px-3.5 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:border-ictu font-medium">
+              <span id="detectedDomainBadge" class="text-[11px] text-emerald-600 font-semibold mt-1 block">✓ Đăng nhập Google Workspace ICTU</span>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Họ Và Tên Thí Sinh</label>
+              <input type="text" id="inpStudentName" required value="Phạm Hồng Ngọc" class="w-full px-3.5 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:border-ictu">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Ca Thi / Bài Kiểm Tra Học Phần</label>
+              <select id="inpExamId" class="w-full px-3.5 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:border-ictu font-medium">
+                <option value="1">Đánh giá Kiểm tra Chuẩn đầu ra CSDL - Lớp CS301.01</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Mã Mở Khóa Phòng Thi (Access Code)</label>
+              <input type="text" id="inpAccessCode" required value="ICTU2026" class="w-full px-3.5 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:border-ictu font-mono font-bold text-ictu bg-slate-50">
+            </div>
+
+            <div class="p-3 bg-amber-50 border border-amber-200 rounded-lg text-[11px] text-amber-900 flex items-start space-x-2">
+              <i class="fa-solid fa-shield-halved text-amber-600 mt-0.5"></i>
+              <span>Khi vào thi, thanh menu LMS sẽ tự động khóa. Hệ thống nghiêm cấm chuyển cửa sổ (Alt+Tab), sao chép/dán (Copy/Paste) và mở phần mềm điều khiển từ xa.</span>
+            </div>
+
+            <button type="submit" id="btnStart" class="w-full bg-ictu hover:bg-ictu-dark text-white font-semibold py-2.5 rounded-lg transition text-sm flex items-center justify-center shadow-xs">
+              <i class="fa-solid fa-lock-open mr-2"></i> Mở Khóa &amp; Vào Phòng Thi An Toàn
+            </button>
+          </form>
+        </div>
+
+        <!-- STEP 2: EXAM WORKSPACE (LOCKED KIOSK MODE) -->
+        <div id="stepExam" class="hidden space-y-4">
+          <div class="bg-white border border-slate-200 border-l-4 border-l-ictu p-3 rounded-lg flex flex-wrap items-center justify-between gap-2 text-xs shadow-2xs">
+            <div class="flex items-center space-x-3">
+              <span class="flex items-center font-semibold text-slate-700">
+                <i class="fa-solid fa-shield-halved mr-2 text-ictu"></i> Chế độ Kiosk Chống Gian Lận đang khóa màn hình
+              </span>
+              <span class="hidden sm:inline text-slate-300">|</span>
+              <span class="hidden sm:inline text-slate-500" id="autoSaveStatus"><i class="fa-solid fa-cloud-arrow-up text-emerald-600 mr-1"></i> Tự động lưu nháp</span>
+            </div>
+            <div class="flex items-center space-x-2">
+              <span id="antiCheatWarnCount" class="px-2.5 py-1 rounded bg-rose-50 text-rose-700 border border-rose-200 font-bold">0 Lần Cảnh Báo</span>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <!-- Question Area -->
+            <div class="lg:col-span-2 bg-white p-6 rounded-xl border border-slate-200 flex flex-col justify-between space-y-5 shadow-2xs">
+              <div class="space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div class="flex items-center space-x-2">
+                    <span class="text-xs font-bold text-ictu uppercase tracking-wide" id="currentQType">Câu hỏi</span>
+                    <span id="currentQCloBadge" class="px-2 py-0.5 bg-blue-50 text-ictu text-[11px] font-bold rounded border border-blue-200">CLO1</span>
+                  </div>
+                  <span class="text-xs font-semibold px-2.5 py-1 bg-slate-100 text-slate-700 rounded-md" id="currentQIndex">1 / 5</span>
+                </div>
+
+                <p class="text-base font-semibold text-slate-800 leading-relaxed" id="currentQText"></p>
+
+                <!-- MCQ Options Container -->
+                <div id="mcqOptionsContainer" class="space-y-2.5 pt-2"></div>
+
+                <!-- Essay Container -->
+                <div id="essayContainer" class="hidden space-y-2 pt-2">
+                  <textarea id="essayInput" rows="7" placeholder="Nhập câu trả lời tự luận của bạn tại đây (hệ thống tự động lưu nháp)..." class="w-full p-3.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:border-ictu"></textarea>
+                  <div class="flex justify-between text-[11px] text-slate-400">
+                    <span>💡 Bạn có thể trao đổi với Trợ lý Khảo thí ở khung bên phải để được gợi ý định hướng Socratic.</span>
+                    <span id="essayWordCount">0 từ</span>
+                  </div>
+                </div>
+
+                <!-- Code Container (IT / Programming & SQL questions) -->
+                <div id="codeContainer" class="hidden space-y-2 pt-2">
+                  <div class="flex items-center justify-between text-xs text-slate-600 font-mono bg-slate-100 px-3.5 py-2 rounded-t-lg border border-slate-300 border-b-0">
+                    <span id="codeLangBadge" class="font-bold text-ictu"><i class="fa-solid fa-code mr-1.5"></i> Ngôn ngữ: SQL</span>
+                    <button type="button" onclick="resetStarterCode()" class="text-slate-500 hover:text-ictu text-[11px] underline">↺ Đặt lại mã mẫu</button>
+                  </div>
+                  <textarea id="codeInput" rows="11" placeholder="Nhập mã nguồn / câu truy vấn của bạn tại đây..." spellcheck="false" class="w-full p-3.5 font-mono text-xs bg-slate-900 text-emerald-400 rounded-b-lg border border-slate-700 focus:outline-none focus:border-ictu"></textarea>
+                  <p class="text-[11px] text-slate-500 italic"><i class="fa-solid fa-circle-info mr-1 text-ictu"></i> Bài thi lập trình được chấm tự động theo bộ kiểm thử chuẩn đầu ra của học phần.</p>
+                </div>
+              </div>
+
+              <div class="flex flex-wrap items-center justify-between gap-2 pt-4 border-t border-slate-100">
+                <button onclick="prevQuestion()" id="btnPrev" class="px-4 py-2 rounded-lg border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition">
+                  <i class="fa-solid fa-chevron-left mr-1"></i> Câu trước
+                </button>
+                <button onclick="toggleFlagCurrentQuestion()" id="btnFlagQuestion" class="px-3.5 py-2 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 text-xs font-semibold hover:bg-amber-100 transition">
+                  <i class="fa-regular fa-flag mr-1"></i> Đánh dấu xem lại
+                </button>
+                <button onclick="nextQuestion()" id="btnNext" class="px-4 py-2 rounded-lg bg-ictu text-white text-xs font-semibold hover:bg-ictu-dark transition">
+                  Câu tiếp <i class="fa-solid fa-chevron-right ml-1"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Sidebar: Question Navigator & Streaming AI Oral Chat -->
+            <div class="space-y-4">
+              <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+                <div class="flex items-center justify-between mb-2.5">
+                  <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Mục lục câu hỏi</h4>
+                  <span class="text-[11px] text-slate-500" id="answeredProgressText">Đã làm: 0/0</span>
+                </div>
+                <div class="flex items-center space-x-3 text-[10px] text-slate-500 mb-3">
+                  <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-xs bg-emerald-500 mr-1"></span>Đã làm</span>
+                  <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-xs bg-amber-400 mr-1"></span>Xem lại</span>
+                  <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-xs bg-slate-200 mr-1"></span>Chưa làm</span>
+                </div>
+                <div id="questionPalette" class="grid grid-cols-5 gap-2"></div>
+                <button onclick="submitExam()" class="w-full mt-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-lg text-xs transition shadow-xs">
+                  <i class="fa-solid fa-paper-plane mr-1.5"></i> Nộp Bài Kết Thúc Thi
+                </button>
+              </div>
+
+              <!-- Streaming Oral Exam Socratic Chat -->
+              <div class="bg-white p-4 rounded-xl border border-slate-200 flex flex-col h-[310px] shadow-2xs">
+                <div class="flex items-center justify-between pb-2.5 border-b border-slate-100 mb-2">
+                  <div class="flex items-center space-x-2">
+                    <div class="w-6 h-6 rounded-md bg-ictu text-white flex items-center justify-center text-[10px] font-bold">AI</div>
+                    <div>
+                      <h5 class="text-xs font-bold text-slate-800 leading-none">Vấn Đáp &amp; Gợi Mở Socratic</h5>
+                      <span class="text-[10px] text-emerald-600 font-medium">● Trực tuyến (Streaming)</span>
+                    </div>
+                  </div>
+                </div>
+                <div id="oralChatBox" class="flex-1 overflow-y-auto space-y-2 text-xs p-1">
+                  <div class="bg-slate-100 p-2.5 rounded-lg text-slate-700 leading-relaxed">
+                    <b>Cán bộ khảo thí:</b> Chào bạn, hãy làm bài nghiêm túc. Nếu cần gợi ý định hướng câu hỏi tự luận hoặc kiểm tra lập luận, hãy nhắn trao đổi trực tiếp tại đây.
+                  </div>
+                </div>
+                <div class="flex space-x-1.5 pt-2">
+                  <input type="text" id="oralInput" onkeydown="if(event.key==='Enter') sendOralMessage()" placeholder="Nhập câu trả lời vấn đáp / hỏi gợi ý..." class="flex-1 px-3 py-1.5 rounded-lg border border-slate-300 text-xs focus:outline-none focus:border-ictu">
+                  <button onclick="sendOralMessage()" id="btnSendOral" class="bg-ictu hover:bg-ictu-dark text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition">Gửi</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 3: RESULT SCREEN -->
+        <div id="stepResult" class="hidden bg-white p-8 rounded-xl border border-slate-200 max-w-2xl mx-auto w-full text-center space-y-6 shadow-xs my-2">
+          <div class="w-14 h-14 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-full flex items-center justify-center mx-auto text-2xl">
+            <i class="fa-solid fa-check"></i>
+          </div>
+          <div>
+            <h3 class="text-xl font-bold text-slate-800">Đã Hoàn Thành &amp; Ghi Nhận Kết Quả Bài Thi!</h3>
+            <p class="text-xs text-slate-500 mt-1">Điểm số, nhận xét năng lực và mức độ đạt chuẩn đầu ra (CLO) đã được cập nhật vào hồ sơ học tập LMS</p>
+          </div>
+
+          <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-2">
+            <span class="text-xs text-slate-500 uppercase font-semibold tracking-wider">Tổng Điểm Đạt Được</span>
+            <h2 class="text-5xl font-black text-ictu" id="resScore">8.5</h2>
+            <span class="text-xs font-medium text-slate-500 block">Thang điểm 10</span>
+          </div>
+
+          <div class="text-left bg-ictu-light/60 p-4 rounded-lg border border-blue-200 space-y-2">
+            <h5 class="text-xs font-bold text-ictu-dark flex items-center">
+              <i class="fa-solid fa-chart-line mr-1.5"></i> Nhận Xét Năng Lực &amp; Đánh Giá Từ Hệ Thống Khảo Thí:
+            </h5>
+            <p class="text-xs text-slate-700 leading-relaxed" id="resFeedback"></p>
+          </div>
+
+          <!-- Per-Question Breakdown -->
+          <div id="resQuestionBreakdown" class="text-left space-y-2 max-h-60 overflow-y-auto"></div>
+
+          <div class="flex flex-wrap gap-3 pt-2">
+            <button onclick="finishExamAndGoTo('bulletin')" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold py-2.5 rounded-lg text-xs transition">
+              <i class="fa-solid fa-chart-line mr-1.5"></i> Về Bảng Tin LMS
+            </button>
+            <button onclick="finishExamAndGoTo('scores')" class="flex-1 bg-ictu hover:bg-ictu-dark text-white font-semibold py-2.5 rounded-lg text-xs transition">
+              <i class="fa-solid fa-magnifying-glass mr-1.5"></i> Xem Bảng Điểm &amp; Lộ Trình Học
+            </button>
+            <button id="btnExitDesktopApp" onclick="exitDesktopApp()" class="hidden flex-1 bg-rose-600 hover:bg-rose-700 text-white font-semibold py-2.5 rounded-lg text-xs transition">
+              <i class="fa-solid fa-power-off mr-1.5"></i> Thoát Kiosk (.EXE)
             </button>
           </div>
         </div>
 
-        <!-- Sidebar: Navigator & AI Oral Chat -->
-        <div class="space-y-4">
-          <div class="bg-white p-4 rounded-xl border border-slate-200">
-            <h4 class="text-xs font-bold text-slate-600 uppercase tracking-wider mb-3">Danh sách câu hỏi</h4>
-            <div id="questionPalette" class="grid grid-cols-5 gap-2"></div>
-            <button onclick="submitExam()" class="w-full mt-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-lg text-xs transition">
-              <i class="fa-solid fa-paper-plane mr-1.5"></i> Nộp Bài Kết Thúc Thi
-            </button>
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- SECTION 6: DỰ ÁN HỌC PHẦN & BÀI TẬP LỚN (PROJECTS)                -->
+      <!-- ================================================================= -->
+      <section id="sec-projects" class="lms-section hidden space-y-5">
+        <div class="bg-white rounded-xl border border-slate-200 p-6 shadow-2xs space-y-4">
+          <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+            <div>
+              <h3 class="text-base font-bold text-slate-800">Dự Án Môn Học &amp; Bài Tập Lớn Học Kỳ (2025_2026_2)</h3>
+              <p class="text-xs text-slate-500 mt-0.5">Quản lý tiến độ đồ án môn học, nộp báo cáo và nhận đánh giá sơ bộ từ Trợ lý AI</p>
+            </div>
           </div>
 
-          <!-- Oral Exam Mini-Chat -->
-          <div class="bg-white p-4 rounded-xl border border-slate-200 flex flex-col h-[280px]">
-            <div class="flex items-center space-x-2 pb-2.5 border-b border-slate-100 mb-2">
-              <div class="w-6 h-6 rounded-md bg-ictu text-white flex items-center justify-center text-[10px] font-bold">KT</div>
-              <h5 class="text-xs font-bold text-slate-800">Trợ Lý Khảo Thí Trực Tuyến</h5>
-            </div>
-            <div id="oralChatBox" class="flex-1 overflow-y-auto space-y-2 text-xs p-1">
-              <div class="bg-slate-100 p-2.5 rounded-lg text-slate-700">
-                <b>Cán bộ khảo thí:</b> Chào bạn, hãy làm bài nghiêm túc. Nếu có thắc mắc lý thuyết hoặc cần làm rõ ý trong câu tự luận, bạn có thể trao đổi tại đây.
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="p-5 rounded-xl border border-slate-200 space-y-3 bg-slate-50/40">
+              <div class="flex items-center justify-between">
+                <span class="px-2.5 py-0.5 bg-blue-50 text-ictu text-xs font-bold rounded border border-blue-200">Phát triển ứng dụng di động-2-25</span>
+                <span class="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 text-xs font-bold rounded">Đúng tiến độ</span>
+              </div>
+              <h4 class="text-sm font-bold text-slate-800">Đề tài: Xây dựng Ứng dụng Quản lý Tiến độ Học tập &amp; Khảo thí Sinh viên ICTU</h4>
+              <p class="text-xs text-slate-600 leading-relaxed">
+                Thiết kế giao diện chuẩn LMS ICTU, tích hợp khóa màn hình chống gian lận (Safe Exam Kiosk), chấm điểm tự luận và vấn đáp thời gian thực.
+              </p>
+              <div class="text-[11px] text-slate-500 flex items-center justify-between pt-2 border-t border-slate-200/70">
+                <span><i class="fa-regular fa-calendar mr-1"></i> Hạn nộp: Tuần 15</span>
+                <button onclick="switchLmsSection('qa-lecturer')" class="text-ictu font-semibold hover:underline">Báo cáo tiến độ với GV →</button>
               </div>
             </div>
-            <div class="flex space-x-1.5 pt-2">
-              <input type="text" id="oralInput" placeholder="Nhập nội dung trao đổi..." class="flex-1 px-3 py-1.5 rounded-lg border border-slate-300 text-xs focus:outline-none focus:border-ictu">
-              <button onclick="sendOralMessage()" class="bg-ictu hover:bg-ictu-dark text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition">Gửi</button>
+
+            <div class="p-5 rounded-xl border border-slate-200 space-y-3 bg-slate-50/40">
+              <div class="flex items-center justify-between">
+                <span class="px-2.5 py-0.5 bg-purple-50 text-purple-700 text-xs font-bold rounded border border-purple-200">Cơ sở dữ liệu &amp; Hệ phân tán (CS301.01)</span>
+                <span class="px-2.5 py-0.5 bg-amber-50 text-amber-700 text-xs font-bold rounded">Đang thực hiện</span>
+              </div>
+              <h4 class="text-sm font-bold text-slate-800">Đề tài: Thiết kế CSDL Chuẩn hóa 3NF &amp; Cơ chế Đồng bộ Giao dịch ACID</h4>
+              <p class="text-xs text-slate-600 leading-relaxed">
+                Xây dựng lược đồ quan hệ, viết các thủ tục lưu trữ (Stored Procedures) và kiểm thử tính toàn vẹn dữ liệu khi truy cập đồng thời.
+              </p>
+              <div class="text-[11px] text-slate-500 flex items-center justify-between pt-2 border-t border-slate-200/70">
+                <span><i class="fa-regular fa-calendar mr-1"></i> Hạn nộp: Tuần 14</span>
+                <button onclick="switchLmsSection('qa-lecturer')" class="text-ictu font-semibold hover:underline">Nhờ AI góp ý đề cương →</button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- SECTION 7: HỎI ĐÁP VỚI GIẢNG VIÊN & TRỢ LÝ AI (STREAMING CHAT)    -->
+      <!-- ================================================================= -->
+      <section id="sec-qa-lecturer" class="lms-section hidden space-y-5">
+        <div class="bg-white rounded-xl border border-slate-200 p-6 shadow-2xs flex flex-col h-[560px]">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-2">
+            <div>
+              <h3 class="text-base font-bold text-slate-800 flex items-center">
+                <i class="fa-solid fa-comments text-ictu mr-2"></i>
+                Hỏi Đáp Học Thuật Với Giảng Viên &amp; Trợ Lý Cố Vấn AI (24/7)
+              </h3>
+              <p class="text-xs text-slate-500 mt-0.5">Trao đổi trực tiếp về nội dung bài giảng, bài tập SQL/Lập trình và ôn tập chuẩn đầu ra (hỗ trợ phản hồi Streaming thời gian thực)</p>
+            </div>
+            <div class="flex items-center space-x-2">
+              <span class="px-2.5 py-1 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-lg border border-emerald-200">
+                ● Streaming Realtime
+              </span>
+            </div>
+          </div>
+
+          <div id="qaForumChatBox" class="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50 rounded-xl my-3 border border-slate-200/80 text-xs">
+            <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs max-w-2xl">
+              <div class="flex items-center space-x-2 mb-1">
+                <span class="px-2 py-0.5 bg-ictu text-white text-[10px] font-bold rounded">TS. Nguyễn Văn A &amp; Trợ lý AI</span>
+                <span class="text-[10px] text-slate-400">Học kỳ 2025_2026_2</span>
+              </div>
+              <p class="text-slate-700 leading-relaxed">
+                Chào bạn! Bạn có thể đặt câu hỏi về bài giảng các môn <b>Phát triển ứng dụng di động</b>, <b>Cơ sở dữ liệu &amp; Hệ phân tán</b>, hoặc <b>Trí tuệ nhân tạo</b> tại đây. Hệ thống sẽ phản hồi trực tiếp theo luồng thời gian thực (streaming).
+              </p>
+            </div>
+          </div>
+
+          <!-- Quick Prompt Suggestions -->
+          <div class="flex flex-wrap gap-1.5 pb-2">
+            <button type="button" onclick="sendStudyQuestion('Giải thích ngắn gọn 4 thuộc tính ACID trong Transaction kèm ví dụ thực tế?')" class="px-2.5 py-1 bg-slate-100 hover:bg-blue-50 hover:text-ictu text-slate-600 rounded-md text-[11px] transition">
+              💡 Giải thích 4 thuộc tính ACID?
+            </button>
+            <button type="button" onclick="sendStudyQuestion('Hướng dẫn cách phân biệt dạng chuẩn 2NF và 3NF trong Cơ sở dữ liệu?')" class="px-2.5 py-1 bg-slate-100 hover:bg-blue-50 hover:text-ictu text-slate-600 rounded-md text-[11px] transition">
+              📘 Phân biệt chuẩn 2NF và 3NF?
+            </button>
+            <button type="button" onclick="sendStudyQuestion('Cho em xin gợi ý ôn tập chuẩn đầu ra CLO1, CLO2, CLO3 học kỳ này?')" class="px-2.5 py-1 bg-slate-100 hover:bg-blue-50 hover:text-ictu text-slate-600 rounded-md text-[11px] transition">
+              🎯 Lộ trình ôn tập chuẩn CLO?
+            </button>
+          </div>
+
+          <div class="flex space-x-2">
+            <input type="text" id="qaForumInput" onkeydown="if(event.key==='Enter') sendStudyQuestion()" placeholder="Nhập câu hỏi gửi giảng viên hoặc trợ lý học tập AI..." class="flex-1 px-4 py-2.5 rounded-lg border border-slate-300 text-xs sm:text-sm focus:outline-none focus:border-ictu">
+            <button onclick="sendStudyQuestion()" id="btnSendQaForum" class="bg-ictu hover:bg-ictu-dark text-white font-semibold px-5 py-2.5 rounded-lg text-xs sm:text-sm transition flex items-center">
+              <i class="fa-solid fa-paper-plane mr-1.5"></i> Gửi câu hỏi
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- SECTION 8: TRA CỨU ĐIỂM & NHẬN XÉT NĂNG LỰC (SCORES & ANALYTICS)  -->
+      <!-- ================================================================= -->
+      <section id="sec-scores" class="lms-section hidden space-y-5">
+
+        <!-- Summary Score Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div class="bg-white p-5 rounded-xl border border-slate-200 border-l-4 border-l-ictu shadow-2xs">
+            <p class="text-xs text-slate-500 font-medium">Điểm Trung Bình Hệ 10</p>
+            <h3 class="text-2xl font-black text-ictu mt-1" id="scoreAvg10">8.5</h3>
+            <p class="text-[11px] text-slate-500 mt-1">Đánh giá năng lực tích lũy</p>
+          </div>
+          <div class="bg-white p-5 rounded-xl border border-slate-200 border-l-4 border-l-emerald-500 shadow-2xs">
+            <p class="text-xs text-slate-500 font-medium">Điểm Hệ 4 (GPA) / Điểm Chữ</p>
+            <h3 class="text-2xl font-black text-emerald-600 mt-1" id="scoreGpa4">3.40 (A)</h3>
+            <p class="text-[11px] text-emerald-600 font-medium mt-1">Đạt chuẩn đầu ra học phần</p>
+          </div>
+          <div class="bg-white p-5 rounded-xl border border-slate-200 border-l-4 border-l-sky-500 shadow-2xs">
+            <p class="text-xs text-slate-500 font-medium">Số Bài Thi Đã Hoàn Thành</p>
+            <h3 class="text-2xl font-black text-slate-800 mt-1" id="scoreTotalCompleted">1</h3>
+            <p class="text-[11px] text-sky-600 font-medium mt-1">Đã đồng bộ CSDL Khảo thí</p>
+          </div>
+          <div class="bg-white p-5 rounded-xl border border-slate-200 border-l-4 border-l-amber-500 shadow-2xs">
+            <p class="text-xs text-slate-500 font-medium">Chuyên Cần &amp; Quy Chế Thi</p>
+            <h3 class="text-2xl font-black text-slate-800 mt-1">100%</h3>
+            <p class="text-[11px] text-emerald-600 font-medium mt-1">0 buổi nghỉ • Nghiêm túc</p>
+          </div>
+        </div>
+
+        <!-- Detailed Exam History & AI Feedback Table -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden">
+          <div class="bg-[#0066cc] text-white px-5 py-3 font-bold text-sm flex items-center justify-between">
+            <span>Bảng Điểm Chi Tiết &amp; Nhận Xét Năng Lực Từ Hội Đồng Khảo Thí AI</span>
+            <button onclick="loadStudentDashboard()" class="text-xs bg-white/15 hover:bg-white/25 px-2.5 py-1 rounded transition">
+              <i class="fa-solid fa-arrows-rotate mr-1"></i> Làm mới
+            </button>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-[#f2f7ff] text-slate-800 border-b border-slate-200">
+                <tr>
+                  <th class="py-3 px-4 font-bold">STT</th>
+                  <th class="py-3 px-4 font-bold">Tên Kỳ Thi / Bài Kiểm Tra</th>
+                  <th class="py-3 px-4 font-bold">Học Phần</th>
+                  <th class="py-3 px-4 font-bold text-center">Điểm Số (Hệ 10)</th>
+                  <th class="py-3 px-4 font-bold">Nhận Xét Năng Lực &amp; Đánh Giá Chi Tiết (AI Feedback)</th>
+                  <th class="py-3 px-4 font-bold text-center">Cảnh Báo Quy Chế</th>
+                </tr>
+              </thead>
+              <tbody id="studentHistoryTableBody" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- SECTION 9: CÀI ĐẶT, HỒ SƠ, TRỢ GIÚP & SEB KIOSK                   -->
+      <!-- ================================================================= -->
+      <section id="sec-system-info" class="lms-section hidden space-y-5">
+        <div id="systemInfoContent" class="bg-white rounded-xl border border-slate-200 p-6 shadow-2xs"></div>
+      </section>
+
+    </main>
+
+    <!-- Bottom-Right Floating Version Pill (Exact match to Screenshot: V3.2.98 (UTC+07)) -->
+    <div class="fixed bottom-2.5 right-3 z-40 bg-white/95 border border-slate-200 shadow-sm rounded-full px-2.5 py-0.5 flex items-center space-x-1.5 text-[11px] font-semibold text-slate-700 pointer-events-none">
+      <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+      <span>V3.2.98 (UTC+07)</span>
     </div>
 
-    <!-- STEP 3: RESULT SCREEN -->
-    <div id="stepResult" class="hidden bg-white p-8 rounded-xl border border-slate-200 max-w-lg mx-auto w-full text-center space-y-6">
-      <div class="w-14 h-14 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-full flex items-center justify-center mx-auto text-2xl">
-        <i class="fa-solid fa-check"></i>
-      </div>
-      <div>
-        <h3 class="text-xl font-bold text-slate-800">Đã Hoàn Thành Bài Thi!</h3>
-        <p class="text-xs text-slate-500 mt-1">Kết quả đánh giá và dữ liệu chuẩn đầu ra đã được ghi nhận vào hệ thống khảo thí</p>
-      </div>
+  </div>
 
-      <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-2">
-        <span class="text-xs text-slate-500 uppercase font-semibold tracking-wider">Tổng Điểm Đạt Được</span>
-        <h2 class="text-5xl font-black text-ictu" id="resScore">8.5</h2>
-        <span class="text-xs font-medium text-slate-500 block">Thang điểm 10</span>
-      </div>
-
-      <div class="text-left bg-ictu-light/60 p-4 rounded-lg border border-blue-200">
-        <h5 class="text-xs font-bold text-ictu-dark mb-1 flex items-center">
-          <i class="fa-solid fa-chart-line mr-1.5"></i> Nhận Xét & Đánh Giá Năng Lực Học Phần:
-        </h5>
-        <p class="text-xs text-slate-700 leading-relaxed" id="resFeedback"></p>
-      </div>
-
-      <div class="flex space-x-3 pt-2">
-        <button onclick="location.reload()" class="flex-1 bg-ictu hover:bg-ictu-dark text-white font-semibold py-2.5 rounded-lg text-xs transition">
-          <i class="fa-solid fa-rotate-left mr-1.5"></i> Về Trang Đăng Nhập
+  <!-- ===================================================================== -->
+  <!-- MODAL: CHUYỂN ĐỔI TÀI KHOẢN SINH VIÊN / ĐĂNG NHẬP SSO ICTU            -->
+  <!-- ===================================================================== -->
+  <div id="accountSwitchModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-2xs z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full p-6 space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div class="flex items-center space-x-2.5">
+          <img src="/images/ictu_logo.png" alt="ICTU" class="w-8 h-8 object-contain">
+          <div>
+            <h4 class="text-sm font-bold text-slate-800">Tài Khoản Sinh Viên LMS ICTU</h4>
+            <p class="text-[11px] text-slate-500">Chuyển đổi nhanh hoặc đăng nhập tài khoản trường</p>
+          </div>
+        </div>
+        <button onclick="closeAccountModal()" class="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center text-xs">
+          <i class="fa-solid fa-xmark"></i>
         </button>
-        <button id="btnExitDesktopApp" onclick="exitDesktopApp()" class="hidden flex-1 bg-rose-600 hover:bg-rose-700 text-white font-semibold py-2.5 rounded-lg text-xs transition">
-          <i class="fa-solid fa-power-off mr-1.5"></i> Thoát Phòng Thi (Kiosk)
+      </div>
+
+      <div class="space-y-2">
+        <p class="text-xs font-semibold text-slate-600">Chọn nhanh tài khoản sinh viên mẫu:</p>
+        <button type="button" onclick="switchActiveStudent('DTC235210069', 'Phạm Hồng Ngọc', 'dtc235210069@ictu.edu.vn')" class="w-full p-2.5 rounded-xl border border-slate-200 hover:border-ictu hover:bg-blue-50/40 flex items-center justify-between text-left transition">
+          <div class="flex items-center space-x-2.5">
+            <div class="w-8 h-8 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center">PN</div>
+            <div>
+              <p class="text-xs font-bold text-slate-800">Phạm Hồng Ngọc</p>
+              <p class="text-[11px] text-slate-500">DTC235210069 • CNTTQT K22B</p>
+            </div>
+          </div>
+          <span class="text-[10px] font-bold px-2 py-0.5 bg-blue-50 text-ictu rounded">Mặc định LMS</span>
+        </button>
+
+        <button type="button" onclick="switchActiveStudent('DTC205122001', 'Nguyễn Văn An', 'dtc205122001@ictu.edu.vn')" class="w-full p-2.5 rounded-xl border border-slate-200 hover:border-ictu hover:bg-blue-50/40 flex items-center justify-between text-left transition">
+          <div class="flex items-center space-x-2.5">
+            <div class="w-8 h-8 rounded-full bg-emerald-600 text-white font-bold text-xs flex items-center justify-center">NA</div>
+            <div>
+              <p class="text-xs font-bold text-slate-800">Nguyễn Văn An</p>
+              <p class="text-[11px] text-slate-500">DTC205122001 • Google Workspace (@ictu.edu.vn)</p>
+            </div>
+          </div>
+          <span class="text-[10px] font-bold px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded">Google SSO</span>
+        </button>
+
+        <button type="button" onclick="switchActiveStudent('DTC205122002', 'Trần Thị Bình', 'dtc205122002@ms.ictu.edu.vn')" class="w-full p-2.5 rounded-xl border border-slate-200 hover:border-ictu hover:bg-blue-50/40 flex items-center justify-between text-left transition">
+          <div class="flex items-center space-x-2.5">
+            <div class="w-8 h-8 rounded-full bg-sky-600 text-white font-bold text-xs flex items-center justify-center">TB</div>
+            <div>
+              <p class="text-xs font-bold text-slate-800">Trần Thị Bình</p>
+              <p class="text-[11px] text-slate-500">DTC205122002 • Microsoft 365 (@ms.ictu.edu.vn)</p>
+            </div>
+          </div>
+          <span class="text-[10px] font-bold px-2 py-0.5 bg-sky-50 text-sky-700 rounded">MS 365</span>
+        </button>
+      </div>
+
+      <div class="pt-3 border-t border-slate-100 space-y-2.5">
+        <p class="text-xs font-semibold text-slate-600">Hoặc nhập Mã sinh viên khác:</p>
+        <div class="grid grid-cols-2 gap-2">
+          <input type="text" id="modalCustomCode" placeholder="Mã SV (VD: DTC225...)" class="px-3 py-2 rounded-lg border border-slate-300 text-xs focus:outline-none focus:border-ictu">
+          <input type="text" id="modalCustomName" placeholder="Họ và tên sinh viên" class="px-3 py-2 rounded-lg border border-slate-300 text-xs focus:outline-none focus:border-ictu">
+        </div>
+        <button type="button" onclick="applyCustomStudent()" class="w-full bg-ictu hover:bg-ictu-dark text-white font-semibold py-2 rounded-lg text-xs transition">
+          Cập Nhật Phiên Sinh Viên
         </button>
       </div>
     </div>
+  </div>
 
-  </main>
-
-  <footer class="py-3 text-center text-xs text-slate-500 border-t border-slate-200 bg-white">
-    Trường Đại học Công nghệ Thông tin và Truyền thông - Đại học Thái Nguyên (ICTU) • Hệ Thống Khảo Thí Trực Tuyến
-  </footer>
-
+  <!-- ===================================================================== -->
+  <!-- JAVASCRIPT CONTROLLER: LMS + SAFE EXAM + STREAMING AI CHAT            -->
+  <!-- ===================================================================== -->
   <script>
     let currentSessionId = 0;
     let questionsList = [];
     let currentIndex = 0;
     let studentAnswers = {};
+    let flaggedQuestions = new Set();
     let violationCount = 0;
     let timerSeconds = 20 * 60;
     let timerInterval = null;
-    let currentStudentCode = "";
-    let currentStudentName = "";
-    let currentExamId = 1;
 
-    // Load available exams on page load
+    // Active Student Profile in LMS (Default matches uploaded ICTU LMS screenshots!)
+    let currentStudentCode = "DTC235210069";
+    let currentStudentName = "Phạm Hồng Ngọc";
+    let currentStudentEmail = "dtc235210069@ictu.edu.vn";
+    let currentExamId = 1;
+    let isExamInProgress = false;
+    let antiCheatInitialized = false;
+    let cachedDashboardData = null;
+
+    // -----------------------------------------------------------------------
+    // 1. SIDEBAR & SECTION NAVIGATION
+    // -----------------------------------------------------------------------
+    function toggleSidebar() {
+      if (isExamInProgress) {
+        alert("Thanh điều hướng LMS đang bị khóa trong suốt thời gian làm bài thi!");
+        return;
+      }
+      const sb = document.getElementById('lmsSidebar');
+      sb.classList.toggle('hidden');
+    }
+
+    function switchLmsSection(sectionKey) {
+      if (isExamInProgress && sectionKey !== 'final-exam') {
+        alert("Bạn đang trong thời gian làm bài thi an toàn (Safe Exam). Vui lòng nộp bài trước khi chuyển sang mục khác!");
+        return;
+      }
+
+      // Highlight active sidebar button
+      document.querySelectorAll('#lmsSidebar .lms-nav-item').forEach(btn => btn.classList.remove('active'));
+      const activeNavMap = {
+        'bulletin': 'nav-bulletin',
+        'timetable': 'nav-timetable',
+        'classes': 'nav-classes',
+        'regular-test': 'nav-regular-test',
+        'quiz-15': 'nav-quiz-15',
+        'final-exam': 'nav-final-exam',
+        'projects': 'nav-projects',
+        'qa-lecturer': 'nav-qa-lecturer',
+        'scores': 'nav-scores',
+        'settings': 'nav-settings',
+        'support': 'nav-support',
+        'profile': 'nav-profile',
+        'seb-kiosk': 'nav-seb-kiosk',
+        'ictu-portal': 'nav-ictu-portal'
+      };
+      const navId = activeNavMap[sectionKey];
+      if (navId && document.getElementById(navId)) {
+        document.getElementById(navId).classList.add('active');
+      }
+
+      // Hide all sections
+      document.querySelectorAll('.lms-section').forEach(sec => sec.classList.add('hidden'));
+
+      const titleEl = document.getElementById('headerExamTitle');
+
+      if (sectionKey === 'bulletin') {
+        titleEl.innerText = "BẢNG TIN ICTU";
+        document.getElementById('sec-bulletin').classList.remove('hidden');
+      } else if (sectionKey === 'timetable') {
+        titleEl.innerText = "THỜI KHÓA BIỂU HỌC TẬP";
+        document.getElementById('sec-timetable').classList.remove('hidden');
+      } else if (sectionKey === 'classes') {
+        titleEl.innerText = "LỚP HỌC PHẦN HỌC KỲ HIỆN TẠI";
+        document.getElementById('sec-classes').classList.remove('hidden');
+      } else if (sectionKey === 'regular-test') {
+        titleEl.innerText = "KIỂM TRA THƯỜNG XUYÊN";
+        renderCategoryAssessments('regular');
+        document.getElementById('sec-assessments-list').classList.remove('hidden');
+      } else if (sectionKey === 'quiz-15') {
+        titleEl.innerText = "KIỂM TRA 15 PHÚT";
+        renderCategoryAssessments('quiz15');
+        document.getElementById('sec-assessments-list').classList.remove('hidden');
+      } else if (sectionKey === 'final-exam') {
+        titleEl.innerText = isExamInProgress ? document.getElementById('headerExamTitle').innerText : "THI KẾT THÚC HỌC PHẦN (SAFE EXAM KIOSK)";
+        document.getElementById('sec-final-exam').classList.remove('hidden');
+      } else if (sectionKey === 'projects') {
+        titleEl.innerText = "DỰ ÁN MÔN HỌC & BÀI TẬP LỚN";
+        document.getElementById('sec-projects').classList.remove('hidden');
+      } else if (sectionKey === 'qa-lecturer') {
+        titleEl.innerText = "HỎI ĐÁP VỚI GIẢNG VIÊN & TRỢ LÝ AI";
+        document.getElementById('sec-qa-lecturer').classList.remove('hidden');
+      } else if (sectionKey === 'scores') {
+        titleEl.innerText = "TRA CỨU ĐIỂM & ĐÁNH GIÁ CHUẨN ĐẦU RA";
+        document.getElementById('sec-scores').classList.remove('hidden');
+      } else {
+        renderSystemSection(sectionKey);
+        document.getElementById('sec-system-info').classList.remove('hidden');
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // 2. LOAD STUDENT LMS DASHBOARD DATA FROM C# BACKEND
+    // -----------------------------------------------------------------------
+    async function loadStudentDashboard() {
+      try {
+        const res = await fetch(`/api/student/dashboard/${encodeURIComponent(currentStudentCode)}`);
+        const data = await res.json();
+        if (!data || !data.success) return;
+        cachedDashboardData = data;
+
+        // Update Sidebar Student Card
+        if (data.student) {
+          currentStudentName = data.student.fullName || currentStudentName;
+          currentStudentCode = data.student.studentCode || currentStudentCode;
+          currentStudentEmail = data.student.email || currentStudentEmail;
+        }
+        updateStudentIdentityUI();
+
+        // 1. Render Bulletin Course Classes Table (Exact match to ICTU LMS screenshot!)
+        const tbody = document.getElementById('bulletinClassesTableBody');
+        const classes = data.classes || [];
+        if (classes.length > 0) {
+          tbody.innerHTML = classes.map((c, idx) => `
+            <tr class="hover:bg-blue-50/40 transition cursor-pointer" onclick="switchLmsSection('classes')">
+              <td class="py-4 px-4 text-center font-medium">${idx + 1}</td>
+              <td class="py-4 px-4 font-medium text-slate-800">${c.className}</td>
+              <td class="py-4 px-4 text-center text-slate-500">${idx === 0 ? '' : (c.tuanHoc || 'Tuần 1 - 15')}</td>
+              <td class="py-4 px-4 text-center font-medium">${c.soBuoiNghi ?? 0}</td>
+              <td class="py-4 px-4 text-right pr-6 font-medium text-slate-700">${c.trangThai || 'Đúng tiến độ'}</td>
+            </tr>
+          `).join("");
+        }
+
+        // 2. Render Timetable & Course Class Cards
+        renderTimetableAndClassCards(classes);
+
+        // 3. Render Competency & Learning Path on Bulletin
+        const comp = data.competency || {};
+        document.getElementById('dashboardAiNote').innerText = comp.aiAdvisorNote || "Sinh viên đang học đúng tiến độ.";
+        document.getElementById('scoreAvg10').innerText = comp.averageScore ?? "8.2";
+        document.getElementById('scoreGpa4').innerText = `${comp.gpa4 ?? '3.28'} (${comp.letterGrade || 'B+'})`;
+        document.getElementById('scoreTotalCompleted').innerText = comp.completedExamsCount ?? 0;
+
+        const cloGrid = document.getElementById('dashboardCloGrid');
+        if (comp.cloMastery) {
+          cloGrid.innerHTML = comp.cloMastery.map(clo => `
+            <div class="p-3 rounded-lg border border-slate-200 bg-slate-50/60 space-y-1.5">
+              <div class="flex items-center justify-between text-xs">
+                <span class="font-bold text-ictu">${clo.code}: ${clo.status}</span>
+                <span class="font-bold text-slate-700">${clo.percent}%</span>
+              </div>
+              <div class="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                <div class="h-full bg-ictu rounded-full" style="width: ${clo.percent}%"></div>
+              </div>
+              <p class="text-[11px] text-slate-500 leading-tight">${clo.name}</p>
+            </div>
+          `).join("");
+        }
+
+        const roadmapEl = document.getElementById('dashboardRoadmapList');
+        if (comp.learningPath) {
+          roadmapEl.innerHTML = comp.learningPath.map(step => `
+            <div class="flex items-start space-x-3 p-2.5 rounded-lg border border-slate-100 hover:bg-slate-50 transition text-xs">
+              <div class="w-6 h-6 rounded-full bg-ictu-light text-ictu font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
+                ${step.step}
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between">
+                  <p class="font-bold text-slate-800">${step.title}</p>
+                  <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700">${step.status}</span>
+                </div>
+                <p class="text-[11px] text-slate-500 mt-0.5">${step.description}</p>
+              </div>
+            </div>
+          `).join("");
+        }
+
+        // 4. Render Active Exams on Bulletin & Dropdown
+        const activeExams = data.activeExams || [];
+        document.getElementById('dashboardActiveExamCount').innerText = `${activeExams.length} ca đang mở`;
+        const activeListEl = document.getElementById('dashboardActiveExamsList');
+        if (activeExams.length > 0) {
+          activeListEl.innerHTML = activeExams.map(ex => {
+            const badgeText = ex.category === 'quiz15' ? '15 Phút' : (ex.category === 'regular' ? 'Thường xuyên' : 'Kết thúc HP');
+            const badgeCls = ex.category === 'quiz15' ? 'bg-amber-50 text-amber-700 border-amber-200' : (ex.category === 'regular' ? 'bg-sky-50 text-sky-700 border-sky-200' : 'bg-rose-50 text-rose-700 border-rose-200');
+            return `
+              <div class="p-3 rounded-lg border border-slate-200 hover:border-ictu bg-slate-50/50 transition space-y-2">
+                <div class="flex items-center justify-between">
+                  <span class="text-[10px] font-bold px-2 py-0.5 rounded border ${badgeCls}">${badgeText}</span>
+                  <span class="text-[11px] text-slate-500 font-medium"><i class="fa-regular fa-clock mr-1"></i>${ex.durationMinutes} phút • ${ex.totalQuestions} câu</span>
+                </div>
+                <p class="text-xs font-bold text-slate-800 leading-snug">${ex.title}</p>
+                <div class="flex items-center justify-between pt-1">
+                  <span class="text-[11px] text-slate-500 truncate">${ex.subjectName}</span>
+                  <button onclick="openExamWithId(${ex.id})" class="px-2.5 py-1 bg-ictu hover:bg-ictu-dark text-white text-[11px] font-semibold rounded transition">
+                    Vào thi →
+                  </button>
+                </div>
+              </div>
+            `;
+          }).join("");
+        } else {
+          activeListEl.innerHTML = `<p class="text-xs text-slate-400 py-4 text-center">Hiện chưa có ca thi nào đang mở.</p>`;
+        }
+
+        // 5. Render Exam History in Scores Tab
+        renderHistoryTable(data.history || []);
+      } catch (err) {
+        console.error("Dashboard load error:", err);
+      }
+    }
+
+    function updateStudentIdentityUI() {
+      document.getElementById('sidebarStudentName').innerText = currentStudentName;
+      document.getElementById('sidebarStudentCode').innerText = currentStudentCode;
+      document.getElementById('headerShortCode').innerText = currentStudentCode;
+
+      const parts = (currentStudentName || "SV").trim().split(" ");
+      const initials = parts.length >= 2 ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase() : currentStudentName.slice(0, 2).toUpperCase();
+      document.getElementById('sidebarAvatarText').innerText = initials;
+
+      const inpCode = document.getElementById('inpStudentCode');
+      const inpName = document.getElementById('inpStudentName');
+      if (inpCode) inpCode.value = currentStudentEmail || currentStudentCode;
+      if (inpName) inpName.value = currentStudentName;
+    }
+
+    function renderTimetableAndClassCards(classes) {
+      const ttBody = document.getElementById('timetableTableBody');
+      if (ttBody) {
+        ttBody.innerHTML = classes.map((c, idx) => `
+          <tr class="hover:bg-slate-50">
+            <td class="py-3.5 px-4 font-bold text-ictu">${c.scheduleDay || `Thứ ${idx * 2 + 2} (Tiết 1 - 3)`}</td>
+            <td class="py-3.5 px-4 font-mono font-semibold text-slate-700">${c.classCode}</td>
+            <td class="py-3.5 px-4 font-semibold text-slate-800">${c.className}</td>
+            <td class="py-3.5 px-4 text-slate-600"><i class="fa-solid fa-location-dot text-ictu-accent mr-1"></i>${c.room || 'Phòng Lab C1'}</td>
+            <td class="py-3.5 px-4 text-slate-600">${c.lecturerName || 'TS. Nguyễn Văn A'}</td>
+            <td class="py-3.5 px-4 text-center"><span class="px-2 py-0.5 bg-emerald-50 text-emerald-700 font-bold rounded text-[11px]">${c.trangThai || 'Đúng tiến độ'}</span></td>
+          </tr>
+        `).join("");
+      }
+
+      const cardsEl = document.getElementById('studentClassesCards');
+      if (cardsEl) {
+        cardsEl.innerHTML = classes.map(c => {
+          const docs = c.documents || [];
+          const exams = c.exams || [];
+          return `
+            <div class="p-5 rounded-xl border border-slate-200 bg-white space-y-3 flex flex-col justify-between shadow-2xs">
+              <div class="space-y-2">
+                <div class="flex items-center justify-between">
+                  <span class="px-2.5 py-0.5 bg-blue-50 text-ictu text-xs font-bold rounded border border-blue-200">${c.classCode}</span>
+                  <span class="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[11px] font-bold rounded">Số buổi nghỉ: ${c.soBuoiNghi ?? 0} • ${c.trangThai || 'Đúng tiến độ'}</span>
+                </div>
+                <h4 class="text-sm font-bold text-slate-800">${c.className}</h4>
+                <p class="text-xs text-slate-500">
+                  <i class="fa-solid fa-chalkboard-user mr-1 text-slate-400"></i> Giảng viên: <b>${c.lecturerName}</b> • Phòng: <b>${c.room}</b>
+                </p>
+                <div class="pt-2">
+                  <p class="text-[11px] font-bold text-slate-600 uppercase mb-1">Học liệu &amp; Đề cương môn học (${docs.length}):</p>
+                  ${docs.length > 0 ? docs.map(d => `
+                    <div class="flex items-center justify-between text-xs bg-slate-50 px-2.5 py-1.5 rounded border border-slate-200 mb-1">
+                      <span class="truncate"><i class="fa-regular fa-file-pdf text-rose-500 mr-1.5"></i>${d.filename}</span>
+                      <span class="text-[10px] text-slate-400 ml-2 flex-shrink-0">${d.chunksCount} RAG chunks</span>
+                    </div>
+                  `).join("") : `<p class="text-[11px] text-slate-400 italic">Đã tích hợp chuẩn đầu ra học phần CLO1 - CLO4.</p>`}
+                </div>
+              </div>
+              <div class="pt-3 border-t border-slate-100 flex items-center justify-between">
+                <span class="text-xs text-slate-500">${exams.length} bài thi/kiểm tra đang mở</span>
+                <button onclick="switchLmsSection('final-exam')" class="px-3 py-1.5 bg-ictu hover:bg-ictu-dark text-white text-xs font-semibold rounded-lg transition">
+                  Làm bài khảo thí →
+                </button>
+              </div>
+            </div>
+          `;
+        }).join("");
+      }
+    }
+
+    function renderCategoryAssessments(category) {
+      const heading = document.getElementById('assessmentListHeading');
+      const sub = document.getElementById('assessmentListSub');
+      const container = document.getElementById('categoryExamsContainer');
+      const allExams = (cachedDashboardData && cachedDashboardData.activeExams) ? cachedDashboardData.activeExams : [];
+
+      if (category === 'regular') {
+        heading.innerText = "Danh Sách Bài Kiểm Tra Thường Xuyên";
+        sub.innerText = "Đánh giá quá trình học tập theo từng chương và rèn luyện chuẩn đầu ra CLO";
+      } else {
+        heading.innerText = "Danh Sách Bài Kiểm Tra 15 Phút (Đang Khóa Mã Truy Cập)";
+        sub.innerText = "Nhập mã mở khóa phòng thi do giảng viên cung cấp (ICTU2026) để bắt đầu làm bài";
+      }
+
+      const filtered = allExams.filter(e => e.category === category);
+      const listToShow = filtered.length > 0 ? filtered : allExams;
+
+      if (listToShow.length === 0) {
+        container.innerHTML = `<p class="text-xs text-slate-400 py-4 col-span-2">Chưa có bài kiểm tra nào trong danh mục này.</p>`;
+        return;
+      }
+
+      container.innerHTML = listToShow.map(ex => `
+        <div class="p-5 rounded-xl border border-slate-200 bg-slate-50/40 flex flex-col justify-between space-y-4">
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="px-2.5 py-0.5 bg-rose-50 text-rose-600 border border-rose-200 text-[11px] font-bold rounded flex items-center">
+                <i class="fa-solid fa-lock mr-1"></i> YÊU CẦU MÃ PHÒNG THI
+              </span>
+              <span class="text-xs font-semibold text-slate-600"><i class="fa-regular fa-clock mr-1"></i>${ex.durationMinutes} phút • ${ex.totalQuestions} câu</span>
+            </div>
+            <h4 class="text-sm font-bold text-slate-800">${ex.title}</h4>
+            <p class="text-xs text-slate-500">Học phần: <b>${ex.subjectName}</b> • Phạm vi: ${ex.courseClassName || 'Toàn khóa'}</p>
+          </div>
+          <div class="pt-3 border-t border-slate-200/70 flex items-center justify-between">
+            <span class="text-[11px] text-slate-500 font-mono">Mã mẫu: <b>ICTU2026</b></span>
+            <button onclick="openExamWithId(${ex.id})" class="px-4 py-2 bg-ictu hover:bg-ictu-dark text-white text-xs font-semibold rounded-lg transition shadow-2xs">
+              <i class="fa-solid fa-unlock-keyhole mr-1.5"></i> Mở khóa &amp; Làm bài
+            </button>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function openExamWithId(examId) {
+      switchLmsSection('final-exam');
+      const sel = document.getElementById('inpExamId');
+      if (sel) {
+        sel.value = String(examId);
+      }
+      // Badge update to show unlocked intent
+      const b15 = document.getElementById('badgeQuiz15');
+      const bFinal = document.getElementById('badgeFinalExam');
+      if (b15) { b15.className = "lms-badge-open"; b15.innerText = "MỞ"; }
+      if (bFinal) { bFinal.className = "lms-badge-open"; bFinal.innerText = "MỞ"; }
+    }
+
+    function renderHistoryTable(history) {
+      const tbody = document.getElementById('studentHistoryTableBody');
+      if (!tbody) return;
+      if (!history || history.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" class="py-8 text-center text-xs text-slate-400">
+              Bạn chưa có bài thi nào đã nộp trong học kỳ này. Hãy vào mục <b>Thi kết thúc học phần</b> hoặc <b>Kiểm tra 15 phút</b> để thực hiện bài thi!
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = history.map((h, i) => `
+        <tr class="hover:bg-slate-50">
+          <td class="py-3.5 px-4 font-medium">${i + 1}</td>
+          <td class="py-3.5 px-4 font-bold text-slate-800">${h.examTitle}</td>
+          <td class="py-3.5 px-4 text-slate-600">${h.subjectName}</td>
+          <td class="py-3.5 px-4 text-center">
+            <span class="px-2.5 py-1 rounded-lg font-black text-sm ${h.score >= 8 ? 'bg-emerald-50 text-emerald-700' : (h.score >= 5 ? 'bg-blue-50 text-ictu' : 'bg-amber-50 text-amber-700')}">
+              ${h.score} / 10
+            </span>
+          </td>
+          <td class="py-3.5 px-4 text-slate-700 leading-relaxed max-w-md">${h.aiFeedback || 'Đạt chuẩn đầu ra học phần.'}</td>
+          <td class="py-3.5 px-4 text-center">
+            <span class="px-2 py-0.5 rounded text-[11px] font-bold ${h.violationsCount > 0 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-700'}">
+              ${h.violationsCount > 0 ? `${h.violationsCount} cảnh báo` : '0 vi phạm'}
+            </span>
+          </td>
+        </tr>
+      `).join("");
+    }
+
+    function renderSystemSection(key) {
+      const titleEl = document.getElementById('headerExamTitle');
+      const box = document.getElementById('systemInfoContent');
+      const isDesktop = (window.chrome && window.chrome.webview) || new URLSearchParams(window.location.search).get('mode') === 'desktop_kiosk';
+
+      if (key === 'profile') {
+        titleEl.innerText = "HỒ SƠ SINH VIÊN ICTU";
+        box.innerHTML = `
+          <div class="flex flex-col sm:flex-row items-start sm:items-center gap-5 pb-5 border-b border-slate-100">
+            <div class="w-16 h-16 rounded-2xl bg-ictu text-white font-black text-2xl flex items-center justify-center shadow-sm">
+              ${currentStudentName.slice(0, 1)}
+            </div>
+            <div>
+              <h3 class="text-lg font-bold text-slate-800">${currentStudentName}</h3>
+              <p class="text-xs text-slate-500">Mã sinh viên: <b>${currentStudentCode}</b> • Email: <b>${currentStudentEmail}</b></p>
+              <span class="inline-block mt-1.5 px-2.5 py-0.5 bg-emerald-50 text-emerald-700 text-xs font-bold rounded border border-emerald-200">Đang theo học • Đúng tiến độ</span>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 text-xs">
+            <div class="p-3.5 rounded-lg bg-slate-50 border border-slate-200">
+              <span class="text-slate-400 block">Đơn vị đào tạo:</span>
+              <b class="text-slate-800 mt-0.5 block">Trường Đại học Công nghệ Thông tin &amp; Truyền thông (ICTU)</b>
+            </div>
+            <div class="p-3.5 rounded-lg bg-slate-50 border border-slate-200">
+              <span class="text-slate-400 block">Khoa / Ngành:</span>
+              <b class="text-slate-800 mt-0.5 block">Khoa Công nghệ Thông tin • CNTT Quốc Tế / Kỹ thuật Phần mềm</b>
+            </div>
+          </div>
+        `;
+      } else if (key === 'seb-kiosk') {
+        titleEl.innerText = "PHẦN MỀM THI AN TOÀN (ICTU SAFE EXAM KIOSK / SEB)";
+        box.innerHTML = `
+          <div class="space-y-4">
+            <div class="p-4 rounded-xl border ${isDesktop ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-blue-50 border-blue-200 text-blue-900'} flex items-start space-x-3">
+              <i class="fa-solid fa-shield-halved text-xl mt-0.5 ${isDesktop ? 'text-emerald-600' : 'text-ictu'}"></i>
+              <div class="text-xs space-y-1">
+                <h4 class="font-bold text-sm">${isDesktop ? '✓ Đang chạy trên Ứng dụng ICTU Safe Exam Desktop (.EXE)' : 'Cổng Kiểm Tra Môi Trường Thi An Toàn (Safe Exam Kiosk)'}</h4>
+                <p>${isDesktop ? 'Hệ thống đã kích hoạt khóa toàn màn hình (TopMost), chặn phím hệ thống (Alt+Tab, Win, Alt+F4), khóa Copy/Paste và quét tiến trình nền.' : 'Bạn có thể làm bài trực tiếp trên trình duyệt chế độ Fullscreen Lockdown hoặc khởi chạy file start_student_app.bat (.EXE) để mở Kiosk chuyên dụng.'}</p>
+              </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <div class="p-3.5 rounded-lg border border-slate-200 flex items-center justify-between">
+                <span>1. Khóa màn hình Kiosk (TopMost &amp; Fullscreen)</span>
+                <span class="px-2 py-0.5 bg-emerald-50 text-emerald-700 font-bold rounded">Đã bật</span>
+              </div>
+              <div class="p-3.5 rounded-lg border border-slate-200 flex items-center justify-between">
+                <span>2. Chặn phím chuyển cửa sổ (Alt+Tab, Windows Key)</span>
+                <span class="px-2 py-0.5 bg-emerald-50 text-emerald-700 font-bold rounded">Đã bật</span>
+              </div>
+              <div class="p-3.5 rounded-lg border border-slate-200 flex items-center justify-between">
+                <span>3. Vô hiệu hóa Clipboard (Cấm Copy / Cut / Paste)</span>
+                <span class="px-2 py-0.5 bg-emerald-50 text-emerald-700 font-bold rounded">Đã bật</span>
+              </div>
+              <div class="p-3.5 rounded-lg border border-slate-200 flex items-center justify-between">
+                <span>4. Giám sát tiến trình cấm (AnyDesk, TeamViewer, OBS)</span>
+                <span class="px-2 py-0.5 bg-emerald-50 text-emerald-700 font-bold rounded">Đang quét</span>
+              </div>
+            </div>
+          </div>
+        `;
+      } else if (key === 'settings') {
+        titleEl.innerText = "CÀI ĐẶT HỆ THỐNG LMS";
+        box.innerHTML = `
+          <div class="space-y-4 text-xs">
+            <h4 class="text-sm font-bold text-slate-800">Tùy chỉnh hiển thị &amp; Trải nghiệm làm bài</h4>
+            <div class="flex items-center justify-between p-3.5 rounded-lg border border-slate-200">
+              <div>
+                <p class="font-bold text-slate-800">Cỡ chữ hiển thị câu hỏi (Font Zoom)</p>
+                <p class="text-slate-500">Điều chỉnh tỷ lệ chữ từ 80% đến 140% trên thanh công cụ phía trên</p>
+              </div>
+              <div class="flex items-center space-x-2">
+                <button onclick="adjustWebFontSize(-1)" class="px-3 py-1.5 bg-slate-100 rounded font-bold">-</button>
+                <button onclick="adjustWebFontSize(1)" class="px-3 py-1.5 bg-slate-100 rounded font-bold">+</button>
+              </div>
+            </div>
+            <div class="flex items-center justify-between p-3.5 rounded-lg border border-slate-200">
+              <div>
+                <p class="font-bold text-slate-800">Tự động lưu bài làm (Local Auto-Save Draft)</p>
+                <p class="text-slate-500">Tự động sao lưu đáp án trắc nghiệm, tự luận và code sau mỗi thao tác gõ phím</p>
+              </div>
+              <span class="px-2.5 py-1 bg-emerald-50 text-emerald-700 font-bold rounded">Luôn bật</span>
+            </div>
+          </div>
+        `;
+      } else {
+        titleEl.innerText = "TRỢ GIÚP KỸ THUẬT & THÔNG TIN TRƯỜNG ICTU";
+        box.innerHTML = `
+          <div class="space-y-3 text-xs">
+            <h4 class="text-sm font-bold text-slate-800">Trung Tâm Công Nghệ Thông Tin &amp; Khảo Thí - Trường ĐH CNTT &amp; Truyền Thông (ICTU)</h4>
+            <p class="text-slate-600 leading-relaxed">
+              Nếu gặp sự cố mất kết nối mạng hoặc cần mở khóa ca thi, thí sinh vui lòng liên hệ trực tiếp Cán bộ coi thi tại phòng máy hoặc sử dụng mục <b>Hỏi đáp với giảng viên</b>.
+            </p>
+            <div class="p-3.5 rounded-lg bg-slate-50 border border-slate-200 space-y-1">
+              <p><b>Cổng thông tin chính thức:</b> https://ictu.edu.vn • <b>Hệ thống LMS:</b> https://lms.ictu.edu.vn</p>
+              <p><b>Phím tắt Giám thị thoát Kiosk khẩn cấp:</b> <code class="px-1.5 py-0.5 bg-slate-200 rounded">Ctrl + Shift + F12</code> (Mã PIN: <b>ICTU2026</b>)</p>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // 3. ACCOUNT SWITCHER MODAL
+    // -----------------------------------------------------------------------
+    function openAccountModal() {
+      if (isExamInProgress) {
+        alert("Không thể đổi tài khoản khi đang trong phòng thi!");
+        return;
+      }
+      document.getElementById('accountSwitchModal').classList.remove('hidden');
+    }
+
+    function closeAccountModal() {
+      document.getElementById('accountSwitchModal').classList.add('hidden');
+    }
+
+    async function switchActiveStudent(code, name, email) {
+      currentStudentCode = code.toUpperCase();
+      currentStudentName = name;
+      currentStudentEmail = email;
+      closeAccountModal();
+      updateStudentIdentityUI();
+      await loadAvailableExams(currentStudentCode);
+      await loadStudentDashboard();
+    }
+
+    async function applyCustomStudent() {
+      const c = document.getElementById('modalCustomCode').value.trim();
+      const n = document.getElementById('modalCustomName').value.trim();
+      if (!c) {
+        alert("Vui lòng nhập Mã sinh viên!");
+        return;
+      }
+      const cleanCode = c.includes('@') ? c.split('@')[0].toUpperCase() : c.toUpperCase();
+      const cleanName = n || `Sinh viên ${cleanCode}`;
+      await fetch('/api/student/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentCode: cleanCode, fullName: cleanName })
+      });
+      await switchActiveStudent(cleanCode, cleanName, `${cleanCode.toLowerCase()}@ictu.edu.vn`);
+    }
+
+    // -----------------------------------------------------------------------
+    // 4. EXAM LOADING, ANTI-CHEAT & SAFE EXAM WORKSPACE
+    // -----------------------------------------------------------------------
     async function loadAvailableExams(studentCode = null) {
       try {
-        const url = studentCode ? `/api/student/active-exams?studentCode=${encodeURIComponent(studentCode)}` : `/api/student/active-exams`;
+        const codeParam = studentCode || currentStudentCode;
+        const url = codeParam ? `/api/student/active-exams?studentCode=${encodeURIComponent(codeParam)}` : `/api/student/active-exams`;
         const res = await fetch(url);
         const exams = await res.json();
         const select = document.getElementById('inpExamId');
-        if (exams && exams.length > 0) {
+        if (exams && exams.length > 0 && select) {
           select.innerHTML = exams.map(e => `
-            <option value="${e.id}">${e.title} ${e.courseClassCode ? `(Lớp: ${e.courseClassCode})` : ''}</option>
+            <option value="${e.id}">${e.title} ${e.courseClassCode ? `(Lớp: ${e.courseClassCode})` : ''} - ${e.durationMinutes} phút</option>
           `).join("");
         }
       } catch (err) {
@@ -275,44 +1519,58 @@
       }
     }
 
-    // Anti-cheat detection handlers
     function setupAntiCheat() {
+      if (antiCheatInitialized) return;
+      antiCheatInitialized = true;
+
       window.addEventListener('blur', () => {
-        if (currentSessionId > 0 && !document.getElementById('stepExam').classList.contains('hidden')) {
+        if (currentSessionId > 0 && isExamInProgress) {
           logViolation("WindowBlur / Alt+Tab", "Thí sinh rời khỏi cửa sổ làm bài hoặc bấm phím chuyển đổi ứng dụng");
         }
       });
 
       document.addEventListener('contextmenu', (e) => {
         e.preventDefault();
-        logViolation("RightClickForbidden", "Cố ý mở chuột phải để sao chép dữ liệu");
+        if (isExamInProgress) {
+          logViolation("RightClickForbidden", "Cố ý mở chuột phải trong phòng thi");
+        }
       });
 
       document.addEventListener('copy', (e) => {
-        e.preventDefault();
-        logViolation("ClipboardCopy", "Cố ý sao chép đề thi");
+        if (isExamInProgress) {
+          e.preventDefault();
+          logViolation("ClipboardCopy", "Cố ý sao chép nội dung đề thi");
+        }
       });
+
       document.addEventListener('cut', (e) => {
-        e.preventDefault();
-        logViolation("ClipboardCut", "Cố ý cắt đề thi");
+        if (isExamInProgress) {
+          e.preventDefault();
+          logViolation("ClipboardCut", "Cố ý cắt văn bản đề thi");
+        }
       });
 
       document.addEventListener('paste', (e) => {
-        e.preventDefault();
-        logViolation("ClipboardPaste", "Cố ý dán văn bản từ ngoài vào bài làm");
+        if (isExamInProgress) {
+          e.preventDefault();
+          logViolation("ClipboardPaste", "Cố ý dán văn bản từ bên ngoài vào bài thi");
+        }
       });
 
       document.addEventListener('keydown', (e) => {
         if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J')) || (e.ctrlKey && e.key === 'u')) {
           e.preventDefault();
-          logViolation("DevToolsAttempt", "Cố gắng mở công cụ lập trình DevTools");
+          if (isExamInProgress) {
+            logViolation("DevToolsAttempt", "Cố gắng mở công cụ lập trình DevTools");
+          }
         }
       });
     }
 
     async function logViolation(type, details) {
       violationCount++;
-      document.getElementById('antiCheatWarnCount').innerText = `${violationCount} Lần Cảnh Báo`;
+      const badge = document.getElementById('antiCheatWarnCount');
+      if (badge) badge.innerText = `${violationCount} Lần Cảnh Báo`;
 
       try {
         await fetch("/api/anticheat/log-violation", {
@@ -335,8 +1593,13 @@
       document.getElementById('inpStudentCode').value = email;
       document.getElementById('inpStudentName').value = name;
       detectDomain(email);
-      const code = email.includes('@') ? email.split('@')[0] : email;
+      const code = email.includes('@') ? email.split('@')[0].toUpperCase() : email.toUpperCase();
+      currentStudentCode = code;
+      currentStudentName = name;
+      currentStudentEmail = email;
+      updateStudentIdentityUI();
       loadAvailableExams(code);
+      loadStudentDashboard();
     }
 
     function detectDomain(val) {
@@ -365,7 +1628,7 @@
       const btn = document.getElementById('btnStart');
 
       btn.disabled = true;
-      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Đang tải đề thi...`;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Đang tải đề thi & kích hoạt khóa Kiosk...`;
 
       try {
         if (document.documentElement.requestFullscreen) {
@@ -386,31 +1649,53 @@
         const data = await res.json();
         if (data.success) {
           currentSessionId = data.sessionId;
-          questionsList = data.questions;
+          questionsList = data.questions || [];
           timerSeconds = (data.durationMinutes || 20) * 60;
+          isExamInProgress = true;
+          violationCount = 0;
+          document.getElementById('antiCheatWarnCount').innerText = "0 Lần Cảnh Báo";
+
+          // Restore local draft if any
+          restoreDraftFromLocal(currentSessionId);
+
+          // Lock & hide LMS Sidebar during active exam
+          document.getElementById('lmsSidebar').classList.add('hidden');
+          document.getElementById('btnHeaderAccount').classList.add('hidden');
 
           document.getElementById('headerExamTitle').innerText = data.examTitle;
           document.getElementById('headerStudentInfo').innerText = `Thí sinh: ${currentStudentName} (${currentStudentCode})`;
           document.getElementById('stepLogin').classList.add('hidden');
+          document.getElementById('stepResult').classList.add('hidden');
           document.getElementById('stepExam').classList.remove('hidden');
           document.getElementById('examTimerBox').classList.remove('hidden');
+
+          // Notify C# Native Kiosk shell of active session
+          if (window.chrome && window.chrome.webview) {
+            window.chrome.webview.postMessage(JSON.stringify({
+              action: 'examStarted',
+              sessionId: currentSessionId,
+              studentCode: currentStudentCode,
+              studentName: currentStudentName
+            }));
+          }
 
           startTimer();
           renderQuestionPalette();
           renderQuestion(0);
           setupAntiCheat();
         } else {
-          alert("Không thể vào phòng thi: " + (data.message || data.detail || "Sai mã phòng"));
+          alert("Không thể vào phòng thi: " + (data.message || data.detail || "Sai mã phòng thi"));
         }
       } catch (err) {
         alert("Lỗi kết nối phòng thi: " + err.message);
       } finally {
         btn.disabled = false;
-        btn.innerHTML = `<i class="fa-solid fa-lock mr-2"></i> Vào Phòng Thi An Toàn`;
+        btn.innerHTML = `<i class="fa-solid fa-lock-open mr-2"></i> Mở Khóa & Vào Phòng Thi An Toàn`;
       }
     }
 
     function startTimer() {
+      if (timerInterval) clearInterval(timerInterval);
       timerInterval = setInterval(() => {
         timerSeconds--;
         const m = Math.floor(timerSeconds / 60);
@@ -418,8 +1703,8 @@
         document.getElementById('examTimer').innerText = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
         if (timerSeconds <= 0) {
           clearInterval(timerInterval);
-          alert("Hết giờ làm bài! Hệ thống tự động nộp bài.");
-          submitExam();
+          alert("Hết giờ làm bài! Hệ thống tự động thu bài.");
+          submitExam(true);
         }
       }, 1000);
     }
@@ -431,6 +1716,30 @@
           ${idx + 1}
         </button>
       `).join("");
+      updateAnsweredProgress();
+    }
+
+    function updateAnsweredProgress() {
+      let count = 0;
+      questionsList.forEach(q => {
+        const a = studentAnswers[q.id];
+        if (a && (a.selectedOption || (a.essayAnswer && a.essayAnswer.trim().length > 0) || (a.codeAnswer && a.codeAnswer.trim().length > 0))) {
+          count++;
+        }
+      });
+      const el = document.getElementById('answeredProgressText');
+      if (el) el.innerText = `Đã làm: ${count}/${questionsList.length}`;
+    }
+
+    function toggleFlagCurrentQuestion() {
+      const q = questionsList[currentIndex];
+      if (!q) return;
+      if (flaggedQuestions.has(q.id)) {
+        flaggedQuestions.delete(q.id);
+      } else {
+        flaggedQuestions.add(q.id);
+      }
+      renderQuestion(currentIndex);
     }
 
     function renderQuestion(idx) {
@@ -440,6 +1749,8 @@
       const q = questionsList[idx];
 
       document.getElementById('currentQIndex').innerText = `Câu ${idx + 1} / ${questionsList.length}`;
+      document.getElementById('currentQCloBadge').innerText = `${q.cloCode || 'CLO1'} • ${q.bloomLevel || 'Thông hiểu'}`;
+
       if (q.type === 'mcq') {
         document.getElementById('currentQType').innerText = `Trắc Nghiệm • ${q.difficulty || 'Trung bình'}`;
       } else if (q.type === 'code') {
@@ -449,7 +1760,19 @@
       }
       document.getElementById('currentQText').innerText = q.questionText;
 
-      // Update palette active
+      // Update Flag button
+      const flagBtn = document.getElementById('btnFlagQuestion');
+      if (flagBtn) {
+        if (flaggedQuestions.has(q.id)) {
+          flagBtn.innerHTML = `<i class="fa-solid fa-flag mr-1"></i> Đã đánh dấu xem lại`;
+          flagBtn.className = "px-3.5 py-2 rounded-lg border border-amber-400 bg-amber-200 text-amber-900 text-xs font-bold transition";
+        } else {
+          flagBtn.innerHTML = `<i class="fa-regular fa-flag mr-1"></i> Đánh dấu xem lại`;
+          flagBtn.className = "px-3.5 py-2 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 text-xs font-semibold hover:bg-amber-100 transition";
+        }
+      }
+
+      // Update palette colors
       questionsList.forEach((qItem, i) => {
         const b = document.getElementById(`palBtn_${i}`);
         if (b) {
@@ -459,9 +1782,12 @@
             (ans.essayAnswer && ans.essayAnswer.trim().length > 0) ||
             (ans.codeAnswer && ans.codeAnswer.trim().length > 0)
           );
+          const isFlagged = flaggedQuestions.has(qItem.id);
 
           if (i === idx) {
             b.className = "py-1.5 rounded-md border border-ictu bg-ictu text-white text-xs font-bold";
+          } else if (isFlagged) {
+            b.className = "py-1.5 rounded-md border border-amber-400 bg-amber-100 text-amber-900 text-xs font-bold";
           } else if (hasAnswer) {
             b.className = "py-1.5 rounded-md border border-emerald-400 bg-emerald-50 text-emerald-800 text-xs font-bold";
           } else {
@@ -469,6 +1795,8 @@
           }
         }
       });
+
+      updateAnsweredProgress();
 
       const mcqBox = document.getElementById('mcqOptionsContainer');
       const essayBox = document.getElementById('essayContainer');
@@ -480,24 +1808,16 @@
         codeBox.classList.add('hidden');
         const saved = studentAnswers[q.id]?.selectedOption || "";
 
-        mcqBox.innerHTML = `
-          <label class="flex items-center p-3 rounded-lg border border-slate-200 hover:border-ictu hover:bg-ictu-light/30 cursor-pointer space-x-3 text-sm transition">
-            <input type="radio" name="opt" value="A" ${saved === 'A' ? 'checked' : ''} onchange="markAnswered('${q.id}', 'A')" class="accent-ictu">
-            <span><b>A.</b> ${q.optionA || ''}</span>
-          </label>
-          <label class="flex items-center p-3 rounded-lg border border-slate-200 hover:border-ictu hover:bg-ictu-light/30 cursor-pointer space-x-3 text-sm transition">
-            <input type="radio" name="opt" value="B" ${saved === 'B' ? 'checked' : ''} onchange="markAnswered('${q.id}', 'B')" class="accent-ictu">
-            <span><b>B.</b> ${q.optionB || ''}</span>
-          </label>
-          <label class="flex items-center p-3 rounded-lg border border-slate-200 hover:border-ictu hover:bg-ictu-light/30 cursor-pointer space-x-3 text-sm transition">
-            <input type="radio" name="opt" value="C" ${saved === 'C' ? 'checked' : ''} onchange="markAnswered('${q.id}', 'C')" class="accent-ictu">
-            <span><b>C.</b> ${q.optionC || ''}</span>
-          </label>
-          <label class="flex items-center p-3 rounded-lg border border-slate-200 hover:border-ictu hover:bg-ictu-light/30 cursor-pointer space-x-3 text-sm transition">
-            <input type="radio" name="opt" value="D" ${saved === 'D' ? 'checked' : ''} onchange="markAnswered('${q.id}', 'D')" class="accent-ictu">
-            <span><b>D.</b> ${q.optionD || ''}</span>
-          </label>
-        `;
+        mcqBox.innerHTML = ['A', 'B', 'C', 'D'].map(optKey => {
+          const optText = q[`option${optKey}`] || '';
+          const checked = saved === optKey ? 'checked' : '';
+          return `
+            <label class="flex items-center p-3.5 rounded-lg border ${saved === optKey ? 'border-ictu bg-blue-50/40' : 'border-slate-200'} hover:border-ictu hover:bg-ictu-light/30 cursor-pointer space-x-3 text-sm transition">
+              <input type="radio" name="opt" value="${optKey}" ${checked} onchange="markAnswered('${q.id}', '${optKey}')" class="accent-ictu">
+              <span><b>${optKey}.</b> ${optText}</span>
+            </label>
+          `;
+        }).join("");
       } else if (q.type === 'code') {
         mcqBox.classList.add('hidden');
         essayBox.classList.add('hidden');
@@ -512,31 +1832,42 @@
         codeInput.oninput = (e) => {
           if (!studentAnswers[q.id]) studentAnswers[q.id] = {};
           studentAnswers[q.id].codeAnswer = e.target.value;
-          const b = document.getElementById(`palBtn_${idx}`);
-          if (b && e.target.value.trim().length > 5) b.classList.add('bg-emerald-50', 'text-emerald-800');
+          saveDraftToLocal();
+          updateAnsweredProgress();
         };
       } else {
         mcqBox.classList.add('hidden');
         essayBox.classList.remove('hidden');
         codeBox.classList.add('hidden');
-        document.getElementById('essayInput').value = studentAnswers[q.id]?.essayAnswer || "";
-        document.getElementById('essayInput').oninput = (e) => {
+        const val = studentAnswers[q.id]?.essayAnswer || "";
+        const essayInput = document.getElementById('essayInput');
+        essayInput.value = val;
+        updateEssayWordCount(val);
+        essayInput.oninput = (e) => {
           if (!studentAnswers[q.id]) studentAnswers[q.id] = {};
           studentAnswers[q.id].essayAnswer = e.target.value;
-          const b = document.getElementById(`palBtn_${idx}`);
-          if (b && e.target.value.trim().length > 5) b.classList.add('bg-emerald-50', 'text-emerald-800');
+          updateEssayWordCount(e.target.value);
+          saveDraftToLocal();
+          updateAnsweredProgress();
         };
       }
+    }
+
+    function updateEssayWordCount(text) {
+      const words = (text || "").trim().split(/\s+/).filter(Boolean).length;
+      const el = document.getElementById('essayWordCount');
+      if (el) el.innerText = `${words} từ`;
     }
 
     function resetStarterCode() {
       const q = questionsList[currentIndex];
       if (!q || q.type !== 'code') return;
-      if (confirm("Bạn có muốn đặt lại mã nguồn ban đầu không? Nội dung bạn đã nhập sẽ bị đặt lại.")) {
+      if (confirm("Bạn có muốn đặt lại mã nguồn ban đầu không?")) {
         const starter = q.starterCode || '';
         document.getElementById('codeInput').value = starter;
         if (!studentAnswers[q.id]) studentAnswers[q.id] = {};
         studentAnswers[q.id].codeAnswer = starter;
+        saveDraftToLocal();
       }
     }
 
@@ -552,13 +1883,34 @@
         if (!studentAnswers[q.id]) studentAnswers[q.id] = {};
         studentAnswers[q.id].codeAnswer = val;
       }
+      saveDraftToLocal();
     }
 
     function markAnswered(qId, val) {
       if (!studentAnswers[qId]) studentAnswers[qId] = {};
       studentAnswers[qId].selectedOption = val;
-      const b = document.getElementById(`palBtn_${currentIndex}`);
-      if (b) b.classList.add('bg-emerald-50', 'text-emerald-800');
+      saveDraftToLocal();
+      renderQuestion(currentIndex);
+    }
+
+    function saveDraftToLocal() {
+      if (!currentSessionId) return;
+      try {
+        localStorage.setItem(`ictu_draft_${currentSessionId}`, JSON.stringify(studentAnswers));
+      } catch (e) {}
+    }
+
+    function restoreDraftFromLocal(sessionId) {
+      try {
+        const raw = localStorage.getItem(`ictu_draft_${sessionId}`);
+        if (raw) {
+          studentAnswers = JSON.parse(raw) || {};
+        } else {
+          studentAnswers = {};
+        }
+      } catch (e) {
+        studentAnswers = {};
+      }
     }
 
     function prevQuestion() {
@@ -569,9 +1921,9 @@
     }
 
     // Submit Exam
-    async function submitExam() {
+    async function submitExam(autoSubmit = false) {
       saveCurrentAnswer();
-      if (!confirm("Bạn có chắc chắn muốn nộp bài thi?")) return;
+      if (!autoSubmit && !confirm("Bạn có chắc chắn muốn nộp bài thi kết thúc học phần?")) return;
       clearInterval(timerInterval);
 
       const answersPayload = questionsList.map(q => ({
@@ -593,21 +1945,109 @@
 
         const data = await res.json();
         if (data.success) {
+          isExamInProgress = false;
+          try { localStorage.removeItem(`ictu_draft_${currentSessionId}`); } catch (e) {}
+
+          if (window.chrome && window.chrome.webview) {
+            window.chrome.webview.postMessage(JSON.stringify({ action: 'examEnded' }));
+          }
+
+          document.getElementById('lmsSidebar').classList.remove('hidden');
+          document.getElementById('btnHeaderAccount').classList.remove('hidden');
           document.getElementById('stepExam').classList.add('hidden');
           document.getElementById('examTimerBox').classList.add('hidden');
           document.getElementById('stepResult').classList.remove('hidden');
           document.getElementById('resScore').innerText = data.score;
           document.getElementById('resFeedback').innerText = data.aiFeedback || 'Đạt yêu cầu chuẩn đầu ra của học phần.';
-          if (document.exitFullscreen) {
+
+          // Render per-question breakdown if returned
+          const bdEl = document.getElementById('resQuestionBreakdown');
+          if (bdEl && data.questionResults && data.questionResults.length > 0) {
+            bdEl.innerHTML = `<p class="text-xs font-bold text-slate-700 uppercase pt-2">Chi tiết điểm từng câu:</p>` +
+              data.questionResults.map((qr, i) => `
+                <div class="p-3 rounded-lg border border-slate-200 bg-slate-50 text-xs flex items-start justify-between gap-3">
+                  <div>
+                    <span class="font-bold text-slate-800">Câu ${i + 1} (${qr.cloCode || 'CLO1'}):</span>
+                    <p class="text-slate-600 mt-0.5">${qr.feedback || ''}</p>
+                  </div>
+                  <span class="px-2 py-0.5 rounded font-bold flex-shrink-0 ${qr.score >= 7 ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">${qr.score}đ</span>
+                </div>
+              `).join("");
+          }
+
+          if (document.exitFullscreen && document.fullscreenElement) {
             try { document.exitFullscreen(); } catch (e) {}
           }
+          await loadStudentDashboard();
         }
       } catch (err) {
         alert("Lỗi nộp bài: " + err.message);
       }
     }
 
-    // Oral Exam Chat
+    function finishExamAndGoTo(section) {
+      document.getElementById('stepResult').classList.add('hidden');
+      document.getElementById('stepLogin').classList.remove('hidden');
+      switchLmsSection(section);
+    }
+
+    // -----------------------------------------------------------------------
+    // 5. REAL-TIME STREAMING AI ORAL CHAT (EXAM & Q&A FORUM)
+    // -----------------------------------------------------------------------
+    async function streamAiReplyToElement(studentId, examId, message, currentQ, targetSpan) {
+      try {
+        const url = `/api/student/oral-chat-stream?studentId=${encodeURIComponent(studentId)}&examId=${examId}&message=${encodeURIComponent(message)}&currentQuestion=${encodeURIComponent(currentQ || '')}`;
+        const response = await fetch(url);
+        if (!response.ok || !response.body) throw new Error("Stream unavailable");
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+        let buffer = "";
+        targetSpan.innerText = "";
+        targetSpan.classList.add('typing-cursor');
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n\n");
+          buffer = lines.pop() || "";
+
+          for (const block of lines) {
+            const line = block.trim();
+            if (!line.startsWith("data:")) continue;
+            const rawData = line.replace(/^data:\s*/, "").trim();
+            if (rawData === "[DONE]") {
+              targetSpan.classList.remove('typing-cursor');
+              return;
+            }
+            try {
+              const parsed = JSON.parse(rawData);
+              if (parsed.token) {
+                targetSpan.innerText += parsed.token;
+              }
+            } catch (e) {}
+          }
+        }
+        targetSpan.classList.remove('typing-cursor');
+      } catch (err) {
+        // Fallback to standard POST /api/student/oral-chat
+        const res = await fetch("/api/student/oral-chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            studentId: studentId,
+            examId: examId,
+            message: message,
+            currentQuestion: currentQ
+          })
+        });
+        const data = await res.json();
+        targetSpan.classList.remove('typing-cursor');
+        targetSpan.innerText = (data.reply || "Hãy tiếp tục hoàn thiện câu trả lời của bạn.").trim();
+      }
+    }
+
     async function sendOralMessage() {
       const inp = document.getElementById('oralInput');
       const msg = inp.value.trim();
@@ -616,31 +2056,51 @@
 
       const currentQ = questionsList[currentIndex] ? questionsList[currentIndex].questionText : "";
       const box = document.getElementById('oralChatBox');
-      box.innerHTML += `<div class="bg-ictu-light p-2 rounded-lg text-ictu-dark text-right ml-4"><b>Bạn:</b> ${msg}</div>`;
+      box.innerHTML += `<div class="bg-ictu-light p-2.5 rounded-lg text-ictu-dark text-right ml-4"><b>Bạn:</b> ${msg}</div>`;
+
+      const replyId = "oralReply_" + Date.now();
+      box.innerHTML += `<div class="bg-slate-100 p-2.5 rounded-lg text-slate-800 mr-4 leading-relaxed"><b>Cán bộ khảo thí:</b> <span id="${replyId}" class="typing-cursor">Đang suy luận...</span></div>`;
       box.scrollTop = box.scrollHeight;
 
-      try {
-        const res = await fetch("/api/student/oral-chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            studentId: currentStudentCode,
-            examId: currentExamId,
-            message: msg,
-            currentQuestion: currentQ
-          })
-        });
-        const data = await res.json();
-        let replyText = (data.reply || "Hãy tiếp tục hoàn thiện câu trả lời của bạn.")
-          .replace(/^(AI Giám Khảo|Giám khảo AI|AI|Cán bộ khảo thí)\s*:\s*/gi, '')
-          .trim();
-        box.innerHTML += `<div class="bg-slate-100 p-2 rounded-lg text-slate-800 mr-4"><b>Cán bộ khảo thí:</b> ${replyText}</div>`;
-        box.scrollTop = box.scrollHeight;
-      } catch (e) {
-        box.innerHTML += `<div class="text-rose-500">Lỗi gửi tin nhắn trao đổi.</div>`;
-      }
+      const targetSpan = document.getElementById(replyId);
+      await streamAiReplyToElement(currentStudentCode, currentExamId, msg, currentQ, targetSpan);
+      box.scrollTop = box.scrollHeight;
     }
 
+    async function sendStudyQuestion(presetMsg = null) {
+      const inp = document.getElementById('qaForumInput');
+      const msg = presetMsg || inp.value.trim();
+      if (!msg) return;
+      if (!presetMsg) inp.value = "";
+
+      const box = document.getElementById('qaForumChatBox');
+      box.innerHTML += `
+        <div class="bg-ictu text-white p-3.5 rounded-xl max-w-xl ml-auto shadow-2xs">
+          <div class="text-[10px] text-sky-200 font-semibold mb-0.5">${currentStudentName} (${currentStudentCode})</div>
+          <p class="leading-relaxed">${msg}</p>
+        </div>
+      `;
+
+      const replyId = "qaReply_" + Date.now();
+      box.innerHTML += `
+        <div class="bg-white p-3.5 rounded-xl border border-slate-200 max-w-2xl shadow-2xs">
+          <div class="flex items-center space-x-2 mb-1">
+            <span class="px-2 py-0.5 bg-emerald-600 text-white text-[10px] font-bold rounded">Cố vấn Học tập AI &amp; Giảng viên</span>
+            <span class="text-[10px] text-emerald-600 font-semibold">● Đang phản hồi trực tiếp</span>
+          </div>
+          <p id="${replyId}" class="text-slate-700 leading-relaxed typing-cursor">...</p>
+        </div>
+      `;
+      box.scrollTop = box.scrollHeight;
+
+      const targetSpan = document.getElementById(replyId);
+      await streamAiReplyToElement(currentStudentCode, 1, msg, "Tư vấn học tập & Ôn tập chuẩn đầu ra", targetSpan);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    // -----------------------------------------------------------------------
+    // 6. FONT ZOOM & DESKTOP KIOSK BRIDGE
+    // -----------------------------------------------------------------------
     let currentZoomPercent = 100;
     function adjustWebFontSize(delta) {
       currentZoomPercent = Math.max(80, Math.min(140, currentZoomPercent + delta * 10));
@@ -666,6 +2126,24 @@
         if (btnProctor) btnProctor.classList.remove('hidden');
         const btnExit = document.getElementById('btnExitDesktopApp');
         if (btnExit) btnExit.classList.remove('hidden');
+        const kBadge = document.getElementById('kioskModeBadge');
+        if (kBadge) {
+          kBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 mr-1.5"></span> Kiosk .EXE Đã Khóa`;
+        }
+      }
+
+      // Listen for native anti-cheat messages from C# ExamKioskForm
+      if (window.chrome && window.chrome.webview) {
+        window.chrome.webview.addEventListener('message', event => {
+          try {
+            const msg = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+            if (msg && msg.eventType === 'nativeViolation') {
+              violationCount = msg.violationCount || (violationCount + 1);
+              const badge = document.getElementById('antiCheatWarnCount');
+              if (badge) badge.innerText = `${violationCount} Lần Cảnh Báo`;
+            }
+          } catch (e) {}
+        });
       }
     }
 
@@ -691,9 +2169,10 @@
       }
     }
 
-    window.addEventListener('DOMContentLoaded', () => {
-      loadAvailableExams();
+    window.addEventListener('DOMContentLoaded', async () => {
       checkDesktopKioskMode();
+      await loadAvailableExams();
+      await loadStudentDashboard();
     });
   </script>
 </body>
