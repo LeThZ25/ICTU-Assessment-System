@@ -37,13 +37,13 @@ namespace backend_api.Controllers
                 CurrentWeek = "30/03/2026 - 05/04/2026",
                 SemesterPlans = new Dictionary<string, SemesterSchedulePlanDto>
                 {
-                    // Năm học 2025-2026 (3 học kỳ theo kế hoạch Phòng Đào tạo)
+                    // Năm học 2025-2026 (Tách biệt rõ ràng từng học kỳ từ tuần bắt đầu đến tuần cuối kỳ)
                     ["2025-2026|Học kỳ 1"] = new SemesterSchedulePlanDto
                     {
                         AcademicYear = "2025-2026",
                         Semester = "Học kỳ 1",
-                        StartDate = "2025-08-18", // Tuần bắt đầu có lịch học HK1
-                        EndDate = "2026-01-11",   // Hết kế hoạch giảng dạy HK1
+                        StartDate = "2025-09-01", // Tuần bắt đầu Học kỳ 1 (01/09/2025 - 07/09/2025)
+                        EndDate = "2025-12-28",   // Tuần cuối Học kỳ 1 (22/12/2025 - 28/12/2025)
                         HolidayStart = "",
                         HolidayEnd = ""
                     },
@@ -51,8 +51,8 @@ namespace backend_api.Controllers
                     {
                         AcademicYear = "2025-2026",
                         Semester = "Học kỳ 2",
-                        StartDate = "2026-01-19", // Tuần bắt đầu có lịch học HK2 (19/01/2026 - 25/01/2026)
-                        EndDate = "2026-06-07",   // Hết kế hoạch giảng dạy HK2 (01/06/2026 - 07/06/2026)
+                        StartDate = "2026-01-19", // Tuần bắt đầu Học kỳ 2 (19/01/2026 - 25/01/2026)
+                        EndDate = "2026-05-31",   // Tuần cuối Học kỳ 2 (25/05/2026 - 31/05/2026)
                         HolidayStart = "2026-02-09", // Nghỉ Tết Nguyên Đán theo kế hoạch Phòng Đào tạo
                         HolidayEnd = "2026-03-01"
                     },
@@ -60,8 +60,8 @@ namespace backend_api.Controllers
                     {
                         AcademicYear = "2025-2026",
                         Semester = "Học kỳ 3",
-                        StartDate = "2026-06-08", // Tuần bắt đầu có lịch học HK3
-                        EndDate = "2026-08-16",   // Hết kế hoạch giảng dạy HK3
+                        StartDate = "2026-06-01", // Tuần bắt đầu Học kỳ 3 (01/06/2026 - 07/06/2026)
+                        EndDate = "2026-08-09",   // Tuần cuối Học kỳ 3 (03/08/2026 - 09/08/2026)
                         HolidayStart = "",
                         HolidayEnd = ""
                     },
@@ -70,15 +70,15 @@ namespace backend_api.Controllers
                     {
                         AcademicYear = "2024-2025",
                         Semester = "Học kỳ 1",
-                        StartDate = "2024-08-19",
-                        EndDate = "2025-01-12"
+                        StartDate = "2024-09-02", // Tuần bắt đầu HK1 (02/09/2024 - 08/09/2024)
+                        EndDate = "2024-12-29"    // Tuần cuối HK1 (23/12/2024 - 29/12/2024)
                     },
                     ["2024-2025|Học kỳ 2"] = new SemesterSchedulePlanDto
                     {
                         AcademicYear = "2024-2025",
                         Semester = "Học kỳ 2",
-                        StartDate = "2025-01-13",
-                        EndDate = "2025-06-01",
+                        StartDate = "2025-01-13", // Tuần bắt đầu HK2 (13/01/2025 - 19/01/2025)
+                        EndDate = "2025-05-25",   // Tuần cuối HK2 (19/05/2025 - 25/05/2025)
                         HolidayStart = "2025-01-27",
                         HolidayEnd = "2025-02-09"
                     },
@@ -86,23 +86,23 @@ namespace backend_api.Controllers
                     {
                         AcademicYear = "2024-2025",
                         Semester = "Học kỳ 3",
-                        StartDate = "2025-06-02",
-                        EndDate = "2025-08-10"
+                        StartDate = "2025-06-02", // Tuần bắt đầu HK3 (02/06/2025 - 08/06/2025)
+                        EndDate = "2025-08-10"    // Tuần cuối HK3 (04/08/2025 - 10/08/2025)
                     },
                     // Năm học 2023-2024 (Năm nhập học khóa K22 - DTC23)
                     ["2023-2024|Học kỳ 1"] = new SemesterSchedulePlanDto
                     {
                         AcademicYear = "2023-2024",
                         Semester = "Học kỳ 1",
-                        StartDate = "2023-09-04",
-                        EndDate = "2024-01-21"
+                        StartDate = "2023-09-04", // Tuần bắt đầu HK1 (04/09/2023 - 10/09/2023)
+                        EndDate = "2023-12-31"    // Tuần cuối HK1 (25/12/2023 - 31/12/2023)
                     },
                     ["2023-2024|Học kỳ 2"] = new SemesterSchedulePlanDto
                     {
                         AcademicYear = "2023-2024",
                         Semester = "Học kỳ 2",
-                        StartDate = "2024-01-22",
-                        EndDate = "2024-06-09",
+                        StartDate = "2024-01-15", // Tuần bắt đầu HK2 (15/01/2024 - 21/01/2024)
+                        EndDate = "2024-05-26",   // Tuần cuối HK2 (20/05/2024 - 26/05/2024)
                         HolidayStart = "2024-02-05",
                         HolidayEnd = "2024-02-18"
                     },
@@ -110,8 +110,8 @@ namespace backend_api.Controllers
                     {
                         AcademicYear = "2023-2024",
                         Semester = "Học kỳ 3",
-                        StartDate = "2024-06-10",
-                        EndDate = "2024-08-11"
+                        StartDate = "2024-06-03", // Tuần bắt đầu HK3 (03/06/2024 - 09/06/2024)
+                        EndDate = "2024-08-11"    // Tuần cuối HK3 (05/08/2024 - 11/08/2024)
                     }
                 }
             };

@@ -1243,15 +1243,18 @@
       currentSemester: "Học kỳ 2",
       currentWeek: "30/03/2026 - 05/04/2026",
       semesterPlans: {
-        "2025-2026|Học kỳ 1": { startDate: "2025-08-18", endDate: "2026-01-11", holidayStart: "", holidayEnd: "" },
-        "2025-2026|Học kỳ 2": { startDate: "2026-01-19", endDate: "2026-06-07", holidayStart: "2026-02-09", holidayEnd: "2026-03-01" },
-        "2025-2026|Học kỳ 3": { startDate: "2026-06-08", endDate: "2026-08-16", holidayStart: "", holidayEnd: "" },
-        "2024-2025|Học kỳ 1": { startDate: "2024-08-19", endDate: "2025-01-12", holidayStart: "", holidayEnd: "" },
-        "2024-2025|Học kỳ 2": { startDate: "2025-01-13", endDate: "2025-06-01", holidayStart: "2025-01-27", holidayEnd: "2025-02-09" },
+        // Năm học 2025-2026 (Tách biệt từng học kỳ từ tuần bắt đầu của kỳ đó đến cuối kỳ)
+        "2025-2026|Học kỳ 1": { startDate: "2025-09-01", endDate: "2025-12-28", holidayStart: "", holidayEnd: "" },
+        "2025-2026|Học kỳ 2": { startDate: "2026-01-19", endDate: "2026-05-31", holidayStart: "2026-02-09", holidayEnd: "2026-03-01" },
+        "2025-2026|Học kỳ 3": { startDate: "2026-06-01", endDate: "2026-08-09", holidayStart: "", holidayEnd: "" },
+        // Năm học 2024-2025
+        "2024-2025|Học kỳ 1": { startDate: "2024-09-02", endDate: "2024-12-29", holidayStart: "", holidayEnd: "" },
+        "2024-2025|Học kỳ 2": { startDate: "2025-01-13", endDate: "2025-05-25", holidayStart: "2025-01-27", holidayEnd: "2025-02-09" },
         "2024-2025|Học kỳ 3": { startDate: "2025-06-02", endDate: "2025-08-10", holidayStart: "", holidayEnd: "" },
-        "2023-2024|Học kỳ 1": { startDate: "2023-09-04", endDate: "2024-01-21", holidayStart: "", holidayEnd: "" },
-        "2023-2024|Học kỳ 2": { startDate: "2024-01-22", endDate: "2024-06-09", holidayStart: "2024-02-05", holidayEnd: "2024-02-18" },
-        "2023-2024|Học kỳ 3": { startDate: "2024-06-10", endDate: "2024-08-11", holidayStart: "", holidayEnd: "" }
+        // Năm học 2023-2024
+        "2023-2024|Học kỳ 1": { startDate: "2023-09-04", endDate: "2023-12-31", holidayStart: "", holidayEnd: "" },
+        "2023-2024|Học kỳ 2": { startDate: "2024-01-15", endDate: "2024-05-26", holidayStart: "2024-02-05", holidayEnd: "2024-02-18" },
+        "2023-2024|Học kỳ 3": { startDate: "2024-06-03", endDate: "2024-08-11", holidayStart: "", holidayEnd: "" }
       }
     };
 
@@ -1292,24 +1295,29 @@
       const startYear = parseInt((academicYear || "2025-2026").split('-')[0], 10) || 2025;
       const endYear = startYear + 1;
       if (semester === "Học kỳ 1") {
-        return { startDate: `${startYear}-08-18`, endDate: `${endYear}-01-11`, holidayStart: "", holidayEnd: "" };
+        return { startDate: `${startYear}-09-01`, endDate: `${startYear}-12-28`, holidayStart: "", holidayEnd: "" };
       } else if (semester === "Học kỳ 3") {
-        return { startDate: `${endYear}-06-08`, endDate: `${endYear}-08-16`, holidayStart: "", holidayEnd: "" };
+        return { startDate: `${endYear}-06-01`, endDate: `${endYear}-08-09`, holidayStart: "", holidayEnd: "" };
       }
-      return { startDate: `${endYear}-01-19`, endDate: `${endYear}-06-07`, holidayStart: `${endYear}-02-09`, holidayEnd: `${endYear}-03-01` };
+      return { startDate: `${endYear}-01-19`, endDate: `${endYear}-05-31`, holidayStart: `${endYear}-02-09`, holidayEnd: `${endYear}-03-01` };
     }
 
     function generateWeeksForSemesterPlan(academicYear, semester) {
       const plan = getDefaultSemesterPlan(academicYear, semester);
       let start = parseIsoDateLocal(plan.startDate) || new Date(2026, 0, 19);
-      let end = parseIsoDateLocal(plan.endDate) || new Date(2026, 5, 7);
+      let end = parseIsoDateLocal(plan.endDate) || new Date(2026, 4, 31);
       const holStart = parseIsoDateLocal(plan.holidayStart);
       const holEnd = parseIsoDateLocal(plan.holidayEnd);
 
-      // Căn chỉnh ngày bắt đầu về Thứ 2 gần nhất
+      // Căn chỉnh ngày bắt đầu về Thứ 2 của tuần đầu kỳ học đó
       const day = start.getDay();
       const diffToMonday = day === 0 ? -6 : 1 - day;
       start = new Date(start.getFullYear(), start.getMonth(), start.getDate() + diffToMonday);
+
+      // Căn chỉnh ngày kết thúc về Chủ nhật của tuần cuối kỳ học đó
+      const endDay = end.getDay();
+      const diffToSunday = endDay === 0 ? 0 : 7 - endDay;
+      end = new Date(end.getFullYear(), end.getMonth(), end.getDate() + diffToSunday);
 
       const weeks = [];
       let cursor = new Date(start.getFullYear(), start.getMonth(), start.getDate());
@@ -1318,6 +1326,7 @@
       while (cursor <= end && safety < 40) {
         safety++;
         const weekEnd = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + 6);
+        if (weekEnd > end) break;
 
         // Kiểm tra xem tuần này có nằm trọn trong kỳ nghỉ lễ/Tết của Phòng Đào tạo không
         const isHolidayWeek = holStart && holEnd && cursor >= holStart && weekEnd <= holEnd;
@@ -1365,11 +1374,11 @@
         semSelect.value = semesters.includes(trainingPlanState.currentSemester) ? trainingPlanState.currentSemester : semesters[0];
       }
 
-      // 3. Sinh danh sách Tuần học xuyên suốt từ tuần bắt đầu có lịch học đến hết kế hoạch giảng dạy
+      // 3. Sinh danh sách Tuần học chỉ thuộc đúng Năm học & Học kỳ đang chọn (từ tuần đầu kỳ đến tuần cuối kỳ)
       populateScheduleWeeksDropdown(resetToActiveWeek);
     }
 
-    function populateScheduleWeeksDropdown(selectCurrentWeek = false) {
+    function populateScheduleWeeksDropdown(selectDefaultForSemester = false) {
       const yearVal = document.getElementById('selScheduleYear')?.value || "2025-2026";
       const semVal = document.getElementById('selScheduleSemester')?.value || "Học kỳ 2";
       const weekSelect = document.getElementById('selScheduleWeek');
@@ -1381,11 +1390,14 @@
       weekSelect.innerHTML = weeks.map(w => `<option value="${w}">${w}</option>`).join("");
 
       const defaultActiveWeek = trainingPlanState.currentWeek || "30/03/2026 - 05/04/2026";
-      if (!selectCurrentWeek && weeks.includes(prevWeekVal)) {
+      const isCurrentActiveSemester = (yearVal === trainingPlanState.currentAcademicYear && semVal === trainingPlanState.currentSemester);
+
+      if (!selectDefaultForSemester && weeks.includes(prevWeekVal)) {
         weekSelect.value = prevWeekVal;
-      } else if (weeks.includes(defaultActiveWeek)) {
+      } else if (isCurrentActiveSemester && weeks.includes(defaultActiveWeek)) {
         weekSelect.value = defaultActiveWeek;
       } else if (weeks.length > 0) {
+        // Khi chọn xem kỳ học khác, mặc định trỏ vào tuần bắt đầu của kỳ học đó
         weekSelect.value = weeks[0];
       }
 
@@ -1393,7 +1405,7 @@
     }
 
     function onScheduleYearOrSemesterChange() {
-      populateScheduleWeeksDropdown(false);
+      populateScheduleWeeksDropdown(true);
     }
 
     function getSevenDatesFromWeekLabel(weekVal) {
