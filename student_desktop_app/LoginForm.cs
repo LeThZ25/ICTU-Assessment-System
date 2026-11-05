@@ -26,7 +26,7 @@ namespace student_desktop_app
 
         private readonly Dictionary<string, string> _knownStudents = new(StringComparer.OrdinalIgnoreCase)
         {
-            { "DTC235210069", "Phạm Hồng Ngọc" },
+            { "DTC235210069", "Phạm Hồng Ngọc Kiên" },
             { "DTC205122001", "Nguyễn Văn An" },
             { "DTC205122002", "Trần Thị Bình" }
         };
@@ -254,7 +254,7 @@ namespace student_desktop_app
             lblForgotPassword.Click += (s, e) => ShowForgotPasswordDialog();
 
             // Nút chọn nhanh MSV mẫu
-            var btnDemo1 = CreateQuickCodeButton("DTC235210069 (Ngọc)", new Point(15, 146), "DTC235210069");
+            var btnDemo1 = CreateQuickCodeButton("DTC235210069 (Kiên)", new Point(15, 146), "DTC235210069");
             var btnDemo2 = CreateQuickCodeButton("DTC205122001 (An)", new Point(156, 146), "DTC205122001");
             var btnDemo3 = CreateQuickCodeButton("DTC205122002 (Bình)", new Point(290, 146), "DTC205122002");
 
@@ -433,7 +433,7 @@ namespace student_desktop_app
             var txtVerifyName = new TextBox
             {
                 Text = "",
-                PlaceholderText = "Nhập Họ và tên (VD: Phạm Hồng Ngọc)",
+                PlaceholderText = "Nhập Họ và tên (VD: Phạm Hồng Ngọc Kiên)",
                 Location = new Point(22, 140),
                 Width = 380,
                 BackColor = Color.FromArgb(28, 28, 34),

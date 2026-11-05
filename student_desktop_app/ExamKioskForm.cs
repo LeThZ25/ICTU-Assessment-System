@@ -27,7 +27,7 @@ namespace student_desktop_app
         private int _violationCount = 0;
         private int _activeSessionId = 0;
         private string _activeStudentCode = "DTC235210069";
-        private string _activeStudentName = "Phạm Hồng Ngọc";
+        private string _activeStudentName = "Phạm Hồng Ngọc Kiên";
         private bool _isExamSecurityActive = false;
         private bool _isInternalDialogOpen = false;
         private bool _isFormFullyLoaded = false;
@@ -65,11 +65,11 @@ namespace student_desktop_app
         public ExamKioskForm(
             string serverUrl = "http://localhost:5000/student_web.html?mode=desktop_kiosk",
             string studentCode = "DTC235210069",
-            string studentName = "Phạm Hồng Ngọc")
+            string studentName = "Phạm Hồng Ngọc Kiên")
         {
             _targetUrl = serverUrl;
             _activeStudentCode = string.IsNullOrWhiteSpace(studentCode) ? "DTC235210069" : studentCode;
-            _activeStudentName = string.IsNullOrWhiteSpace(studentName) ? "Phạm Hồng Ngọc" : studentName;
+            _activeStudentName = string.IsNullOrWhiteSpace(studentName) ? "Phạm Hồng Ngọc Kiên" : studentName;
             _api = new ApiClient("http://localhost:5000");
 
             ConfigureKioskWindow();
