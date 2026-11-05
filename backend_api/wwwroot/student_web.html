@@ -2651,8 +2651,23 @@
 
     window.addEventListener('DOMContentLoaded', async () => {
       checkDesktopKioskMode();
+      const urlParams = new URLSearchParams(window.location.search);
+      const paramCode = urlParams.get('studentCode');
+      const paramName = urlParams.get('studentName');
+      const paramEmail = urlParams.get('studentEmail');
+
+      if (paramCode) {
+        currentStudentCode = paramCode.toUpperCase();
+        if (paramName) currentStudentName = paramName;
+        currentStudentEmail = paramEmail || `${currentStudentCode.toLowerCase()}@student.edu.vn`;
+        updateStudentIdentityUI();
+      } else {
+        // Nếu mở trực tiếp trên trình duyệt mà chưa qua LoginForm, hiển thị giao diện đăng nhập trên nền trắng trước tiên
+        openAccountModal(true);
+      }
+
       syncScheduleFiltersFromPlan(true);
-      await loadAvailableExams();
+      await loadAvailableExams(currentStudentCode);
       await loadStudentDashboard();
     });
   </script>

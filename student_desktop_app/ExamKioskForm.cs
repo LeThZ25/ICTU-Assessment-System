@@ -62,9 +62,14 @@ namespace student_desktop_app
 
         private static ExamKioskForm? _currentInstance;
 
-        public ExamKioskForm(string serverUrl = "http://localhost:5000/student_web.html?mode=desktop_kiosk")
+        public ExamKioskForm(
+            string serverUrl = "http://localhost:5000/student_web.html?mode=desktop_kiosk",
+            string studentCode = "DTC235210069",
+            string studentName = "Phạm Hồng Ngọc")
         {
             _targetUrl = serverUrl;
+            _activeStudentCode = string.IsNullOrWhiteSpace(studentCode) ? "DTC235210069" : studentCode;
+            _activeStudentName = string.IsNullOrWhiteSpace(studentName) ? "Phạm Hồng Ngọc" : studentName;
             _api = new ApiClient("http://localhost:5000");
 
             ConfigureKioskWindow();
