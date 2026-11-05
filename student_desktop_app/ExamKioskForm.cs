@@ -28,6 +28,7 @@ namespace student_desktop_app
         private int _activeSessionId = 0;
         private string _activeStudentCode = "DTC235210069";
         private string _activeStudentName = "Phạm Hồng Ngọc";
+        private bool _isExamSecurityActive = false;
         private bool _isInternalDialogOpen = false;
         private bool _isFormFullyLoaded = false;
         private DateTime _lastDeactivateViolation = DateTime.MinValue;
@@ -74,18 +75,20 @@ namespace student_desktop_app
 
         private void ConfigureKioskWindow()
         {
-            this.FormBorderStyle = FormBorderStyle.None;
+            // Khởi đầu ở chế độ cửa sổ bình thường khi xem Bảng tin / Thời khóa biểu / Hồ sơ.
+            // Chỉ bật Fullscreen không viền + Anti-Cheat khi sinh viên bấm vào chức năng Kiểm tra / Thi.
+            this.FormBorderStyle = FormBorderStyle.Sizable;
             this.WindowState = FormWindowState.Maximized;
-            this.TopMost = true; // Lock on top of all windows
+            this.TopMost = false;
             this.KeyPreview = true;
-            this.BackColor = Color.FromArgb(0, 51, 102); // ICTU Navy
-            this.Text = "LMS For Students & Cổng Khảo Thí An Toàn - ICTU (v3.2.98)";
+            this.BackColor = Color.FromArgb(0, 51, 102);
+            this.Text = "Hệ Thống Quản Lý Học Tập & Khảo Thí Thông Minh";
 
             this.Shown += (s, e) => { _isFormFullyLoaded = true; };
 
             this.Deactivate += (s, e) =>
             {
-                if (!_isFormFullyLoaded || _isInternalDialogOpen) return;
+                if (!_isFormFullyLoaded || _isInternalDialogOpen || !_isExamSecurityActive) return;
 
                 try
                 {
@@ -98,13 +101,40 @@ namespace student_desktop_app
                 if ((DateTime.UtcNow - _lastDeactivateViolation).TotalSeconds < 6) return;
                 _lastDeactivateViolation = DateTime.UtcNow;
 
-                TriggerViolation("WindowDeactivated (Alt+Tab)", "Thí sinh mất tiêu điểm cửa sổ phòng thi an toàn");
+                TriggerViolation("WindowDeactivated (Alt+Tab)", "Thí sinh mất tiêu điểm cửa sổ trong chế độ kiểm tra an toàn");
             };
 
             this.FormClosing += (s, e) =>
             {
                 CleanupTimersAndHook();
             };
+        }
+
+        private void SetExamSecurityMode(bool enable)
+        {
+            if (this.InvokeRequired)
+            {
+                this.Invoke(new Action(() => SetExamSecurityMode(enable)));
+                return;
+            }
+
+            _isExamSecurityActive = enable;
+            if (enable)
+            {
+                this.Text = "Phòng Thi An Toàn - Chế Độ Khóa Màn Hình & Chống Gian Lận";
+                this.WindowState = FormWindowState.Normal;
+                this.FormBorderStyle = FormBorderStyle.None;
+                this.TopMost = true;
+                this.WindowState = FormWindowState.Maximized;
+                _processScanTimer?.Start();
+            }
+            else
+            {
+                this.Text = "Hệ Thống Quản Lý Học Tập & Khảo Thí Thông Minh";
+                _processScanTimer?.Stop();
+                this.TopMost = false;
+                this.FormBorderStyle = FormBorderStyle.Sizable;
+            }
         }
 
         private void InitializeComponent()
@@ -157,7 +187,7 @@ namespace student_desktop_app
 
             var lblTitle = new Label
             {
-                Text = "LMS FOR STUDENTS & KHẢO THÍ ICTU",
+                Text = "HỆ THỐNG HỌC TẬP & KHẢO THÍ THÔNG MINH",
                 Font = new Font("Segoe UI", 12F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(0, 51, 102),
                 TextAlign = ContentAlignment.MiddleCenter,
@@ -306,11 +336,23 @@ namespace student_desktop_app
                     string action = actionElem.GetString() ?? "";
                     if (action == "exit")
                     {
+                        CleanupTimersAndHook();
                         this.Close();
                     }
                     else if (action == "proctorExit")
                     {
                         HandleProctorExit();
+                    }
+                    else if (action == "enableExamMode")
+                    {
+                        SetExamSecurityMode(true);
+                    }
+                    else if (action == "disableExamMode")
+                    {
+                        if (_activeSessionId == 0)
+                        {
+                            SetExamSecurityMode(false);
+                        }
                     }
                     else if (action == "examStarted")
                     {
@@ -321,10 +363,12 @@ namespace student_desktop_app
                         if (doc.RootElement.TryGetProperty("studentName", out var snElem))
                             _activeStudentName = snElem.GetString() ?? _activeStudentName;
                         _violationCount = 0;
+                        SetExamSecurityMode(true);
                     }
                     else if (action == "examEnded")
                     {
                         _activeSessionId = 0;
+                        SetExamSecurityMode(false);
                     }
                 }
             }
@@ -350,6 +394,7 @@ namespace student_desktop_app
             _processScanTimer = new System.Windows.Forms.Timer { Interval = 10000 };
             _processScanTimer.Tick += (s, e) =>
             {
+                if (!_isExamSecurityActive) return;
                 try
                 {
                     var running = Process.GetProcesses();
@@ -368,7 +413,6 @@ namespace student_desktop_app
                 }
                 catch { }
             };
-            _processScanTimer.Start();
         }
 
         private void CleanupTimersAndHook()
@@ -383,13 +427,14 @@ namespace student_desktop_app
 
         private static IntPtr HookCallback(int nCode, IntPtr wParam, IntPtr lParam)
         {
-            if (nCode >= 0 && (wParam == (IntPtr)WM_KEYDOWN || wParam == (IntPtr)WM_SYSKEYDOWN))
+            if (_currentInstance != null && _currentInstance._isExamSecurityActive &&
+                nCode >= 0 && (wParam == (IntPtr)WM_KEYDOWN || wParam == (IntPtr)WM_SYSKEYDOWN))
             {
                 int vkCode = Marshal.ReadInt32(lParam);
                 int flags = Marshal.ReadInt32(lParam, 8);
                 bool altDown = (flags & 0x20) != 0;
 
-                // Block Alt+Tab (9), Alt+Esc (27), Win (0x5B, 0x5C), Alt+F4 (0x73)
+                // Block Alt+Tab (9), Alt+Esc (27), Win (0x5B, 0x5C), Alt+F4 (0x73) only when in exam mode
                 if ((vkCode == 9 && altDown) || (vkCode == 27 && altDown) || vkCode == 0x5B || vkCode == 0x5C || (vkCode == 0x73 && altDown))
                 {
                     _currentInstance?.TriggerViolation("SystemKeyBlocked (Win/Alt+Tab)", "Chặn phím tắt chuyển màn hình hoặc thoát ứng dụng");
@@ -432,8 +477,8 @@ namespace student_desktop_app
                 return true;
             }
 
-            // Block Alt+F4
-            if (keyData == (Keys.Alt | Keys.F4))
+            // Block Alt+F4 only when exam security is active
+            if (_isExamSecurityActive && keyData == (Keys.Alt | Keys.F4))
             {
                 TriggerViolation("Alt+F4 Attempt", "Cố tình đóng ứng dụng phòng thi");
                 return true;

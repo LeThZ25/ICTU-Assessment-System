@@ -24,7 +24,7 @@ namespace student_desktop_app
 
         private void InitializeComponent()
         {
-            this.Text = "LMS For Students & Cổng Khảo Thí Trực Tuyến ICTU (v3.2.98)";
+            this.Text = "Cổng Học Tập & Khảo Thí Trực Tuyến Sinh Viên";
             this.Size = new Size(540, 600);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -36,62 +36,44 @@ namespace student_desktop_app
             {
                 Dock = DockStyle.Top,
                 Height = 90,
-                BackColor = Color.FromArgb(0, 51, 102) // ICTU Navy
+                BackColor = Color.FromArgb(0, 51, 102)
             };
 
             var pnlOrangeLine = new Panel
             {
                 Dock = DockStyle.Bottom,
                 Height = 4,
-                BackColor = Color.FromArgb(242, 101, 34) // ICTU Orange Accent
+                BackColor = Color.FromArgb(242, 101, 34)
             };
             pnlHeader.Controls.Add(pnlOrangeLine);
 
             var lblLogo = new Label
             {
-                Text = "CỔNG KHẢO THÍ TRỰC TUYẾN ICTU",
+                Text = "CỔNG HỌC TẬP & KHẢO THÍ TRỰC TUYẾN",
                 ForeColor = Color.White,
                 Font = new Font("Segoe UI", 12.5F, FontStyle.Bold, GraphicsUnit.Point),
-                Location = new Point(85, 18),
+                Location = new Point(20, 18),
                 AutoSize = true
             };
 
             var lblSub = new Label
             {
-                Text = "Trường Đại học Công nghệ Thông tin & Truyền thông • Đại học Thái Nguyên",
+                Text = "Hệ thống Quản lý Tiến độ Học tập & Đánh giá Năng lực Sinh viên",
                 ForeColor = Color.FromArgb(226, 232, 240),
                 Font = new Font("Segoe UI", 8.5F, FontStyle.Regular, GraphicsUnit.Point),
-                Location = new Point(85, 48),
+                Location = new Point(20, 50),
                 AutoSize = true
             };
-
-            if (System.IO.File.Exists("ictu_logo.png"))
-            {
-                var picLogo = new PictureBox
-                {
-                    Image = Image.FromFile("ictu_logo.png"),
-                    SizeMode = PictureBoxSizeMode.Zoom,
-                    Size = new Size(58, 58),
-                    Location = new Point(16, 14),
-                    BackColor = Color.Transparent
-                };
-                pnlHeader.Controls.Add(picLogo);
-            }
-            else
-            {
-                lblLogo.Location = new Point(20, 18);
-                lblSub.Location = new Point(20, 50);
-            }
 
             pnlHeader.Controls.Add(lblLogo);
             pnlHeader.Controls.Add(lblSub);
 
             // SSO Buttons
-            var lblSso = new Label { Text = "Đăng Nhập Nhanh Qua Cổng Trường:", Location = new Point(45, 105), AutoSize = true, Font = new Font("Segoe UI", 8.5F, FontStyle.Bold), ForeColor = Color.FromArgb(71, 85, 105) };
+            var lblSso = new Label { Text = "Đăng Nhập Nhanh Tài Khoản Sinh Viên:", Location = new Point(45, 105), AutoSize = true, Font = new Font("Segoe UI", 8.5F, FontStyle.Bold), ForeColor = Color.FromArgb(71, 85, 105) };
 
             btnMockGoogle = new Button
             {
-                Text = "G Google ICTU (DTC235210069)",
+                Text = "G Google SSO (DTC235210069)",
                 Location = new Point(45, 128),
                 Width = 215,
                 Height = 36,
@@ -103,13 +85,13 @@ namespace student_desktop_app
             btnMockGoogle.FlatAppearance.BorderColor = Color.FromArgb(226, 232, 240);
             btnMockGoogle.Click += (s, e) =>
             {
-                txtEmailOrCode.Text = "dtc235210069@ictu.edu.vn";
+                txtEmailOrCode.Text = "dtc235210069@student.edu.vn";
                 txtStudentName.Text = "Phạm Hồng Ngọc";
             };
 
             btnMockMicrosoft = new Button
             {
-                Text = " Microsoft 365 (ms.ictu.edu.vn)",
+                Text = " Microsoft 365 (DTC205122002)",
                 Location = new Point(270, 128),
                 Width = 215,
                 Height = 36,
@@ -121,18 +103,18 @@ namespace student_desktop_app
             btnMockMicrosoft.FlatAppearance.BorderColor = Color.FromArgb(226, 232, 240);
             btnMockMicrosoft.Click += (s, e) =>
             {
-                txtEmailOrCode.Text = "dtc205122002@ms.ictu.edu.vn";
+                txtEmailOrCode.Text = "dtc205122002@student.edu.vn";
                 txtStudentName.Text = "Trần Thị Bình";
             };
 
             // Form inputs
-            var lblCode = new Label { Text = "Email Trường / Mã Sinh Viên:", Location = new Point(45, 180), AutoSize = true, Font = new Font("Segoe UI", 9F, FontStyle.Bold) };
-            txtEmailOrCode = new TextBox { Text = "dtc235210069@ictu.edu.vn", Location = new Point(45, 205), Width = 440, Height = 32 };
+            var lblCode = new Label { Text = "Email Sinh Viên / Mã Sinh Viên:", Location = new Point(45, 180), AutoSize = true, Font = new Font("Segoe UI", 9F, FontStyle.Bold) };
+            txtEmailOrCode = new TextBox { Text = "dtc235210069@student.edu.vn", Location = new Point(45, 205), Width = 440, Height = 32 };
             txtEmailOrCode.TextChanged += TxtEmailOrCode_TextChanged;
 
             lblProviderDetect = new Label
             {
-                Text = "✓ Nhận diện: Google Workspace ICTU",
+                Text = "✓ Đã xác thực tài khoản sinh viên chính quy",
                 ForeColor = Color.FromArgb(16, 185, 129),
                 Location = new Point(45, 240),
                 AutoSize = true,
@@ -147,7 +129,7 @@ namespace student_desktop_app
 
             lblStatus = new Label
             {
-                Text = "Chế độ giám sát quy chế thi ICTU: Khóa chuyển ứng dụng, giám sát toàn màn hình.",
+                Text = "Chế độ bảo mật khảo thí: Bật Fullscreen & Anti-Cheat khi vào phần Kiểm tra / Thi.",
                 ForeColor = Color.FromArgb(100, 116, 139),
                 Location = new Point(45, 405),
                 Width = 440,
@@ -161,7 +143,7 @@ namespace student_desktop_app
                 Location = new Point(45, 450),
                 Width = 440,
                 Height = 48,
-                BackColor = Color.FromArgb(0, 74, 153), // ICTU Blue
+                BackColor = Color.FromArgb(0, 74, 153),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold)
@@ -187,19 +169,19 @@ namespace student_desktop_app
         private void TxtEmailOrCode_TextChanged(object? sender, EventArgs e)
         {
             var text = txtEmailOrCode.Text.Trim().ToLower();
-            if (text.EndsWith("@ms.ictu.edu.vn"))
+            if (text.Contains("@"))
             {
-                lblProviderDetect.Text = "✓ Nhận diện: Microsoft 365 ICTU (@ms.ictu.edu.vn)";
-                lblProviderDetect.ForeColor = Color.FromArgb(0, 120, 212);
-            }
-            else if (text.EndsWith("@ictu.edu.vn"))
-            {
-                lblProviderDetect.Text = "✓ Nhận diện: Google Workspace ICTU (@ictu.edu.vn)";
+                lblProviderDetect.Text = "✓ Đã nhận diện tài khoản Email sinh viên";
                 lblProviderDetect.ForeColor = Color.FromArgb(16, 185, 129);
+            }
+            else if (text.Length >= 5)
+            {
+                lblProviderDetect.Text = "✓ Đã nhận diện Mã sinh viên chính quy";
+                lblProviderDetect.ForeColor = Color.FromArgb(0, 120, 212);
             }
             else
             {
-                lblProviderDetect.Text = "• Nhập mã SV hoặc email trường ICTU";
+                lblProviderDetect.Text = "• Nhập mã SV hoặc email sinh viên";
                 lblProviderDetect.ForeColor = Color.FromArgb(100, 116, 139);
             }
         }
