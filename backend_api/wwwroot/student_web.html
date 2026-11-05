@@ -1825,48 +1825,120 @@
         const studentCode = currentStudentCode || studentInfo.studentCode || "DTC235210069";
         const defaultCredits = studentYearNum === 1 ? 28 : (studentYearNum === 2 ? 56 : (studentYearNum === 3 ? 85 : 115));
         const accumulatedCredits = studentInfo.accumulatedCredits || defaultCredits;
+        const creditPercent = Math.min(100, Math.round((accumulatedCredits / 135) * 100));
 
         box.innerHTML = `
-          <div class="max-w-2xl bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
-            <div class="bg-[#0066cc] px-6 py-4 text-white flex items-center justify-between">
-              <div class="flex items-center space-x-3">
-                <div class="w-11 h-11 rounded-full bg-white/20 flex items-center justify-center font-bold text-base">
-                  <i class="fa-solid fa-user-graduate"></i>
+          <div class="w-full min-h-[calc(100vh-105px)] bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden flex flex-col">
+            <!-- Header tràn ngang toàn bộ vùng hiển thị -->
+            <div class="bg-[#0066cc] px-7 py-5 text-white flex items-center justify-between flex-shrink-0">
+              <div class="flex items-center space-x-3.5">
+                <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center font-bold text-lg">
+                  <i class="fa-solid fa-id-card-clip"></i>
                 </div>
                 <div>
-                  <h3 class="text-sm font-bold uppercase tracking-wide">Thông Tin Cá Nhân Sinh Viên</h3>
-                  <p class="text-xs text-blue-100 mt-0.5">Hồ sơ học tập trên hệ thống LMS ICTU</p>
+                  <h3 class="text-base font-bold uppercase tracking-wide">Hồ Sơ Cá Nhân Sinh Viên ICTU</h3>
+                  <p class="text-xs text-blue-100 mt-0.5">Hệ thống Quản lý Học tập &amp; Khảo thí Thông minh • lms.ictu.edu.vn</p>
                 </div>
               </div>
-              <span class="px-3 py-1 rounded-full bg-white/15 text-xs font-semibold">Đang theo học</span>
+              <span class="px-4 py-1.5 rounded-full bg-white/20 text-xs font-bold tracking-wide">Đang theo học</span>
             </div>
 
-            <div class="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <!-- 1. Họ và tên sinh viên -->
-              <div class="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
-                <p class="text-xs text-slate-500 font-medium">Họ và tên sinh viên</p>
-                <p class="text-base font-bold text-slate-900">${fullName}</p>
+            <!-- Nội dung chính chia 2 nửa tràn toàn bộ khung hiển thị: Nửa trái Thẻ nhân vật - Nửa phải Thông tin cá nhân -->
+            <div class="flex-1 grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-slate-200">
+
+              <!-- NỬA TRÁI: THẺ NHÂN VẬT SINH VIÊN -->
+              <div class="p-8 bg-gradient-to-b from-[#f0f7ff] to-white flex flex-col items-center justify-center text-center space-y-5">
+                <div class="w-44 h-44 rounded-full bg-[#bae6fd] border-4 border-white shadow-md flex items-center justify-center overflow-hidden">
+                  <svg viewBox="0 0 64 64" class="w-40 h-40 mt-4">
+                    <circle cx="32" cy="24" r="14" fill="#fcd34d"/>
+                    <path d="M18 22c0-9 6-15 14-15s14 6 14 15c-3-4-8-6-14-6s-11 2-14 6z" fill="#451a03"/>
+                    <circle cx="27" cy="24" r="2" fill="#1e293b"/>
+                    <circle cx="37" cy="24" r="2" fill="#1e293b"/>
+                    <path d="M28 30c2 2 6 2 8 0" stroke="#1e293b" stroke-width="2" fill="none" stroke-linecap="round"/>
+                    <path d="M14 58c2-11 10-18 18-18s16 7 18 18" fill="#1e293b"/>
+                    <path d="M26 40l6 8 6-8" fill="#ffffff"/>
+                  </svg>
+                </div>
+
+                <div class="space-y-1.5">
+                  <span class="inline-block px-3 py-1 rounded-full bg-blue-100 text-[#0066cc] text-xs font-bold uppercase tracking-wider">
+                    Thẻ Sinh Viên Chính Quy
+                  </span>
+                  <h2 class="text-2xl font-black text-slate-900 pt-1">${fullName}</h2>
+                  <p class="text-sm font-mono font-bold text-ictu">${studentCode}</p>
+                  <p class="text-xs text-slate-500 pt-1">Trường Đại học Công nghệ Thông tin &amp; Truyền thông (ICTU)</p>
+                </div>
+
+                <div class="w-full max-w-sm pt-3 grid grid-cols-2 gap-3 text-center">
+                  <div class="p-3 rounded-xl bg-white border border-slate-200 shadow-2xs">
+                    <p class="text-[11px] text-slate-500">Khóa đào tạo</p>
+                    <p class="text-sm font-bold text-slate-800 mt-0.5">${admissionYear} - ${admissionYear + 4}</p>
+                  </div>
+                  <div class="p-3 rounded-xl bg-white border border-slate-200 shadow-2xs">
+                    <p class="text-[11px] text-slate-500">Trạng thái học tập</p>
+                    <p class="text-sm font-bold text-emerald-600 mt-0.5">Đúng tiến độ</p>
+                  </div>
+                </div>
               </div>
 
-              <!-- 2. Mã sinh viên (MSV) -->
-              <div class="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
-                <p class="text-xs text-slate-500 font-medium">Mã sinh viên (MSV)</p>
-                <p class="text-base font-bold text-ictu font-mono">${studentCode}</p>
+              <!-- NỬA PHẢI: THÔNG TIN CÁ NHÂN SINH VIÊN -->
+              <div class="p-8 flex flex-col justify-center space-y-5 bg-white">
+                <div class="pb-2 border-b border-slate-100">
+                  <h4 class="text-base font-bold text-slate-800 uppercase tracking-tight">Thông Tin Học Vụ &amp; Tích Lũy</h4>
+                  <p class="text-xs text-slate-500 mt-0.5">Dữ liệu đồng bộ theo kế hoạch đào tạo của nhà trường</p>
+                </div>
+
+                <div class="grid grid-cols-1 gap-4">
+                  <!-- 1. Họ và tên sinh viên -->
+                  <div class="p-5 rounded-xl bg-slate-50 border border-slate-200/90 flex items-center justify-between">
+                    <div>
+                      <p class="text-xs text-slate-500 font-medium">1. Họ và tên sinh viên</p>
+                      <p class="text-lg font-bold text-slate-900 mt-0.5">${fullName}</p>
+                    </div>
+                    <div class="w-10 h-10 rounded-xl bg-blue-50 text-ictu flex items-center justify-center">
+                      <i class="fa-solid fa-user text-base"></i>
+                    </div>
+                  </div>
+
+                  <!-- 2. Mã sinh viên (MSV) -->
+                  <div class="p-5 rounded-xl bg-slate-50 border border-slate-200/90 flex items-center justify-between">
+                    <div>
+                      <p class="text-xs text-slate-500 font-medium">2. Mã sinh viên (MSV)</p>
+                      <p class="text-lg font-bold text-ictu font-mono mt-0.5">${studentCode}</p>
+                    </div>
+                    <div class="w-10 h-10 rounded-xl bg-blue-50 text-ictu flex items-center justify-center">
+                      <i class="fa-solid fa-hashtag text-base"></i>
+                    </div>
+                  </div>
+
+                  <!-- 3. Sinh viên năm mấy -->
+                  <div class="p-5 rounded-xl bg-slate-50 border border-slate-200/90 flex items-center justify-between">
+                    <div>
+                      <p class="text-xs text-slate-500 font-medium">3. Sinh viên năm</p>
+                      <p class="text-lg font-bold text-slate-900 mt-0.5">Sinh viên năm thứ ${studentYearNum}</p>
+                      <p class="text-xs text-slate-500 mt-0.5">Năm nhập học: ${admissionYear} &bull; Năm học hiện tại: ${trainingPlanState.currentAcademicYear}</p>
+                    </div>
+                    <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                      <i class="fa-solid fa-graduation-cap text-base"></i>
+                    </div>
+                  </div>
+
+                  <!-- 4. Tổng số tín chỉ tích lũy -->
+                  <div class="p-5 rounded-xl bg-slate-50 border border-slate-200/90 space-y-2.5">
+                    <div class="flex items-center justify-between">
+                      <div>
+                        <p class="text-xs text-slate-500 font-medium">4. Tổng số tín chỉ tích lũy</p>
+                        <p class="text-lg font-bold text-emerald-600 mt-0.5">${accumulatedCredits} tín chỉ <span class="text-xs font-normal text-slate-500">/ 135 tín chỉ</span></p>
+                      </div>
+                      <span class="px-3 py-1 rounded-lg bg-emerald-50 text-emerald-700 font-bold text-xs">${creditPercent}% toàn khóa</span>
+                    </div>
+                    <div class="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
+                      <div class="h-full bg-emerald-500 rounded-full" style="width: ${creditPercent}%"></div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              <!-- 3. Sinh viên năm mấy -->
-              <div class="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
-                <p class="text-xs text-slate-500 font-medium">Sinh viên năm</p>
-                <p class="text-base font-bold text-slate-900">Năm thứ ${studentYearNum}</p>
-                <p class="text-[11px] text-slate-500">Nhập học năm ${admissionYear} &bull; Niên khóa ${admissionYear} - ${admissionYear + 4}</p>
-              </div>
-
-              <!-- 4. Tổng số tín chỉ tích lũy -->
-              <div class="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
-                <p class="text-xs text-slate-500 font-medium">Tổng số tín chỉ tích lũy</p>
-                <p class="text-base font-bold text-emerald-600">${accumulatedCredits} tín chỉ</p>
-                <p class="text-[11px] text-slate-500">Tiến độ tích lũy: ${accumulatedCredits} / 135 tín chỉ toàn khóa</p>
-              </div>
             </div>
           </div>
         `;
