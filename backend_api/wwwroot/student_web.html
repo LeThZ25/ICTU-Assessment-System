@@ -109,12 +109,9 @@
   <aside id="lmsSidebar" class="w-60 bg-white border-r border-dashed border-slate-300 flex-shrink-0 flex flex-col justify-between h-screen overflow-y-auto transition-all duration-200 z-30">
     <div class="p-3.5 space-y-4">
 
-      <!-- 1. Brand Header (Neutral Academic Branding - No Copyright Issues) -->
+      <!-- 1. Brand Header (ICTU Logo + Cổng Sinh Viên) -->
       <div class="flex items-center space-x-3 px-1 pt-1">
-        <div class="flex flex-col items-center justify-center bg-blue-50 border border-blue-200 rounded-lg px-2.5 py-1.5">
-          <span class="text-base font-black tracking-tighter leading-none text-[#0066cc]">EDU</span>
-          <span class="text-[6.5px] font-bold uppercase tracking-tight text-slate-600 mt-0.5">PORTAL</span>
-        </div>
+        <img src="/images/ictu_logo.png" alt="ICTU Logo" class="w-11 h-11 object-contain flex-shrink-0">
         <div>
           <span class="inline-block px-2 py-0.5 bg-[#e8f0fe] text-[#1967d2] text-[11px] font-semibold rounded">Cổng Sinh Viên</span>
           <p class="text-[11px] text-slate-600 font-medium mt-0.5">Học tập &amp; Khảo thí</p>
@@ -149,19 +146,11 @@
         </button>
       </div>
 
-      <!-- 3. Primary Dashboard Button -->
-      <div>
-        <button onclick="switchLmsSection('bulletin')" id="nav-bulletin" class="lms-nav-item active">
-          <i class="fa-solid fa-chart-line nav-icon"></i>
-          <span>Bảng tin học tập</span>
-        </button>
-      </div>
-
-      <!-- 4. Section: HỌC TẬP -->
+      <!-- 3. Section: HỌC TẬP -->
       <div class="space-y-0.5">
         <p class="px-2.5 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-800">HỌC TẬP</p>
 
-        <button onclick="switchLmsSection('timetable')" id="nav-timetable" class="lms-nav-item">
+        <button onclick="switchLmsSection('timetable')" id="nav-timetable" class="lms-nav-item active">
           <i class="fa-solid fa-calendar-days nav-icon"></i>
           <span>Thời khóa biểu</span>
         </button>
@@ -188,18 +177,13 @@
           <span id="badgeFinalExam" class="lms-badge-lock">KHÓA</span>
         </button>
 
-        <button onclick="switchLmsSection('projects')" id="nav-projects" class="lms-nav-item">
-          <i class="fa-solid fa-folder nav-icon"></i>
-          <span>Dự án</span>
-        </button>
-
         <button onclick="switchLmsSection('qa-lecturer')" id="nav-qa-lecturer" class="lms-nav-item">
           <i class="fa-solid fa-comments nav-icon"></i>
-          <span>Hỏi đáp với giảng viên</span>
+          <span>Hỏi đáp với trợ lý AI</span>
         </button>
       </div>
 
-      <!-- 5. Section: KẾT QUẢ -->
+      <!-- 4. Section: KẾT QUẢ -->
       <div class="space-y-0.5">
         <p class="px-2.5 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-800">KẾT QUẢ</p>
 
@@ -209,7 +193,7 @@
         </button>
       </div>
 
-      <!-- 6. Section: HỆ THỐNG -->
+      <!-- 5. Section: HỆ THỐNG -->
       <div class="space-y-0.5 pb-4">
         <p class="px-2.5 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-800">HỆ THỐNG</p>
 
@@ -249,7 +233,7 @@
           <i class="fa-solid fa-bars text-sm"></i>
         </button>
         <div>
-          <h1 id="headerExamTitle" class="text-[15px] font-medium text-slate-800 uppercase tracking-normal">BẢNG TIN HỌC TẬP</h1>
+          <h1 id="headerExamTitle" class="text-[15px] font-medium text-slate-800 uppercase tracking-normal">THỜI KHÓA BIỂU</h1>
           <p id="headerStudentInfo" class="text-[11px] text-slate-500 hidden">Hệ thống Quản lý Học tập &amp; Khảo thí Thông minh</p>
         </div>
       </div>
@@ -291,47 +275,9 @@
       <div id="sharedLmsBanner" class="hidden"></div>
 
       <!-- ================================================================= -->
-      <!-- SECTION 1: BẢNG TIN LMS (BULLETIN BOARD - EXACT SCREENSHOT 3)     -->
+      <!-- SECTION 1: THỜI KHÓA BIỂU (SCHEDULE - DYNAMIC ACADEMIC PLAN)      -->
       <!-- ================================================================= -->
-      <section id="sec-bulletin" class="lms-section">
-
-        <!-- Current Semester Course Classes Table (Exact match to Screenshot 3!) -->
-        <div class="bg-white border-b border-slate-200">
-          <div class="bg-[#0066cc] text-white px-4 py-2.5 font-semibold text-[13px]">
-            Các lớp học phần học kỳ hiện tại (<span id="lblCurrentSemester">2025_2026_2</span>)
-          </div>
-          <div class="overflow-x-auto">
-            <table class="w-full text-left text-[13px]">
-              <thead class="bg-[#f4f8fb] text-slate-800 border-b border-slate-200">
-                <tr>
-                  <th class="py-3 px-4 font-bold w-16">STT</th>
-                  <th class="py-3 px-4 font-bold w-[42%]">Tên lớp học phần</th>
-                  <th class="py-3 px-4 font-bold text-center">Tuần học</th>
-                  <th class="py-3 px-4 font-bold text-center">Số buổi nghỉ</th>
-                  <th class="py-3 px-4 font-bold text-right pr-8">Trạng thái</th>
-                </tr>
-              </thead>
-              <tbody id="bulletinClassesTableBody" class="divide-y divide-slate-100 text-slate-800">
-                <tr class="hover:bg-slate-50/80 transition cursor-pointer" onclick="switchLmsSection('classes')">
-                  <td class="py-4 px-4 font-normal">1</td>
-                  <td class="py-4 px-4 font-normal leading-relaxed max-w-md">
-                    Phát triển ứng dụng di động-2-25 (CNTTQT<br>K22B. KNUK22.K2.D1.N01)
-                  </td>
-                  <td class="py-4 px-4 text-center text-slate-500"></td>
-                  <td class="py-4 px-4 text-center font-normal">0</td>
-                  <td class="py-4 px-4 text-right pr-8 font-normal text-slate-800">Đúng tiến độ</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-      </section>
-
-      <!-- ================================================================= -->
-      <!-- SECTION 2: THỜI KHÓA BIỂU (SCHEDULE - DYNAMIC ACADEMIC PLAN)      -->
-      <!-- ================================================================= -->
-      <section id="sec-timetable" class="lms-section hidden">
+      <section id="sec-timetable" class="lms-section">
 
         <!-- Filter Bar (#f0f6fc) with 3 Floating-Label Outlined Select Boxes -->
         <div class="bg-[#f0f6fc] py-4 px-4 flex flex-wrap items-center justify-center gap-4 border-b border-slate-200 relative">
@@ -456,9 +402,7 @@
         <!-- STEP 1: LOGIN & START EXAM -->
         <div id="stepLogin" class="bg-white p-7 rounded-xl shadow-xs border border-slate-200 max-w-lg mx-auto w-full my-2">
           <div class="text-center mb-5 pb-4 border-b border-slate-100">
-            <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#0066cc] to-[#1e40af] text-white flex items-center justify-center mx-auto mb-2.5 shadow-xs">
-              <i class="fa-solid fa-shield-halved text-2xl"></i>
-            </div>
+            <img src="/images/ictu_logo.png" alt="ICTU Logo" class="w-14 h-14 object-contain mx-auto mb-2.5">
             <div class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-600 border border-rose-200 mb-1">
               <i class="fa-solid fa-lock mr-1"></i> CHẾ ĐỘ FULLSCREEN &amp; ANTI-CHEAT ĐANG BẬT
             </div>
@@ -650,8 +594,8 @@
           <div id="resQuestionBreakdown" class="text-left space-y-2 max-h-60 overflow-y-auto"></div>
 
           <div class="flex flex-wrap gap-3 pt-2">
-            <button onclick="finishExamAndGoTo('bulletin')" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold py-2.5 rounded-lg text-xs transition">
-              <i class="fa-solid fa-chart-line mr-1.5"></i> Về Bảng Tin Học Tập
+            <button onclick="finishExamAndGoTo('timetable')" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold py-2.5 rounded-lg text-xs transition">
+              <i class="fa-solid fa-calendar-days mr-1.5"></i> Về Thời Khóa Biểu
             </button>
             <button onclick="finishExamAndGoTo('scores')" class="flex-1 bg-ictu hover:bg-ictu-dark text-white font-semibold py-2.5 rounded-lg text-xs transition">
               <i class="fa-solid fa-magnifying-glass mr-1.5"></i> Xem Bảng Điểm &amp; Lộ Trình Học
@@ -665,53 +609,7 @@
       </section>
 
       <!-- ================================================================= -->
-      <!-- SECTION 6: DỰ ÁN HỌC PHẦN & BÀI TẬP LỚN (PROJECTS)                -->
-      <!-- ================================================================= -->
-      <section id="sec-projects" class="lms-section hidden p-6 space-y-5">
-        <div class="bg-white rounded-xl border border-slate-200 p-6 shadow-2xs space-y-4">
-          <div class="flex items-center justify-between pb-4 border-b border-slate-100">
-            <div>
-              <h3 class="text-base font-bold text-slate-800">Dự Án Môn Học &amp; Bài Tập Lớn Học Kỳ (2025_2026_2)</h3>
-              <p class="text-xs text-slate-500 mt-0.5">Quản lý tiến độ đồ án môn học, nộp báo cáo và nhận đánh giá sơ bộ từ Trợ lý AI</p>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="p-5 rounded-xl border border-slate-200 space-y-3 bg-slate-50/40">
-              <div class="flex items-center justify-between">
-                <span class="px-2.5 py-0.5 bg-blue-50 text-ictu text-xs font-bold rounded border border-blue-200">Phát triển ứng dụng di động-2-25</span>
-                <span class="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 text-xs font-bold rounded">Đúng tiến độ</span>
-              </div>
-              <h4 class="text-sm font-bold text-slate-800">Đề tài: Xây dựng Ứng dụng Quản lý Tiến độ Học tập &amp; Khảo thí Thông minh cho Sinh viên</h4>
-              <p class="text-xs text-slate-600 leading-relaxed">
-                Thiết kế giao diện cổng học tập hiện đại, tích hợp chế độ Fullscreen &amp; Anti-Cheat tự động khi vào phần kiểm tra/thi, chấm điểm tự luận và vấn đáp thời gian thực.
-              </p>
-              <div class="text-[11px] text-slate-500 flex items-center justify-between pt-2 border-t border-slate-200/70">
-                <span><i class="fa-regular fa-calendar mr-1"></i> Giảng viên HD: Vũ Huy Hoàng</span>
-                <button onclick="switchLmsSection('qa-lecturer')" class="text-ictu font-semibold hover:underline">Trao đổi tiến độ →</button>
-              </div>
-            </div>
-
-            <div class="p-5 rounded-xl border border-slate-200 space-y-3 bg-slate-50/40">
-              <div class="flex items-center justify-between">
-                <span class="px-2.5 py-0.5 bg-purple-50 text-purple-700 text-xs font-bold rounded border border-purple-200">Cơ sở dữ liệu &amp; Hệ phân tán</span>
-                <span class="px-2.5 py-0.5 bg-amber-50 text-amber-700 text-xs font-bold rounded">Đang thực hiện</span>
-              </div>
-              <h4 class="text-sm font-bold text-slate-800">Đề tài: Thiết kế CSDL Chuẩn hóa 3NF &amp; Cơ chế Đồng bộ Giao dịch ACID</h4>
-              <p class="text-xs text-slate-600 leading-relaxed">
-                Xây dựng lược đồ quan hệ, viết các thủ tục lưu trữ (Stored Procedures) và kiểm thử tính toàn vẹn dữ liệu khi truy cập đồng thời.
-              </p>
-              <div class="text-[11px] text-slate-500 flex items-center justify-between pt-2 border-t border-slate-200/70">
-                <span><i class="fa-regular fa-calendar mr-1"></i> Hạn nộp: Tuần 15</span>
-                <button onclick="switchLmsSection('qa-lecturer')" class="text-ictu font-semibold hover:underline">Nhờ AI góp ý đề cương →</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ================================================================= -->
-      <!-- SECTION 7: HỎI ĐÁP VỚI GIẢNG VIÊN & TRỢ LÝ AI (STREAMING CHAT)    -->
+      <!-- SECTION 6: HỎI ĐÁP VỚI TRỢ LÝ AI (STREAMING CHAT)                 -->
       <!-- ================================================================= -->
       <section id="sec-qa-lecturer" class="lms-section hidden p-6 space-y-5">
         <div class="bg-white rounded-xl border border-slate-200 p-6 shadow-2xs flex flex-col h-[540px]">
@@ -719,7 +617,7 @@
             <div>
               <h3 class="text-base font-bold text-slate-800 flex items-center">
                 <i class="fa-solid fa-comments text-ictu mr-2"></i>
-                Hỏi Đáp Học Thuật Với Giảng Viên &amp; Trợ Lý Cố Vấn AI (24/7)
+                Hỏi Đáp Học Thuật Với Trợ Lý AI (24/7)
               </h3>
               <p class="text-xs text-slate-500 mt-0.5">Trao đổi trực tiếp về nội dung bài giảng, bài tập SQL/Lập trình và ôn tập chuẩn đầu ra (hỗ trợ phản hồi Streaming thời gian thực)</p>
             </div>
@@ -731,11 +629,11 @@
           <div id="qaForumChatBox" class="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50 rounded-xl my-3 border border-slate-200/80 text-xs">
             <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs max-w-2xl">
               <div class="flex items-center space-x-2 mb-1">
-                <span class="px-2 py-0.5 bg-ictu text-white text-[10px] font-bold rounded">GV Vũ Huy Hoàng &amp; Trợ lý AI</span>
+                <span class="px-2 py-0.5 bg-ictu text-white text-[10px] font-bold rounded">Trợ lý Học tập AI</span>
                 <span class="text-[10px] text-slate-400">Học kỳ 2025_2026_2</span>
               </div>
               <p class="text-slate-700 leading-relaxed">
-                Chào bạn! Bạn có thể đặt câu hỏi về bài giảng học phần <b>Phát triển ứng dụng di động-2-25</b> hoặc các bài kiểm tra đánh giá chuẩn đầu ra tại đây. Hệ thống sẽ phản hồi trực tiếp theo luồng thời gian thực (streaming).
+                Chào bạn! Bạn có thể đặt câu hỏi về bài giảng học phần <b>Phát triển ứng dụng di động-2-25</b> hoặc các bài kiểm tra đánh giá chuẩn đầu ra tại đây. Trợ lý AI sẽ phản hồi trực tiếp theo luồng thời gian thực (streaming).
               </p>
             </div>
           </div>
@@ -753,7 +651,7 @@
           </div>
 
           <div class="flex space-x-2">
-            <input type="text" id="qaForumInput" onkeydown="if(event.key==='Enter') sendStudyQuestion()" placeholder="Nhập câu hỏi gửi giảng viên hoặc trợ lý học tập AI..." class="flex-1 px-4 py-2.5 rounded-lg border border-slate-300 text-xs sm:text-sm focus:outline-none focus:border-ictu">
+            <input type="text" id="qaForumInput" onkeydown="if(event.key==='Enter') sendStudyQuestion()" placeholder="Nhập câu hỏi gửi trợ lý học tập AI..." class="flex-1 px-4 py-2.5 rounded-lg border border-slate-300 text-xs sm:text-sm focus:outline-none focus:border-ictu">
             <button onclick="sendStudyQuestion()" id="btnSendQaForum" class="bg-ictu hover:bg-ictu-dark text-white font-semibold px-5 py-2.5 rounded-lg text-xs sm:text-sm transition flex items-center">
               <i class="fa-solid fa-paper-plane mr-1.5"></i> Gửi câu hỏi
             </button>
@@ -853,9 +751,7 @@
     <div class="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full p-6 space-y-4">
       <div class="flex items-center justify-between pb-3 border-b border-slate-100">
         <div class="flex items-center space-x-2.5">
-          <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-[#0066cc] to-[#1e40af] text-white flex items-center justify-center shadow-2xs">
-            <i class="fa-solid fa-graduation-cap text-sm"></i>
-          </div>
+          <img src="/images/ictu_logo.png" alt="ICTU Logo" class="w-9 h-9 object-contain">
           <div>
             <h4 class="text-sm font-bold text-slate-800">Đăng Nhập Cổng Học Tập &amp; Khảo Thí</h4>
             <p class="text-[11px] text-slate-500">Hệ thống Quản lý Tiến độ Học tập &amp; Thi cử Sinh viên</p>
@@ -1094,14 +990,15 @@
       setExamSecurityMode(isExamRelatedSection || isExamInProgress);
 
       document.querySelectorAll('#lmsSidebar .lms-nav-item').forEach(btn => btn.classList.remove('active'));
+      if (sectionKey === 'bulletin' || sectionKey === 'projects') {
+        sectionKey = 'timetable';
+      }
       const activeNavMap = {
-        'bulletin': 'nav-bulletin',
         'timetable': 'nav-timetable',
         'classes': 'nav-classes',
         'regular-test': 'nav-regular-test',
         'quiz-15': 'nav-quiz-15',
         'final-exam': 'nav-final-exam',
-        'projects': 'nav-projects',
         'qa-lecturer': 'nav-qa-lecturer',
         'scores': 'nav-scores',
         'settings': 'nav-settings',
@@ -1126,10 +1023,7 @@
         zoomCtrl.classList.remove('flex');
       }
 
-      if (sectionKey === 'bulletin') {
-        titleEl.innerText = "BẢNG TIN HỌC TẬP";
-        document.getElementById('sec-bulletin').classList.remove('hidden');
-      } else if (sectionKey === 'timetable') {
+      if (sectionKey === 'timetable') {
         titleEl.innerText = "THỜI KHÓA BIỂU";
         document.getElementById('sec-timetable').classList.remove('hidden');
         renderWeeklyScheduleGrid();
@@ -1147,11 +1041,8 @@
       } else if (sectionKey === 'final-exam') {
         titleEl.innerText = isExamInProgress ? document.getElementById('headerExamTitle').innerText : "THI KẾT THÚC HỌC PHẦN";
         document.getElementById('sec-final-exam').classList.remove('hidden');
-      } else if (sectionKey === 'projects') {
-        titleEl.innerText = "DỰ ÁN";
-        document.getElementById('sec-projects').classList.remove('hidden');
       } else if (sectionKey === 'qa-lecturer') {
-        titleEl.innerText = "HỎI ĐÁP VỚI GIẢNG VIÊN";
+        titleEl.innerText = "HỎI ĐÁP VỚI TRỢ LÝ AI";
         document.getElementById('sec-qa-lecturer').classList.remove('hidden');
       } else if (sectionKey === 'scores') {
         titleEl.innerText = "TRA CỨU ĐIỂM";
@@ -1561,10 +1452,10 @@
         }
         updateStudentIdentityUI();
 
-        // 1. Render Bulletin Course Classes Table (Exact match to Screenshot 3!)
+        // 1. Render Course Classes Data
         const tbody = document.getElementById('bulletinClassesTableBody');
         const classes = data.classes || [];
-        if (classes.length > 0) {
+        if (tbody && classes.length > 0) {
           tbody.innerHTML = classes.map((c, idx) => `
             <tr class="hover:bg-slate-50/80 transition cursor-pointer" onclick="switchLmsSection('classes')">
               <td class="py-4 px-4 font-normal">${idx + 1}</td>
@@ -1582,10 +1473,14 @@
 
         // 3. Render Competency & Learning Path
         const comp = data.competency || {};
-        document.getElementById('dashboardAiNote').innerText = comp.aiAdvisorNote || "Sinh viên đang học đúng tiến độ.";
-        document.getElementById('scoreAvg10').innerText = comp.averageScore ?? "8.5";
-        document.getElementById('scoreGpa4').innerText = `${comp.gpa4 ?? '3.40'} (${comp.letterGrade || 'A'})`;
-        document.getElementById('scoreTotalCompleted').innerText = comp.completedExamsCount ?? 0;
+        const aiNoteEl = document.getElementById('dashboardAiNote');
+        if (aiNoteEl) aiNoteEl.innerText = comp.aiAdvisorNote || "Sinh viên đang học đúng tiến độ.";
+        const scoreAvgEl = document.getElementById('scoreAvg10');
+        if (scoreAvgEl) scoreAvgEl.innerText = comp.averageScore ?? "8.5";
+        const scoreGpaEl = document.getElementById('scoreGpa4');
+        if (scoreGpaEl) scoreGpaEl.innerText = `${comp.gpa4 ?? '3.40'} (${comp.letterGrade || 'A'})`;
+        const scoreTotalEl = document.getElementById('scoreTotalCompleted');
+        if (scoreTotalEl) scoreTotalEl.innerText = comp.completedExamsCount ?? 0;
 
         const cloGrid = document.getElementById('dashboardCloGrid');
         if (comp.cloMastery && cloGrid) {
@@ -1777,6 +1672,10 @@
         const defaultCredits = studentYearNum === 1 ? 28 : (studentYearNum === 2 ? 56 : (studentYearNum === 3 ? 85 : 115));
         const accumulatedCredits = studentInfo.accumulatedCredits || defaultCredits;
         const creditPercent = Math.min(100, Math.round((accumulatedCredits / 135) * 100));
+        const classesList = (cachedDashboardData && cachedDashboardData.classes) ? cachedDashboardData.classes : [];
+        const totalAbsentSessions = studentInfo.totalAbsentSessions !== undefined
+          ? studentInfo.totalAbsentSessions
+          : classesList.reduce((sum, c) => sum + (Number(c.soBuoiNghi) || 0), 0);
 
         box.innerHTML = `
           <div class="w-full min-h-[calc(100vh-105px)] bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden flex flex-col">
@@ -1833,15 +1732,15 @@
               </div>
 
               <!-- NỬA PHẢI: THÔNG TIN CÁ NHÂN SINH VIÊN -->
-              <div class="p-8 flex flex-col justify-center space-y-5 bg-white">
+              <div class="p-8 flex flex-col justify-center space-y-4 bg-white">
                 <div class="pb-2 border-b border-slate-100">
                   <h4 class="text-base font-bold text-slate-800 uppercase tracking-tight">Thông Tin Học Vụ &amp; Tích Lũy</h4>
                   <p class="text-xs text-slate-500 mt-0.5">Dữ liệu đồng bộ theo kế hoạch đào tạo của nhà trường</p>
                 </div>
 
-                <div class="grid grid-cols-1 gap-4">
+                <div class="grid grid-cols-1 gap-3.5">
                   <!-- 1. Họ và tên sinh viên -->
-                  <div class="p-5 rounded-xl bg-slate-50 border border-slate-200/90 flex items-center justify-between">
+                  <div class="p-4 rounded-xl bg-slate-50 border border-slate-200/90 flex items-center justify-between">
                     <div>
                       <p class="text-xs text-slate-500 font-medium">1. Họ và tên sinh viên</p>
                       <p class="text-lg font-bold text-slate-900 mt-0.5">${fullName}</p>
@@ -1852,7 +1751,7 @@
                   </div>
 
                   <!-- 2. Mã sinh viên (MSV) -->
-                  <div class="p-5 rounded-xl bg-slate-50 border border-slate-200/90 flex items-center justify-between">
+                  <div class="p-4 rounded-xl bg-slate-50 border border-slate-200/90 flex items-center justify-between">
                     <div>
                       <p class="text-xs text-slate-500 font-medium">2. Mã sinh viên (MSV)</p>
                       <p class="text-lg font-bold text-ictu font-mono mt-0.5">${studentCode}</p>
@@ -1863,7 +1762,7 @@
                   </div>
 
                   <!-- 3. Sinh viên năm mấy -->
-                  <div class="p-5 rounded-xl bg-slate-50 border border-slate-200/90 flex items-center justify-between">
+                  <div class="p-4 rounded-xl bg-slate-50 border border-slate-200/90 flex items-center justify-between">
                     <div>
                       <p class="text-xs text-slate-500 font-medium">3. Sinh viên năm</p>
                       <p class="text-lg font-bold text-slate-900 mt-0.5">Sinh viên năm thứ ${studentYearNum}</p>
@@ -1875,7 +1774,7 @@
                   </div>
 
                   <!-- 4. Tổng số tín chỉ tích lũy -->
-                  <div class="p-5 rounded-xl bg-slate-50 border border-slate-200/90 space-y-2.5">
+                  <div class="p-4 rounded-xl bg-slate-50 border border-slate-200/90 space-y-2">
                     <div class="flex items-center justify-between">
                       <div>
                         <p class="text-xs text-slate-500 font-medium">4. Tổng số tín chỉ tích lũy</p>
@@ -1885,6 +1784,18 @@
                     </div>
                     <div class="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
                       <div class="h-full bg-emerald-500 rounded-full" style="width: ${creditPercent}%"></div>
+                    </div>
+                  </div>
+
+                  <!-- 5. Số buổi nghỉ -->
+                  <div class="p-4 rounded-xl bg-slate-50 border border-slate-200/90 flex items-center justify-between">
+                    <div>
+                      <p class="text-xs text-slate-500 font-medium">5. Số buổi nghỉ</p>
+                      <p class="text-lg font-bold ${totalAbsentSessions > 0 ? 'text-rose-600' : 'text-emerald-600'} mt-0.5">${totalAbsentSessions} buổi nghỉ</p>
+                      <p class="text-xs text-slate-500 mt-0.5">Chuyên cần học kỳ hiện tại: ${totalAbsentSessions === 0 ? 'Đi học đầy đủ (Đủ điều kiện dự thi)' : 'Cần lưu ý đảm bảo tỷ lệ chuyên cần'}</p>
+                    </div>
+                    <div class="w-10 h-10 rounded-xl ${totalAbsentSessions > 0 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'} flex items-center justify-center">
+                      <i class="fa-solid fa-user-check text-base"></i>
                     </div>
                   </div>
                 </div>
@@ -1906,7 +1817,7 @@
           <div class="bg-white rounded-xl border border-slate-200 p-6 space-y-3 text-xs">
             <h4 class="text-sm font-bold text-slate-800">Trung Tâm Hỗ Trợ Kỹ Thuật &amp; Khảo Thí Trực Tuyến</h4>
             <p class="text-slate-600 leading-relaxed">
-              Nếu gặp sự cố mất kết nối mạng hoặc cần mở khóa ca thi, thí sinh vui lòng liên hệ trực tiếp Cán bộ coi thi tại phòng máy hoặc sử dụng mục <b>Hỏi đáp với giảng viên</b>.
+              Nếu gặp sự cố mất kết nối mạng hoặc cần mở khóa ca thi, thí sinh vui lòng liên hệ trực tiếp Cán bộ coi thi tại phòng máy hoặc sử dụng mục <b>Hỏi đáp với trợ lý AI</b>.
             </p>
             <div class="p-3.5 rounded-lg bg-slate-50 border border-slate-200 space-y-1">
               <p><b>Cơ chế Bảo mật Khảo thí:</b> Chỉ kích hoạt chế độ <b>Fullscreen &amp; Anti-Cheat</b> khi sinh viên truy cập các mục <b>Kiểm tra thường xuyên</b>, <b>Kiểm tra 15 phút</b> hoặc <b>Thi kết thúc học phần</b>.</p>
@@ -1968,7 +1879,7 @@
       updateStudentIdentityUI();
       await loadAvailableExams(currentStudentCode);
       await loadStudentDashboard();
-      switchLmsSection('bulletin');
+      switchLmsSection('timetable');
     }
 
     async function applyCustomStudent() {
@@ -2570,7 +2481,7 @@
       box.innerHTML += `
         <div class="bg-white p-3.5 rounded-xl border border-slate-200 max-w-2xl shadow-2xs">
           <div class="flex items-center space-x-2 mb-1">
-            <span class="px-2 py-0.5 bg-emerald-600 text-white text-[10px] font-bold rounded">Cố vấn Học tập AI &amp; Giảng viên</span>
+            <span class="px-2 py-0.5 bg-emerald-600 text-white text-[10px] font-bold rounded">Trợ lý Học tập AI</span>
             <span class="text-[10px] text-emerald-600 font-semibold">● Đang phản hồi trực tiếp</span>
           </div>
           <p id="${replyId}" class="text-slate-700 leading-relaxed typing-cursor">...</p>
