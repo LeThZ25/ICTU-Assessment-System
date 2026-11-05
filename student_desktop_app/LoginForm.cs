@@ -122,17 +122,31 @@ namespace student_desktop_app
                 AutoSize = true
             };
 
+            var pnlCodeWrapper = new Panel
+            {
+                Location = new Point(15, 27),
+                Size = new Size(410, 29),
+                BackColor = Color.FromArgb(28, 28, 34),
+                Cursor = Cursors.IBeam
+            };
+            pnlCodeWrapper.Paint += (s, e) =>
+            {
+                using var pen = new Pen(Color.FromArgb(100, 100, 110), 1);
+                e.Graphics.DrawRectangle(pen, 0, 0, pnlCodeWrapper.Width - 1, pnlCodeWrapper.Height - 1);
+            };
+            pnlCodeWrapper.Click += (s, e) => txtStudentCode.Focus();
+
             txtStudentCode = new TextBox
             {
                 Text = "DTC235210069",
-                Location = new Point(15, 27),
-                Width = 410,
-                Height = 32,
+                Location = new Point(6, 5),
+                Width = 398,
                 BackColor = Color.FromArgb(28, 28, 34),
                 ForeColor = Color.White,
-                BorderStyle = BorderStyle.FixedSingle,
+                BorderStyle = BorderStyle.None,
                 Font = new Font("Segoe UI", 10.5F, FontStyle.Regular)
             };
+            pnlCodeWrapper.Controls.Add(txtStudentCode);
 
             var lblPass = new Label
             {
@@ -143,15 +157,27 @@ namespace student_desktop_app
                 AutoSize = true
             };
 
+            // Khung gộp chung ô nhập mật khẩu và biểu tượng con mắt vào cùng 1 ô liền mạch
+            var pnlPasswordWrapper = new Panel
+            {
+                Location = new Point(15, 91),
+                Size = new Size(410, 29),
+                BackColor = Color.FromArgb(28, 28, 34)
+            };
+            pnlPasswordWrapper.Paint += (s, e) =>
+            {
+                using var pen = new Pen(Color.FromArgb(100, 100, 110), 1);
+                e.Graphics.DrawRectangle(pen, 0, 0, pnlPasswordWrapper.Width - 1, pnlPasswordWrapper.Height - 1);
+            };
+
             txtPassword = new TextBox
             {
                 Text = "123456",
-                Location = new Point(15, 91),
-                Width = 370,
-                Height = 32,
+                Location = new Point(6, 5),
+                Width = 362,
                 BackColor = Color.FromArgb(28, 28, 34),
                 ForeColor = Color.White,
-                BorderStyle = BorderStyle.FixedSingle,
+                BorderStyle = BorderStyle.None,
                 UseSystemPasswordChar = true,
                 Font = new Font("Segoe UI", 10.5F, FontStyle.Regular)
             };
@@ -159,14 +185,17 @@ namespace student_desktop_app
             btnTogglePassword = new Button
             {
                 Text = "",
-                Location = new Point(386, 91),
-                Size = new Size(39, 27),
+                Location = new Point(372, 1),
+                Size = new Size(37, 27),
                 BackColor = Color.FromArgb(28, 28, 34),
                 ForeColor = Color.FromArgb(161, 161, 170),
                 FlatStyle = FlatStyle.Flat,
-                Cursor = Cursors.Hand
+                Cursor = Cursors.Hand,
+                TabStop = false
             };
-            btnTogglePassword.FlatAppearance.BorderColor = Color.FromArgb(100, 100, 110);
+            btnTogglePassword.FlatAppearance.BorderSize = 0;
+            btnTogglePassword.FlatAppearance.MouseOverBackColor = Color.FromArgb(28, 28, 34);
+            btnTogglePassword.FlatAppearance.MouseDownBackColor = Color.FromArgb(28, 28, 34);
             btnTogglePassword.Paint += (s, e) =>
             {
                 e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
@@ -207,6 +236,9 @@ namespace student_desktop_app
                 txtPassword.SelectionStart = txtPassword.Text.Length;
             };
 
+            pnlPasswordWrapper.Controls.Add(txtPassword);
+            pnlPasswordWrapper.Controls.Add(btnTogglePassword);
+
             // Nút chọn nhanh MSV mẫu
             var btnDemo1 = CreateQuickCodeButton("DTC235210069 (Ngọc)", new Point(15, 130), "DTC235210069");
             var btnDemo2 = CreateQuickCodeButton("DTC205122001 (An)", new Point(156, 130), "DTC205122001");
@@ -239,10 +271,9 @@ namespace student_desktop_app
             this.AcceptButton = btnLogin;
 
             pnlStudentLogin.Controls.Add(lblCode);
-            pnlStudentLogin.Controls.Add(txtStudentCode);
+            pnlStudentLogin.Controls.Add(pnlCodeWrapper);
             pnlStudentLogin.Controls.Add(lblPass);
-            pnlStudentLogin.Controls.Add(txtPassword);
-            pnlStudentLogin.Controls.Add(btnTogglePassword);
+            pnlStudentLogin.Controls.Add(pnlPasswordWrapper);
             pnlStudentLogin.Controls.Add(btnDemo1);
             pnlStudentLogin.Controls.Add(btnDemo2);
             pnlStudentLogin.Controls.Add(btnDemo3);
