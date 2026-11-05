@@ -867,6 +867,12 @@
               <i id="iconTogglePasswordEye" class="fa-regular fa-eye text-sm"></i>
             </button>
           </div>
+          <!-- Dòng nhỏ bên dưới ô nhập mật khẩu cho sinh viên quên mật khẩu -->
+          <div class="flex items-center justify-end mt-1.5">
+            <button type="button" onclick="openForgotPasswordStep()" class="text-[11.5px] text-[#4f8ff7] hover:text-blue-300 hover:underline font-medium transition cursor-pointer">
+              Quên mật khẩu? Bấm vào đây để lấy lại mật khẩu
+            </button>
+          </div>
         </div>
 
         <p id="loginGateError" class="hidden text-xs font-semibold text-rose-400 bg-rose-950/50 border border-rose-800/60 rounded-lg px-3 py-2"></p>
@@ -890,6 +896,57 @@
         <div class="pt-2">
           <button type="submit" class="w-full bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-bold py-2.5 rounded-xl text-xs transition shadow-md cursor-pointer">
             Đăng nhập hệ thống
+          </button>
+        </div>
+      </form>
+
+      <!-- FORM XÁC MINH & CẤP LẠI MẬT KHẨU NGẪU NHIÊN KHI QUÊN MẬT KHẨU -->
+      <form id="loginStepForgotPassword" onsubmit="handleForgotPasswordVerify(event)" class="hidden mt-6 text-left space-y-4">
+        <div class="p-3 rounded-xl bg-[#18181b] border border-[#2e2e32] text-[11.5px] text-zinc-300 leading-relaxed">
+          <i class="fa-solid fa-shield-check text-[#4f8ff7] mr-1"></i>
+          Vui lòng xác minh <b>Mã sinh viên (MSV)</b> và <b>Họ tên sinh viên</b> để hệ thống cấp lại mật khẩu ngẫu nhiên mới (không trùng mật khẩu mặc định).
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-zinc-300 mb-1.5">
+            <i class="fa-solid fa-id-card text-[#4f8ff7] mr-1.5"></i>Mã sinh viên (MSV) cần khôi phục
+          </label>
+          <input type="text" id="forgotStudentCode" value="DTC235210069" placeholder="Nhập Mã sinh viên (VD: DTC235210069)" required
+            class="w-full px-3.5 py-2.5 rounded-xl bg-[#18181b] border border-[#2e2e32] text-white text-sm placeholder-zinc-500 focus:outline-none focus:border-[#4f8ff7]">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-zinc-300 mb-1.5">
+            <i class="fa-solid fa-user-check text-[#4f8ff7] mr-1.5"></i>Họ và tên sinh viên (Xác minh danh tính)
+          </label>
+          <input type="text" id="forgotStudentName" placeholder="Nhập Họ và tên (VD: Phạm Hồng Ngọc)" required
+            class="w-full px-3.5 py-2.5 rounded-xl bg-[#18181b] border border-[#2e2e32] text-white text-sm placeholder-zinc-500 focus:outline-none focus:border-[#4f8ff7]">
+        </div>
+
+        <p id="forgotPasswordError" class="hidden text-xs font-semibold text-rose-400 bg-rose-950/50 border border-rose-800/60 rounded-lg px-3 py-2"></p>
+
+        <!-- Khung hiển thị mật khẩu ngẫu nhiên mới sau khi xác minh thành công -->
+        <div id="forgotPasswordSuccessBox" class="hidden p-4 rounded-xl bg-emerald-950/50 border border-emerald-700/70 space-y-2.5 text-center">
+          <p class="text-xs font-semibold text-emerald-300">
+            <i class="fa-solid fa-circle-check mr-1"></i>Xác minh danh tính thành công! Mật khẩu ngẫu nhiên mới của bạn là:
+          </p>
+          <div class="py-2 px-4 rounded-lg bg-[#121214] border border-emerald-600/60 inline-block">
+            <span id="generatedRandomPasswordText" class="font-mono text-lg font-black tracking-widest text-emerald-400 select-all"></span>
+          </div>
+          <p class="text-[11px] text-zinc-300">
+            Hãy ghi nhớ mật khẩu này để đăng nhập (bạn có thể đổi lại tùy ý trong mục <b>Cài đặt</b> sau khi vào ứng dụng).
+          </p>
+          <button type="button" onclick="useGeneratedPasswordToLogin()" class="w-full py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition cursor-pointer">
+            Điền mật khẩu này &amp; Quay lại đăng nhập
+          </button>
+        </div>
+
+        <div class="flex items-center gap-2.5 pt-1">
+          <button type="button" onclick="closeForgotPasswordStep()" class="px-4 py-2.5 rounded-xl bg-[#27272a] hover:bg-[#3f3f46] text-zinc-300 text-xs font-semibold transition cursor-pointer">
+            ← Quay lại đăng nhập
+          </button>
+          <button type="submit" class="flex-1 bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-bold py-2.5 rounded-xl text-xs transition shadow-md cursor-pointer">
+            Xác minh &amp; Cấp mật khẩu mới
           </button>
         </div>
       </form>
@@ -2202,10 +2259,121 @@
         if (inpPass) inpPass.value = '';
       }
 
+      closeForgotPasswordStep();
       modal.style.backgroundColor = '#18181b';
       modal.classList.remove('hidden');
       const inpCode = document.getElementById('modalCustomCode');
       if (inpCode) inpCode.focus();
+    }
+
+    let lastGeneratedForgotCode = '';
+    let lastGeneratedForgotPassword = '';
+
+    function normalizeViString(str) {
+      return (str || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/đ/g, 'd')
+        .replace(/Đ/g, 'D')
+        .toLowerCase()
+        .trim();
+    }
+
+    function generateRandomNonDefaultPassword(previousPwd = '') {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let result = '';
+      do {
+        result = '';
+        for (let i = 0; i < 6; i++) {
+          result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+      } while (result === '123456' || result === previousPwd);
+      return result;
+    }
+
+    function openForgotPasswordStep() {
+      const loginForm = document.getElementById('loginStepStudentForm');
+      const forgotForm = document.getElementById('loginStepForgotPassword');
+      const subtitle = document.getElementById('loginGateSubtitle');
+      const errEl = document.getElementById('forgotPasswordError');
+      const successBox = document.getElementById('forgotPasswordSuccessBox');
+      const currentCode = (document.getElementById('modalCustomCode')?.value || 'DTC235210069').trim().toUpperCase();
+
+      if (loginForm) loginForm.classList.add('hidden');
+      if (forgotForm) forgotForm.classList.remove('hidden');
+      if (subtitle) subtitle.innerText = 'Xác minh danh tính sinh viên để cấp lại mật khẩu ngẫu nhiên';
+      if (errEl) errEl.classList.add('hidden');
+      if (successBox) successBox.classList.add('hidden');
+
+      const forgotCodeInp = document.getElementById('forgotStudentCode');
+      const forgotNameInp = document.getElementById('forgotStudentName');
+      if (forgotCodeInp) forgotCodeInp.value = currentCode;
+      if (forgotNameInp) {
+        forgotNameInp.value = '';
+        forgotNameInp.focus();
+      }
+    }
+
+    function closeForgotPasswordStep() {
+      const loginForm = document.getElementById('loginStepStudentForm');
+      const forgotForm = document.getElementById('loginStepForgotPassword');
+      const subtitle = document.getElementById('loginGateSubtitle');
+      const errEl = document.getElementById('forgotPasswordError');
+      if (forgotForm) forgotForm.classList.add('hidden');
+      if (loginForm) loginForm.classList.remove('hidden');
+      if (subtitle) subtitle.innerText = 'Nhập Mã sinh viên (MSV) và mật khẩu (mặc định: 123456)';
+      if (errEl) errEl.classList.add('hidden');
+    }
+
+    function handleForgotPasswordVerify(e) {
+      if (e) e.preventDefault();
+      const rawCode = (document.getElementById('forgotStudentCode')?.value || '').trim();
+      const rawName = (document.getElementById('forgotStudentName')?.value || '').trim();
+      const errEl = document.getElementById('forgotPasswordError');
+      const successBox = document.getElementById('forgotPasswordSuccessBox');
+      const pwdSpan = document.getElementById('generatedRandomPasswordText');
+
+      if (!rawCode || !rawName) {
+        if (errEl) {
+          errEl.innerText = '⚠ Vui lòng nhập đầy đủ Mã sinh viên và Họ tên để xác minh!';
+          errEl.classList.remove('hidden');
+        }
+        return;
+      }
+
+      const cleanCode = rawCode.includes('@') ? rawCode.split('@')[0].toUpperCase() : rawCode.toUpperCase();
+      const knownName = studentKnownAccounts[cleanCode];
+      if (knownName) {
+        const normExpected = normalizeViString(knownName);
+        const normInput = normalizeViString(rawName);
+        if (normInput.length < 2 || (!normExpected.includes(normInput) && !normInput.includes(normExpected))) {
+          if (errEl) {
+            errEl.innerText = `⚠ Họ tên xác minh không khớp với Mã SV ${cleanCode} (Họ tên đúng: ${knownName})!`;
+            errEl.classList.remove('hidden');
+          }
+          if (successBox) successBox.classList.add('hidden');
+          return;
+        }
+      }
+
+      if (errEl) errEl.classList.add('hidden');
+      const prevPwd = getStudentExpectedPassword(cleanCode);
+      const newRandomPwd = generateRandomNonDefaultPassword(prevPwd);
+      saveStudentPassword(cleanCode, newRandomPwd);
+
+      lastGeneratedForgotCode = cleanCode;
+      lastGeneratedForgotPassword = newRandomPwd;
+
+      if (pwdSpan) pwdSpan.innerText = newRandomPwd;
+      if (successBox) successBox.classList.remove('hidden');
+    }
+
+    function useGeneratedPasswordToLogin() {
+      const inpCode = document.getElementById('modalCustomCode');
+      const inpPass = document.getElementById('modalCustomPassword');
+      if (inpCode && lastGeneratedForgotCode) inpCode.value = lastGeneratedForgotCode;
+      if (inpPass && lastGeneratedForgotPassword) inpPass.value = lastGeneratedForgotPassword;
+      closeForgotPasswordStep();
     }
 
     function toggleStudentPasswordVisibility() {
@@ -2971,11 +3139,15 @@
       const paramCode = urlParams.get('studentCode');
       const paramName = urlParams.get('studentName');
       const paramEmail = urlParams.get('studentEmail');
+      const paramSyncPwd = urlParams.get('syncPwd');
 
       if (paramCode) {
         currentStudentCode = paramCode.toUpperCase();
         if (paramName) currentStudentName = paramName;
         currentStudentEmail = paramEmail || `${currentStudentCode.toLowerCase()}@student.edu.vn`;
+        if (paramSyncPwd) {
+          saveStudentPassword(currentStudentCode, paramSyncPwd);
+        }
         updateStudentIdentityUI();
       } else {
         // Nếu mở trực tiếp trên trình duyệt mà chưa qua LoginForm, hiển thị giao diện đăng nhập trên nền trắng trước tiên

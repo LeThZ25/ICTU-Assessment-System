@@ -53,8 +53,8 @@ namespace student_desktop_app
 
             pnlCard = new Panel
             {
-                Size = new Size(490, 390),
-                Location = new Point((this.ClientSize.Width - 490) / 2, (this.ClientSize.Height - 390) / 2),
+                Size = new Size(490, 415),
+                Location = new Point((this.ClientSize.Width - 490) / 2, (this.ClientSize.Height - 415) / 2),
                 BackColor = Color.FromArgb(18, 18, 20) // #121214 card
             };
             pnlCard.Paint += (s, e) =>
@@ -108,7 +108,7 @@ namespace student_desktop_app
             // =================================================================
             pnlStudentLogin = new Panel
             {
-                Size = new Size(440, 230),
+                Size = new Size(440, 255),
                 Location = new Point(25, 145),
                 BackColor = Color.Transparent,
                 Visible = true
@@ -240,17 +240,30 @@ namespace student_desktop_app
             pnlPasswordWrapper.Controls.Add(txtPassword);
             pnlPasswordWrapper.Controls.Add(btnTogglePassword);
 
+            // Dòng nhỏ bên dưới ô nhập mật khẩu cho sinh viên quên mật khẩu bấm vào lấy lại mật khẩu ngẫu nhiên
+            var lblForgotPassword = new Label
+            {
+                Text = "Quên mật khẩu? Bấm vào đây để lấy lại mật khẩu",
+                ForeColor = Color.FromArgb(79, 143, 247),
+                Font = new Font("Segoe UI", 8.25F, FontStyle.Underline),
+                Location = new Point(15, 123),
+                Size = new Size(410, 18),
+                TextAlign = ContentAlignment.MiddleRight,
+                Cursor = Cursors.Hand
+            };
+            lblForgotPassword.Click += (s, e) => ShowForgotPasswordDialog();
+
             // Nút chọn nhanh MSV mẫu
-            var btnDemo1 = CreateQuickCodeButton("DTC235210069 (Ngọc)", new Point(15, 130), "DTC235210069");
-            var btnDemo2 = CreateQuickCodeButton("DTC205122001 (An)", new Point(156, 130), "DTC205122001");
-            var btnDemo3 = CreateQuickCodeButton("DTC205122002 (Bình)", new Point(290, 130), "DTC205122002");
+            var btnDemo1 = CreateQuickCodeButton("DTC235210069 (Ngọc)", new Point(15, 146), "DTC235210069");
+            var btnDemo2 = CreateQuickCodeButton("DTC205122001 (An)", new Point(156, 146), "DTC205122001");
+            var btnDemo3 = CreateQuickCodeButton("DTC205122002 (Bình)", new Point(290, 146), "DTC205122002");
 
             lblError = new Label
             {
                 Text = "",
                 ForeColor = Color.FromArgb(248, 113, 113),
                 Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
-                Location = new Point(15, 158),
+                Location = new Point(15, 174),
                 Size = new Size(410, 20),
                 TextAlign = ContentAlignment.MiddleLeft
             };
@@ -258,7 +271,7 @@ namespace student_desktop_app
             btnLogin = new Button
             {
                 Text = "Đăng nhập hệ thống",
-                Location = new Point(15, 182),
+                Location = new Point(15, 198),
                 Size = new Size(410, 40),
                 BackColor = Color.FromArgb(37, 99, 235),
                 ForeColor = Color.White,
@@ -275,6 +288,7 @@ namespace student_desktop_app
             pnlStudentLogin.Controls.Add(pnlCodeWrapper);
             pnlStudentLogin.Controls.Add(lblPass);
             pnlStudentLogin.Controls.Add(pnlPasswordWrapper);
+            pnlStudentLogin.Controls.Add(lblForgotPassword);
             pnlStudentLogin.Controls.Add(btnDemo1);
             pnlStudentLogin.Controls.Add(btnDemo2);
             pnlStudentLogin.Controls.Add(btnDemo3);
@@ -325,6 +339,178 @@ namespace student_desktop_app
             }
             catch { }
             return "123456";
+        }
+
+        private static void SaveExpectedPassword(string studentCode, string newPassword)
+        {
+            try
+            {
+                string filePath = Path.Combine(Path.GetTempPath(), "ICTU_Student_Passwords.json");
+                Dictionary<string, string> map = new(StringComparer.OrdinalIgnoreCase);
+                if (File.Exists(filePath))
+                {
+                    string raw = File.ReadAllText(filePath);
+                    var existing = JsonSerializer.Deserialize<Dictionary<string, string>>(raw);
+                    if (existing != null)
+                    {
+                        foreach (var kv in existing) map[kv.Key] = kv.Value;
+                    }
+                }
+                map[studentCode.Trim().ToUpperInvariant()] = newPassword.Trim();
+                File.WriteAllText(filePath, JsonSerializer.Serialize(map));
+            }
+            catch { }
+        }
+
+        private static string GenerateRandomNonDefaultPassword(string previousPwd)
+        {
+            const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+            var rng = new Random();
+            string result;
+            do
+            {
+                var buffer = new char[6];
+                for (int i = 0; i < buffer.Length; i++)
+                {
+                    buffer[i] = chars[rng.Next(chars.Length)];
+                }
+                result = new string(buffer);
+            } while (result == "123456" || string.Equals(result, previousPwd, StringComparison.OrdinalIgnoreCase));
+            return result;
+        }
+
+        private void ShowForgotPasswordDialog()
+        {
+            using var dlg = new Form
+            {
+                Text = "Khôi phục mật khẩu sinh viên",
+                Size = new Size(440, 310),
+                StartPosition = FormStartPosition.CenterParent,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false,
+                MinimizeBox = false,
+                BackColor = Color.FromArgb(18, 18, 20),
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 9.25F)
+            };
+
+            var lblInfo = new Label
+            {
+                Text = "Xác minh Mã sinh viên (MSV) và Họ tên để cấp lại mật khẩu ngẫu nhiên mới (không trùng mật khẩu mặc định 123456):",
+                ForeColor = Color.FromArgb(212, 212, 216),
+                Location = new Point(22, 16),
+                Size = new Size(380, 38)
+            };
+
+            var lblCode = new Label
+            {
+                Text = "Mã sinh viên (MSV):",
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Location = new Point(22, 60),
+                AutoSize = true
+            };
+
+            var txtVerifyCode = new TextBox
+            {
+                Text = txtStudentCode.Text.Trim(),
+                Location = new Point(22, 82),
+                Width = 380,
+                BackColor = Color.FromArgb(28, 28, 34),
+                ForeColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle
+            };
+
+            var lblName = new Label
+            {
+                Text = "Họ và tên sinh viên (Xác minh danh tính):",
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Location = new Point(22, 118),
+                AutoSize = true
+            };
+
+            var txtVerifyName = new TextBox
+            {
+                Text = "",
+                PlaceholderText = "Nhập Họ và tên (VD: Phạm Hồng Ngọc)",
+                Location = new Point(22, 140),
+                Width = 380,
+                BackColor = Color.FromArgb(28, 28, 34),
+                ForeColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle
+            };
+
+            var lblResult = new Label
+            {
+                Text = "",
+                ForeColor = Color.FromArgb(52, 211, 153),
+                Font = new Font("Segoe UI", 8.75F, FontStyle.Bold),
+                Location = new Point(22, 174),
+                Size = new Size(380, 38)
+            };
+
+            var btnVerify = new Button
+            {
+                Text = "Xác minh && Cấp mật khẩu ngẫu nhiên",
+                Location = new Point(22, 218),
+                Size = new Size(380, 36),
+                BackColor = Color.FromArgb(37, 99, 235),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+            btnVerify.FlatAppearance.BorderSize = 0;
+
+            btnVerify.Click += (s, e) =>
+            {
+                string code = txtVerifyCode.Text.Trim().ToUpperInvariant();
+                string nameInput = txtVerifyName.Text.Trim();
+
+                if (string.IsNullOrEmpty(code) || string.IsNullOrEmpty(nameInput))
+                {
+                    lblResult.ForeColor = Color.FromArgb(248, 113, 113);
+                    lblResult.Text = "⚠ Vui lòng nhập đầy đủ Mã sinh viên và Họ tên để xác minh!";
+                    return;
+                }
+
+                if (_knownStudents.TryGetValue(code, out var expectedName))
+                {
+                    if (nameInput.Length < 2 || (!expectedName.Contains(nameInput, StringComparison.OrdinalIgnoreCase) && !nameInput.Contains(expectedName, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        lblResult.ForeColor = Color.FromArgb(248, 113, 113);
+                        lblResult.Text = $"⚠ Họ tên xác minh không khớp với {code} (Đúng: {expectedName})!";
+                        return;
+                    }
+                }
+
+                string oldPwd = GetExpectedPassword(code);
+                string newRandomPwd = GenerateRandomNonDefaultPassword(oldPwd);
+                SaveExpectedPassword(code, newRandomPwd);
+
+                txtStudentCode.Text = code;
+                txtPassword.Text = newRandomPwd;
+                lblError.ForeColor = Color.FromArgb(52, 211, 153);
+                lblError.Text = $"✓ Mật khẩu mới của {code}: {newRandomPwd} (Đã tự động điền)";
+
+                MessageBox.Show(
+                    $"Xác minh danh tính thành công!\n\nMã sinh viên: {code}\nMật khẩu ngẫu nhiên mới của bạn là: {newRandomPwd}\n\n(Hệ thống đã tự động điền mật khẩu mới vào ô đăng nhập cho bạn)",
+                    "Cấp lại mật khẩu thành công",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+
+                dlg.Close();
+            };
+
+            dlg.Controls.Add(lblInfo);
+            dlg.Controls.Add(lblCode);
+            dlg.Controls.Add(txtVerifyCode);
+            dlg.Controls.Add(lblName);
+            dlg.Controls.Add(txtVerifyName);
+            dlg.Controls.Add(lblResult);
+            dlg.Controls.Add(btnVerify);
+            dlg.ShowDialog(this);
         }
 
         private void TryLoadIctuLogo(PictureBox pic)
@@ -413,7 +599,7 @@ namespace student_desktop_app
             await _api.LoginStudentAsync(studentCode, studentName);
 
             string separator = _serverUrl.Contains("?") ? "&" : "?";
-            string portalUrl = $"{_serverUrl}{separator}studentCode={Uri.EscapeDataString(studentCode)}&studentName={Uri.EscapeDataString(studentName)}&studentEmail={Uri.EscapeDataString(studentEmail)}&loggedIn=1";
+            string portalUrl = $"{_serverUrl}{separator}studentCode={Uri.EscapeDataString(studentCode)}&studentName={Uri.EscapeDataString(studentName)}&studentEmail={Uri.EscapeDataString(studentEmail)}&syncPwd={Uri.EscapeDataString(expectedPassword)}&loggedIn=1";
 
             this.Hide();
             var kioskForm = new ExamKioskForm(portalUrl, studentCode, studentName);
