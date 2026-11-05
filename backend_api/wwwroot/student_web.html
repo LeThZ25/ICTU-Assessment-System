@@ -929,11 +929,15 @@
     function setExamSecurityMode(enable) {
       isExamSecurityActive = Boolean(enable);
       const badge = document.getElementById('examSecurityStatusBadge');
+      const btnProctor = document.getElementById('btnDesktopProctorExit');
 
       if (isExamSecurityActive) {
         if (badge) {
           badge.classList.remove('hidden');
           badge.classList.add('inline-flex');
+        }
+        if (btnProctor) {
+          btnProctor.classList.remove('hidden');
         }
         setupAntiCheat();
 
@@ -955,6 +959,9 @@
         if (badge) {
           badge.classList.add('hidden');
           badge.classList.remove('inline-flex');
+        }
+        if (btnProctor) {
+          btnProctor.classList.add('hidden');
         }
 
         // Tắt chế độ Fullscreen & Anti-Cheat khi rời khỏi các mục Kiểm tra / Thi
@@ -2581,11 +2588,14 @@
       const isDesktop = window.chrome && window.chrome.webview;
       const urlParams = new URLSearchParams(window.location.search);
       if (isDesktop || urlParams.get('mode') === 'desktop_kiosk') {
-        const btnProctor = document.getElementById('btnDesktopProctorExit');
-        if (btnProctor) btnProctor.classList.remove('hidden');
         const btnExit = document.getElementById('btnExitDesktopApp');
         if (btnExit) btnExit.classList.remove('hidden');
       }
+
+      // Mặc định ở các chế độ thường (Thời khóa biểu, Lớp học phần, Hồ sơ...) luôn ẩn nút Giám Thị.
+      // Nút Giám Thị chỉ hiện khi vào phòng thi / chế độ kiểm tra có khóa Fullscreen.
+      const btnProctor = document.getElementById('btnDesktopProctorExit');
+      if (btnProctor) btnProctor.classList.add('hidden');
 
       if (window.chrome && window.chrome.webview) {
         window.chrome.webview.addEventListener('message', event => {
