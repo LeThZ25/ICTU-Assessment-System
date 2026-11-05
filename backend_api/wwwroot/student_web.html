@@ -942,7 +942,7 @@
   <!-- ===================================================================== -->
   <!-- MODAL 2: CHUYỂN ĐỔI TÀI KHOẢN SINH VIÊN / ĐĂNG NHẬP LẠI LMS           -->
   <!-- ===================================================================== -->
-  <div id="accountSwitchModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-2xs z-50 flex items-center justify-center p-4">
+  <div id="accountSwitchModal" class="hidden fixed inset-0 bg-white z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full p-6 space-y-4">
       <div class="flex items-center justify-between pb-3 border-b border-slate-100">
         <div class="flex items-center space-x-2.5">
@@ -952,7 +952,7 @@
             <p class="text-[11px] text-slate-500">lms.ictu.edu.vn • Phiên bản v3.2.98</p>
           </div>
         </div>
-        <button onclick="closeAccountModal()" class="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center text-xs">
+        <button id="btnCloseAccountModal" onclick="closeAccountModal()" class="hidden w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center text-xs">
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
@@ -1227,7 +1227,7 @@
 
     function confirmLogoutYes() {
       closeLogoutConfirmModal();
-      openAccountModal();
+      openAccountModal(true);
     }
 
     // -----------------------------------------------------------------------
@@ -1926,18 +1926,46 @@
     }
 
     // -----------------------------------------------------------------------
-    // 5. ACCOUNT SWITCHER MODAL
+    // 5. ACCOUNT SWITCHER MODAL (HIỆN TRÊN NỀN TRẮNG HOÀN TOÀN KHI ĐĂNG XUẤT)
     // -----------------------------------------------------------------------
-    function openAccountModal() {
+    function openAccountModal(isLoggedOut = false) {
       if (isExamInProgress) {
         alert("Không thể đổi tài khoản khi đang trong phòng thi!");
         return;
       }
-      document.getElementById('accountSwitchModal').classList.remove('hidden');
+      const modal = document.getElementById('accountSwitchModal');
+      const btnClose = document.getElementById('btnCloseAccountModal');
+      const sidebar = document.getElementById('lmsSidebar');
+      const header = document.getElementById('topHeaderBar');
+      const mainContainer = document.getElementById('mainScrollContainer');
+
+      // Ẩn hoàn toàn giao diện phía sau để chỉ hiện bảng đăng nhập trên nền trắng
+      if (sidebar) sidebar.classList.add('invisible');
+      if (header) header.classList.add('invisible');
+      if (mainContainer) mainContainer.classList.add('invisible');
+
+      if (btnClose) {
+        if (isLoggedOut) {
+          btnClose.classList.add('hidden');
+        } else {
+          btnClose.classList.remove('hidden');
+        }
+      }
+
+      modal.style.backgroundColor = '#ffffff';
+      modal.classList.remove('hidden');
     }
 
     function closeAccountModal() {
-      document.getElementById('accountSwitchModal').classList.add('hidden');
+      const modal = document.getElementById('accountSwitchModal');
+      const sidebar = document.getElementById('lmsSidebar');
+      const header = document.getElementById('topHeaderBar');
+      const mainContainer = document.getElementById('mainScrollContainer');
+
+      if (sidebar) sidebar.classList.remove('invisible');
+      if (header) header.classList.remove('invisible');
+      if (mainContainer) mainContainer.classList.remove('invisible');
+      if (modal) modal.classList.add('hidden');
     }
 
     async function switchActiveStudent(code, name, email) {
