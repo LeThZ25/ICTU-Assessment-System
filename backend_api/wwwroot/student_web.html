@@ -121,8 +121,8 @@
         </div>
       </div>
 
-      <!-- 2. Student Profile Card (Exact match to Screenshot) -->
-      <div onclick="openAccountModal()" title="Nhấn để chuyển đổi tài khoản sinh viên" class="bg-[#f8f9fa] hover:bg-slate-100 border border-slate-200 rounded-xl p-3 flex items-center justify-between cursor-pointer transition">
+      <!-- 2. Student Profile Card (Click để xem Thông tin cá nhân / Hồ sơ của bạn) -->
+      <div onclick="switchLmsSection('profile')" title="Nhấn để xem Thông tin cá nhân sinh viên" class="bg-[#f8f9fa] hover:bg-slate-100 border border-slate-200 rounded-xl p-3 flex items-center justify-between cursor-pointer transition">
         <div class="flex items-center space-x-2.5 min-w-0">
           <!-- Illustrated Student Avatar matching screenshot -->
           <div class="w-10 h-10 rounded-full bg-[#bae6fd] flex items-center justify-center flex-shrink-0 overflow-hidden border border-sky-200">
@@ -141,10 +141,12 @@
             <p class="text-[11px] text-slate-500 font-normal truncate" id="sidebarStudentCode">DTC235210069</p>
           </div>
         </div>
-        <!-- Filter/Bars icon on right of profile card -->
-        <svg class="w-4 h-4 text-slate-500 flex-shrink-0 ml-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M7 12h10M10 18h4"/>
-        </svg>
+        <!-- Filter/Bars icon on right of profile card (click để đổi tài khoản) -->
+        <button type="button" onclick="event.stopPropagation(); openAccountModal();" title="Chuyển đổi tài khoản sinh viên" class="p-1 rounded hover:bg-slate-200 text-slate-500 flex-shrink-0 ml-1">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M7 12h10M10 18h4"/>
+          </svg>
+        </button>
       </div>
 
       <!-- 3. Primary Dashboard Button -->
@@ -1814,11 +1816,58 @@
       const isDesktop = (window.chrome && window.chrome.webview) || new URLSearchParams(window.location.search).get('mode') === 'desktop_kiosk';
 
       if (key === 'profile') {
-        // Exact match to Screenshot 2: Header "HỒ SƠ CỦA BẠN" + red text notice
         titleEl.innerText = "HỒ SƠ CỦA BẠN";
+        const admissionYear = detectStudentAdmissionYear();
+        const currentStartYear = trainingPlanState.currentAcademicYearStart || 2025;
+        const studentYearNum = Math.max(1, currentStartYear - admissionYear + 1);
+        const studentInfo = (cachedDashboardData && cachedDashboardData.student) ? cachedDashboardData.student : {};
+        const fullName = currentStudentName || studentInfo.fullName || "Phạm Hồng Ngọc";
+        const studentCode = currentStudentCode || studentInfo.studentCode || "DTC235210069";
+        const defaultCredits = studentYearNum === 1 ? 28 : (studentYearNum === 2 ? 56 : (studentYearNum === 3 ? 85 : 115));
+        const accumulatedCredits = studentInfo.accumulatedCredits || defaultCredits;
+
         box.innerHTML = `
-          <div class="space-y-6">
-            <p class="text-[13px] text-red-500 font-normal">Chức năng đang phát triển, vui lòng quay lại sau.</p>
+          <div class="max-w-2xl bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
+            <div class="bg-[#0066cc] px-6 py-4 text-white flex items-center justify-between">
+              <div class="flex items-center space-x-3">
+                <div class="w-11 h-11 rounded-full bg-white/20 flex items-center justify-center font-bold text-base">
+                  <i class="fa-solid fa-user-graduate"></i>
+                </div>
+                <div>
+                  <h3 class="text-sm font-bold uppercase tracking-wide">Thông Tin Cá Nhân Sinh Viên</h3>
+                  <p class="text-xs text-blue-100 mt-0.5">Hồ sơ học tập trên hệ thống LMS ICTU</p>
+                </div>
+              </div>
+              <span class="px-3 py-1 rounded-full bg-white/15 text-xs font-semibold">Đang theo học</span>
+            </div>
+
+            <div class="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <!-- 1. Họ và tên sinh viên -->
+              <div class="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
+                <p class="text-xs text-slate-500 font-medium">Họ và tên sinh viên</p>
+                <p class="text-base font-bold text-slate-900">${fullName}</p>
+              </div>
+
+              <!-- 2. Mã sinh viên (MSV) -->
+              <div class="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
+                <p class="text-xs text-slate-500 font-medium">Mã sinh viên (MSV)</p>
+                <p class="text-base font-bold text-ictu font-mono">${studentCode}</p>
+              </div>
+
+              <!-- 3. Sinh viên năm mấy -->
+              <div class="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
+                <p class="text-xs text-slate-500 font-medium">Sinh viên năm</p>
+                <p class="text-base font-bold text-slate-900">Năm thứ ${studentYearNum}</p>
+                <p class="text-[11px] text-slate-500">Nhập học năm ${admissionYear} &bull; Niên khóa ${admissionYear} - ${admissionYear + 4}</p>
+              </div>
+
+              <!-- 4. Tổng số tín chỉ tích lũy -->
+              <div class="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
+                <p class="text-xs text-slate-500 font-medium">Tổng số tín chỉ tích lũy</p>
+                <p class="text-base font-bold text-emerald-600">${accumulatedCredits} tín chỉ</p>
+                <p class="text-[11px] text-slate-500">Tiến độ tích lũy: ${accumulatedCredits} / 135 tín chỉ toàn khóa</p>
+              </div>
+            </div>
           </div>
         `;
       } else if (key === 'seb-kiosk') {

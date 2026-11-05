@@ -386,6 +386,11 @@ namespace backend_api.Controllers
                 }
             };
 
+            int admissionYear = ExtractAdmissionYear(code, adminClass);
+            int studentYear = Math.Max(1, _trainingPlanConfig.CurrentAcademicYearStart - admissionYear + 1);
+            int baseCredits = studentYear == 1 ? 28 : (studentYear == 2 ? 56 : (studentYear == 3 ? 85 : 115));
+            int accumulatedCredits = Math.Min(135, baseCredits + (history.Count * 3));
+
             return Ok(new
             {
                 Success = true,
@@ -398,7 +403,11 @@ namespace backend_api.Controllers
                     AdministrativeClass = adminClass,
                     Email = email,
                     Department = userAcc?.Department ?? "Khoa Công nghệ Thông tin - ICTU",
-                    AdmissionYear = ExtractAdmissionYear(code, adminClass)
+                    AdmissionYear = admissionYear,
+                    StudentYear = studentYear,
+                    StudentYearLabel = $"Sinh viên năm thứ {studentYear}",
+                    AccumulatedCredits = accumulatedCredits,
+                    TotalProgramCredits = 135
                 },
                 TrainingPlan = BuildStudentAcademicPlan(code, adminClass),
                 Classes = orderedClasses,
