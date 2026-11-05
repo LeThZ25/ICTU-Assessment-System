@@ -375,7 +375,37 @@ namespace student_desktop_app
                         _activeSessionId = 0;
                         SetExamSecurityMode(false);
                     }
+                    else if (action == "updatePassword")
+                    {
+                        string code = doc.RootElement.TryGetProperty("studentCode", out var cEl) ? (cEl.GetString() ?? "") : "";
+                        string newPwd = doc.RootElement.TryGetProperty("newPassword", out var pEl) ? (pEl.GetString() ?? "") : "";
+                        if (!string.IsNullOrWhiteSpace(code) && !string.IsNullOrWhiteSpace(newPwd))
+                        {
+                            SaveLocalStudentPassword(code.Trim().ToUpperInvariant(), newPwd.Trim());
+                        }
+                    }
                 }
+            }
+            catch { }
+        }
+
+        private static void SaveLocalStudentPassword(string studentCode, string newPassword)
+        {
+            try
+            {
+                string filePath = Path.Combine(Path.GetTempPath(), "ICTU_Student_Passwords.json");
+                Dictionary<string, string> map = new(StringComparer.OrdinalIgnoreCase);
+                if (File.Exists(filePath))
+                {
+                    string raw = File.ReadAllText(filePath);
+                    var existing = JsonSerializer.Deserialize<Dictionary<string, string>>(raw);
+                    if (existing != null)
+                    {
+                        foreach (var kv in existing) map[kv.Key] = kv.Value;
+                    }
+                }
+                map[studentCode] = newPassword;
+                File.WriteAllText(filePath, JsonSerializer.Serialize(map));
             }
             catch { }
         }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.IO;
+using System.Text.Json;
 using System.Windows.Forms;
 
 namespace student_desktop_app
@@ -301,10 +302,29 @@ namespace student_desktop_app
             btn.Click += (s, e) =>
             {
                 txtStudentCode.Text = studentCode;
-                txtPassword.Text = "123456";
+                txtPassword.Text = GetExpectedPassword(studentCode);
                 lblError.Text = "";
             };
             return btn;
+        }
+
+        private static string GetExpectedPassword(string studentCode)
+        {
+            try
+            {
+                string filePath = Path.Combine(Path.GetTempPath(), "ICTU_Student_Passwords.json");
+                if (File.Exists(filePath))
+                {
+                    string raw = File.ReadAllText(filePath);
+                    var map = JsonSerializer.Deserialize<Dictionary<string, string>>(raw);
+                    if (map != null && map.TryGetValue(studentCode.Trim().ToUpperInvariant(), out var savedPwd) && !string.IsNullOrEmpty(savedPwd))
+                    {
+                        return savedPwd;
+                    }
+                }
+            }
+            catch { }
+            return "123456";
         }
 
         private void TryLoadIctuLogo(PictureBox pic)
@@ -352,13 +372,16 @@ namespace student_desktop_app
                 return;
             }
 
-            if (password != "123456")
+            string studentCode = rawCode.Contains("@") ? rawCode.Split('@')[0].ToUpper() : rawCode.ToUpper();
+            string expectedPassword = GetExpectedPassword(studentCode);
+
+            if (password != expectedPassword)
             {
-                lblError.Text = "⚠ Sai mật khẩu! Mật khẩu mặc định của sinh viên là: 123456";
+                lblError.Text = expectedPassword == "123456"
+                    ? "⚠ Sai mật khẩu! Mật khẩu mặc định của sinh viên là: 123456"
+                    : "⚠ Sai mật khẩu! Vui lòng nhập đúng mật khẩu mới bạn đã đổi.";
                 return;
             }
-
-            string studentCode = rawCode.Contains("@") ? rawCode.Split('@')[0].ToUpper() : rawCode.ToUpper();
             string studentName = _knownStudents.TryGetValue(studentCode, out var name) ? name : $"Sinh viên {studentCode}";
             string studentEmail = $"{studentCode.ToLower()}@student.edu.vn";
 
