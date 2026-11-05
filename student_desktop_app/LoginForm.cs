@@ -14,6 +14,8 @@ namespace student_desktop_app
         private Label lblSubtitle = null!;
         private TextBox txtStudentCode = null!;
         private TextBox txtPassword = null!;
+        private Button btnTogglePassword = null!;
+        private bool _isPasswordVisible = false;
         private Label lblError = null!;
         private Button btnLogin = null!;
 
@@ -145,13 +147,64 @@ namespace student_desktop_app
             {
                 Text = "123456",
                 Location = new Point(15, 91),
-                Width = 410,
+                Width = 370,
                 Height = 32,
                 BackColor = Color.FromArgb(28, 28, 34),
                 ForeColor = Color.White,
                 BorderStyle = BorderStyle.FixedSingle,
                 UseSystemPasswordChar = true,
                 Font = new Font("Segoe UI", 10.5F, FontStyle.Regular)
+            };
+
+            btnTogglePassword = new Button
+            {
+                Text = "",
+                Location = new Point(386, 91),
+                Size = new Size(39, 27),
+                BackColor = Color.FromArgb(28, 28, 34),
+                ForeColor = Color.FromArgb(161, 161, 170),
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand
+            };
+            btnTogglePassword.FlatAppearance.BorderColor = Color.FromArgb(100, 100, 110);
+            btnTogglePassword.Paint += (s, e) =>
+            {
+                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                var col = _isPasswordVisible ? Color.FromArgb(79, 143, 247) : Color.FromArgb(161, 161, 170);
+                using var pen = new Pen(col, 1.6f);
+                using var brush = new SolidBrush(col);
+                int cx = btnTogglePassword.Width / 2;
+                int cy = btnTogglePassword.Height / 2;
+
+                // Vẽ viền con mắt
+                Point[] eyeOutline =
+                {
+                    new Point(cx - 10, cy),
+                    new Point(cx - 5, cy - 5),
+                    new Point(cx, cy - 6),
+                    new Point(cx + 5, cy - 5),
+                    new Point(cx + 10, cy),
+                    new Point(cx + 5, cy + 5),
+                    new Point(cx, cy + 6),
+                    new Point(cx - 5, cy + 5)
+                };
+                e.Graphics.DrawPolygon(pen, eyeOutline);
+                // Con ngươi
+                e.Graphics.FillEllipse(brush, cx - 3, cy - 3, 6, 6);
+
+                // Đường gạch chéo khi đang hiện mật khẩu (nhấn để ẩn lại)
+                if (_isPasswordVisible)
+                {
+                    e.Graphics.DrawLine(pen, cx - 8, cy + 7, cx + 8, cy - 7);
+                }
+            };
+            btnTogglePassword.Click += (s, e) =>
+            {
+                _isPasswordVisible = !_isPasswordVisible;
+                txtPassword.UseSystemPasswordChar = !_isPasswordVisible;
+                btnTogglePassword.Invalidate();
+                txtPassword.Focus();
+                txtPassword.SelectionStart = txtPassword.Text.Length;
             };
 
             // Nút chọn nhanh MSV mẫu
@@ -189,6 +242,7 @@ namespace student_desktop_app
             pnlStudentLogin.Controls.Add(txtStudentCode);
             pnlStudentLogin.Controls.Add(lblPass);
             pnlStudentLogin.Controls.Add(txtPassword);
+            pnlStudentLogin.Controls.Add(btnTogglePassword);
             pnlStudentLogin.Controls.Add(btnDemo1);
             pnlStudentLogin.Controls.Add(btnDemo2);
             pnlStudentLogin.Controls.Add(btnDemo3);
