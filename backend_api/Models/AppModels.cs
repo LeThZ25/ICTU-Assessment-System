@@ -74,14 +74,18 @@ namespace backend_api.Models
     {
         public int Id { get; set; }
         public string ClassCode { get; set; } = string.Empty; // e.g. CS301.01
-        public string ClassName { get; set; } = string.Empty; // e.g. Cơ sở dữ liệu - Lớp 01
+        public string ClassName { get; set; } = string.Empty; // e.g. Cơ sở dữ liệu & Hệ phân tán - Nhóm 01
         public int SubjectId { get; set; }
         public Subject? Subject { get; set; }
         public string LecturerName { get; set; } = "TS. Nguyễn Văn A";
         public string LecturerEmail { get; set; } = "gv_nguyenvana@ictu.edu.vn";
         public string Semester { get; set; } = "Học kỳ 1";
         public string AcademicYear { get; set; } = "2026-2027";
-        public string Room { get; set; } = "Phòng Lab 302 - C1";
+        public string Room { get; set; } = "Lab 302 - Tòa C1";
+        public string DayOfWeek { get; set; } = "Thứ Tư"; // Thứ 2, Thứ 3, Thứ 4, Thứ 5, Thứ 6, Thứ 7
+        public string Shift { get; set; } = "Tiết 1-3 (07:00 - 09:25)";
+        public string ScheduleDescription { get; set; } = "Thứ Tư • Tiết 1-3 • Lab 302-C1";
+        public string LearningMode { get; set; } = "Thực hành phòng Lab"; // Thực hành phòng Lab, Lý thuyết trực tiếp, Trực tuyến MS Teams
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         public List<ClassEnrollment> Enrollments { get; set; } = new();
@@ -127,8 +131,12 @@ namespace backend_api.Models
         public DateTime StartTime { get; set; } = DateTime.UtcNow;
         public DateTime? EndTime { get; set; }
         public double Score { get; set; }
+        public double? OriginalScore { get; set; } // Điểm số ban đầu do AI tính toán
         public string Status { get; set; } = "InExam"; // InExam, Submitted, Disqualified
         public string? AiFeedback { get; set; }
+        public string? LecturerFeedback { get; set; } // Lời phê / Nhận xét phúc khảo chính thức của giảng viên
+        public string? ReviewedBy { get; set; } // Tên/Email giảng viên phúc khảo
+        public DateTime? ReviewedAt { get; set; } // Thời gian phúc khảo
 
         public List<ExamAnswer> Answers { get; set; } = new();
         public List<CheatingLog> Violations { get; set; } = new();
@@ -144,6 +152,8 @@ namespace backend_api.Models
         public string? EssayAnswer { get; set; }
         public string? CodeAnswer { get; set; }
         public double Score { get; set; }
+        public double? LecturerScore { get; set; } // Điểm giảng viên chấm phúc khảo câu này
+        public string? LecturerComment { get; set; } // Lời nhận xét riêng của giảng viên cho câu này
         public string? AiFeedback { get; set; }
     }
 
@@ -166,6 +176,7 @@ namespace backend_api.Models
         public string? StudentCode { get; set; }
         public string AuthProvider { get; set; } = "Google"; // "Google", "Microsoft", "Direct"
         public string Department { get; set; } = "Khoa Công nghệ Thông tin - ICTU";
+        public string Title { get; set; } = "Giảng viên"; // TS., ThS., Giảng viên chính
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 }

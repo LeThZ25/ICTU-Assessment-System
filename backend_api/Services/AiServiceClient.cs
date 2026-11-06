@@ -352,6 +352,9 @@ namespace backend_api.Services
         public string? Correct_Option { get; set; }
         public string? Explanation { get; set; }
         public string? Key_Points { get; set; }
+        public string? Starter_Code { get; set; }
+        public string? Test_Cases { get; set; }
+        public string? Programming_Language { get; set; } = "sql";
         public string Difficulty { get; set; } = "Medium";
         public string Clo_Code { get; set; } = "CLO1";
         public string Bloom_Level { get; set; } = "Thông hiểu";
