@@ -599,7 +599,7 @@ namespace student_desktop_app
             await _api.LoginStudentAsync(studentCode, studentName);
 
             string separator = _serverUrl.Contains("?") ? "&" : "?";
-            string portalUrl = $"{_serverUrl}{separator}studentCode={Uri.EscapeDataString(studentCode)}&studentName={Uri.EscapeDataString(studentName)}&studentEmail={Uri.EscapeDataString(studentEmail)}&syncPwd={Uri.EscapeDataString(expectedPassword)}&loggedIn=1";
+            string portalUrl = $"{_serverUrl}{separator}studentCode={Uri.EscapeDataString(studentCode)}&studentName={Uri.EscapeDataString(studentName)}&studentEmail={Uri.EscapeDataString(studentEmail)}&syncPwd={Uri.EscapeDataString(expectedPassword)}&loggedIn=1&_t={DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}";
 
             this.Hide();
             var kioskForm = new ExamKioskForm(portalUrl, studentCode, studentName);

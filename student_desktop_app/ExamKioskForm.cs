@@ -249,7 +249,10 @@ namespace student_desktop_app
                 await Task.Delay(500);
                 if (_webView != null && _webView.CoreWebView2 != null)
                 {
-                    _webView.CoreWebView2.Navigate(_targetUrl);
+                    string navUrl = _targetUrl.Contains("?")
+                    ? $"{_targetUrl}&_t={DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}"
+                    : $"{_targetUrl}?_t={DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}";
+                _webView.CoreWebView2.Navigate(navUrl);
                 }
                 else
                 {
@@ -284,8 +287,15 @@ namespace student_desktop_app
                 settings.AreDevToolsEnabled = false;               // Block F12 / Inspect
                 settings.AreDefaultContextMenusEnabled = false;     // Block right-click context menu
                 settings.IsStatusBarEnabled = false;                // Hide bottom url status
-                settings.AreBrowserAcceleratorKeysEnabled = false;  // Block browser shortcuts (Ctrl+R, F5, Ctrl+P)
+                settings.AreBrowserAcceleratorKeysEnabled = true;   // Allow F5 reload in normal study mode (blocked by HookCallback in Exam mode)
                 settings.IsBuiltInErrorPageEnabled = false;
+
+                try
+                {
+                    await _webView.CoreWebView2.CallDevToolsProtocolMethodAsync("Network.enable", "{}");
+                    await _webView.CoreWebView2.CallDevToolsProtocolMethodAsync("Network.setCacheDisabled", "{\"cacheDisabled\":true}");
+                }
+                catch { }
 
                 // Block any external popups / new window attempts
                 _webView.CoreWebView2.NewWindowRequested += (s, e) =>
@@ -309,7 +319,10 @@ namespace student_desktop_app
                     }
                 };
 
-                _webView.CoreWebView2.Navigate(_targetUrl);
+                string navUrl = _targetUrl.Contains("?")
+                    ? $"{_targetUrl}&_t={DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}"
+                    : $"{_targetUrl}?_t={DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}";
+                _webView.CoreWebView2.Navigate(navUrl);
             }
             catch (Exception ex)
             {
