@@ -78,6 +78,7 @@ using (var scope = app.Services.CreateScope())
             );
         ");
 
+        // Safe migration for CloCode and BloomLevel in Questions table (check before altering to avoid console errors)
         try
         {
             var conn = db.Database.GetDbConnection();
@@ -242,6 +243,7 @@ using (var scope = app.Services.CreateScope())
                 alterCmd.ExecuteNonQuery();
             }
 
+            // Safe migration for CourseClassId in Exams table
             var examCols = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             using (var cmd = conn.CreateCommand())
             {
@@ -382,176 +384,37 @@ using (var scope = app.Services.CreateScope())
             }
         }
 
-        // Ensure LMS Mobile App Development class & student Pham Hong Ngoc (DTC235210069) exist matching screenshot
-        if (!db.Subjects.Any(s => s.Code == "MOB205"))
+        // Seed default user accounts if empty
+        if (!db.Users.Any())
         {
-            var mobSub = new backend_api.Models.Subject
-            {
-                Code = "MOB205",
-                Name = "Phát triển ứng dụng di động",
-                Description = "Học phần phát triển ứng dụng đa nền tảng trên thiết bị di động và tích hợp API."
-            };
-            db.Subjects.Add(mobSub);
-            db.SaveChanges();
-
-            var mobClass = new backend_api.Models.CourseClass
-            {
-                ClassCode = "CNTTQT K22B. KNUK22.K2.D1.N01",
-                ClassName = "Phát triển ứng dụng di động-2-25 (CNTTQT K22B. KNUK22.K2.D1.N01)",
-                SubjectId = mobSub.Id,
-                LecturerName = "Vũ Huy Hoàng",
-                LecturerEmail = "vuhuyhoang@ictu.edu.vn",
-                Semester = "Học kỳ 2",
-                AcademicYear = "2025-2026",
-                Room = "Học trên lớp"
-            };
-            db.CourseClasses.Add(mobClass);
-            db.SaveChanges();
-
-            db.ClassEnrollments.Add(
-                new backend_api.Models.ClassEnrollment
+            db.Users.AddRange(
+                new backend_api.Models.UserAccount
                 {
-                    CourseClassId = mobClass.Id,
-                    StudentCode = "DTC235210069",
-                    StudentName = "Phạm Hồng Ngọc",
-                    AdministrativeClass = "CNTTQT K22B",
-                    StudentEmail = "dtc235210069@ictu.edu.vn"
+                    Email = "gv_nguyenvana@ictu.edu.vn",
+                    FullName = "TS. Nguyễn Văn A (Giảng viên)",
+                    Role = "Lecturer",
+                    AuthProvider = "Google",
+                    Department = "Khoa Công nghệ Thông tin - ICTU"
+                },
+                new backend_api.Models.UserAccount
+                {
+                    Email = "dtc205122001@ictu.edu.vn",
+                    FullName = "Nguyễn Văn An",
+                    Role = "Student",
+                    StudentCode = "DTC205122001",
+                    AuthProvider = "Google",
+                    Department = "Lớp K20-CNTT"
+                },
+                new backend_api.Models.UserAccount
+                {
+                    Email = "dtc205122002@ms.ictu.edu.vn",
+                    FullName = "Trần Thị Bình",
+                    Role = "Student",
+                    StudentCode = "DTC205122002",
+                    AuthProvider = "Microsoft",
+                    Department = "Lớp K20-CNTT"
                 }
             );
-            db.SaveChanges();
-        }
-        else
-        {
-            // Ensure LecturerName is Vũ Huy Hoàng and DTC235210069 only has this 1 class as in screenshot
-            var mobClass = db.CourseClasses.FirstOrDefault(c => c.ClassName.Contains("Phát triển ứng dụng di động"));
-            if (mobClass != null)
-            {
-                mobClass.LecturerName = "Vũ Huy Hoàng";
-                mobClass.Room = "Học trên lớp";
-                mobClass.Semester = "Học kỳ 2";
-                mobClass.AcademicYear = "2025-2026";
-                var extraEnrollments = db.ClassEnrollments
-                    .Where(e => e.StudentCode == "DTC235210069" && e.CourseClassId != mobClass.Id)
-                    .ToList();
-                if (extraEnrollments.Any())
-                {
-                    db.ClassEnrollments.RemoveRange(extraEnrollments);
-                }
-                db.SaveChanges();
-            }
-        }
-
-        // Ensure additional formative exams (15-minute quiz & regular test) and coding question exist
-        if (!db.Questions.Any(q => q.Type == "code"))
-        {
-            var codeQ = new backend_api.Models.Question
-            {
-                SubjectId = 1,
-                Type = "code",
-                QuestionText = "Viết câu truy vấn SQL lấy danh sách Mã sinh viên (StudentCode), Họ tên (FullName) và Điểm trung bình (AvgScore) của các sinh viên có điểm trung bình >= 8.0 từ bảng KetQuaThi, sắp xếp giảm dần theo AvgScore.",
-                ProgrammingLanguage = "sql",
-                StarterCode = "SELECT StudentCode, FullName, AVG(Score) AS AvgScore\nFROM KetQuaThi\n-- Viết tiếp mệnh đề GROUP BY, HAVING và ORDER BY dưới đây:\n",
-                KeyPoints = "GROUP BY StudentCode, FullName HAVING AVG(Score) >= 8.0 ORDER BY AvgScore DESC",
-                Difficulty = "Medium",
-                CloCode = "CLO3",
-                BloomLevel = "Vận dụng",
-                IsApproved = true
-            };
-            db.Questions.Add(codeQ);
-            db.SaveChanges();
-
-            var exam1 = db.Exams.FirstOrDefault(e => e.Id == 1);
-            if (exam1 != null && !db.ExamQuestions.Any(eq => eq.ExamId == 1 && eq.QuestionId == codeQ.Id))
-            {
-                db.ExamQuestions.Add(new backend_api.Models.ExamQuestion { ExamId = 1, QuestionId = codeQ.Id });
-                db.SaveChanges();
-            }
-        }
-
-        if (!db.Exams.Any(e => e.DurationMinutes == 15 && e.Title.Contains("15 phút")))
-        {
-            var quiz15 = new backend_api.Models.Exam
-            {
-                SubjectId = 1,
-                CourseClassId = null,
-                Title = "Kiểm tra 15 phút: Chuẩn hóa CSDL & Ràng buộc toàn vẹn",
-                DurationMinutes = 15,
-                AccessCode = "ICTU2026",
-                IsActive = true
-            };
-            var regTest = new backend_api.Models.Exam
-            {
-                SubjectId = 2,
-                CourseClassId = null,
-                Title = "Kiểm tra thường xuyên số 1: Kiến trúc RAG & Tác tử AI",
-                DurationMinutes = 10,
-                AccessCode = "ICTU2026",
-                IsActive = true
-            };
-            db.Exams.AddRange(quiz15, regTest);
-            db.SaveChanges();
-
-            var qIds = db.Questions.Take(4).Select(q => q.Id).ToList();
-            foreach (var qid in qIds)
-            {
-                db.ExamQuestions.Add(new backend_api.Models.ExamQuestion { ExamId = quiz15.Id, QuestionId = qid });
-                db.ExamQuestions.Add(new backend_api.Models.ExamQuestion { ExamId = regTest.Id, QuestionId = qid });
-            }
-            db.SaveChanges();
-        }
-
-        // Seed default user accounts if empty
-        if (!db.Users.Any(u => u.StudentCode == "DTC235210069"))
-        {
-            if (!db.Users.Any())
-            {
-                db.Users.AddRange(
-                    new backend_api.Models.UserAccount
-                    {
-                        Email = "gv_nguyenvana@ictu.edu.vn",
-                        FullName = "TS. Nguyễn Văn A (Giảng viên)",
-                        Role = "Lecturer",
-                        AuthProvider = "Google",
-                        Department = "Khoa Công nghệ Thông tin - ICTU"
-                    },
-                    new backend_api.Models.UserAccount
-                    {
-                        Email = "dtc205122001@ictu.edu.vn",
-                        FullName = "Nguyễn Văn An",
-                        Role = "Student",
-                        StudentCode = "DTC205122001",
-                        AuthProvider = "Google",
-                        Department = "Lớp K20-CNTT"
-                    },
-                    new backend_api.Models.UserAccount
-                    {
-                        Email = "dtc205122002@ms.ictu.edu.vn",
-                        FullName = "Trần Thị Bình",
-                        Role = "Student",
-                        StudentCode = "DTC205122002",
-                        AuthProvider = "Microsoft",
-                        Department = "Lớp K20-CNTT"
-                    }
-                );
-            }
-            db.Users.Add(new backend_api.Models.UserAccount
-            {
-                Email = "dtc235210069@ictu.edu.vn",
-                FullName = "Phạm Hồng Ngọc",
-                Role = "Student",
-                StudentCode = "DTC235210069",
-                AuthProvider = "Google",
-                Department = "Lớp CNTTQT K22B - ICTU"
-            });
-            if (!db.Students.Any(s => s.StudentCode == "DTC235210069"))
-            {
-                db.Students.Add(new backend_api.Models.Student
-                {
-                    StudentCode = "DTC235210069",
-                    FullName = "Phạm Hồng Ngọc",
-                    ClassCode = "CNTTQT K22B"
-                });
-            }
             db.SaveChanges();
         }
     }
