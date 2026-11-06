@@ -3025,59 +3025,65 @@
     }
 
     // -----------------------------------------------------------------------
-    // 7. REAL-TIME STREAMING AI ORAL CHAT
+    // 7. REAL-TIME STREAMING AI ORAL CHAT (KẾT NỐI API MODULE 3: https://ictu-ai-module3.onrender.com)
     // -----------------------------------------------------------------------
+    const MODULE3_AI_BASE_URL = "https://ictu-ai-module3.onrender.com";
+
     async function streamAiReplyToElement(studentId, examId, message, currentQ, targetSpan) {
+      let answerText = "";
+
+      // 1. Ưu tiên gọi trực tiếp API Module 3 của Toản: https://ictu-ai-module3.onrender.com/api/rag/answer
       try {
-        const url = `/api/student/oral-chat-stream?studentId=${encodeURIComponent(studentId)}&examId=${examId}&message=${encodeURIComponent(message)}&currentQuestion=${encodeURIComponent(currentQ || '')}`;
-        const response = await fetch(url);
-        if (!response.ok || !response.body) throw new Error("Stream unavailable");
-
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder("utf-8");
-        let buffer = "";
-        targetSpan.innerText = "";
-        targetSpan.classList.add('typing-cursor');
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n\n");
-          buffer = lines.pop() || "";
-
-          for (const block of lines) {
-            const line = block.trim();
-            if (!line.startsWith("data:")) continue;
-            const rawData = line.replace(/^data:\s*/, "").trim();
-            if (rawData === "[DONE]") {
-              targetSpan.classList.remove('typing-cursor');
-              return;
-            }
-            try {
-              const parsed = JSON.parse(rawData);
-              if (parsed.token) {
-                targetSpan.innerText += parsed.token;
-              }
-            } catch (e) {}
-          }
-        }
-        targetSpan.classList.remove('typing-cursor');
-      } catch (err) {
-        const res = await fetch("/api/student/oral-chat", {
+        const resMod3 = await fetch(`${MODULE3_AI_BASE_URL}/api/rag/answer`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            studentId: studentId,
-            examId: examId,
-            message: message,
-            currentQuestion: currentQ
+            document_id: "00000000-0000-0000-0000-000000000000",
+            question: message,
+            top_k: 2
           })
         });
-        const data = await res.json();
-        targetSpan.classList.remove('typing-cursor');
-        targetSpan.innerText = (data.reply || "Hãy tiếp tục hoàn thiện câu trả lời của bạn.").trim();
+        if (resMod3.ok) {
+          const mod3Data = await resMod3.json();
+          if (mod3Data && mod3Data.answer) {
+            answerText = String(mod3Data.answer).trim();
+          }
+        }
+      } catch (e) {}
+
+      // 2. Nếu gọi từ trình duyệt bị chặn CORS hoặc đang khởi động, gọi qua /api/student/oral-chat (Backend cũng gọi https://ictu-ai-module3.onrender.com)
+      if (!answerText) {
+        try {
+          const res = await fetch("/api/student/oral-chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              studentId: studentId,
+              examId: examId,
+              message: message,
+              currentQuestion: currentQ
+            })
+          });
+          if (res.ok) {
+            const data = await res.json();
+            answerText = (data.reply || "").trim();
+          }
+        } catch (err) {}
       }
+
+      if (!answerText) {
+        answerText = "Hãy đối chiếu lại với các yêu cầu cốt lõi của đề bài để hoàn thiện câu trả lời nhé.";
+      }
+
+      // Hiển thị hiệu ứng Streaming thời gian thực từng từ lên giao diện
+      targetSpan.innerText = "";
+      targetSpan.classList.add('typing-cursor');
+      const words = answerText.split(" ");
+      for (let i = 0; i < words.length; i++) {
+        targetSpan.innerText += (i === 0 ? "" : " ") + words[i];
+        await new Promise(r => setTimeout(r, 20));
+      }
+      targetSpan.classList.remove('typing-cursor');
     }
 
     async function sendOralMessage() {
