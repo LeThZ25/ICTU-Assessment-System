@@ -1075,8 +1075,8 @@
               <p class="text-xs text-slate-500">Tổng hợp kết quả ca thi, tỷ lệ đạt chuẩn đầu ra và hỗ trợ giảng viên phúc khảo</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
-              <button onclick="exportExcelScores(currentExamId || 1)" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-3.5 py-2 rounded-lg transition flex items-center shadow-xs" title="Tải file Excel đầy đủ thang 10, thang 4, điểm chữ và điểm thành phần">
-                <i class="fa-solid fa-file-excel mr-1.5"></i> Xuất Bảng Điểm (Excel)
+              <button onclick="exportExcelScores(currentExamId || 1)" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-3.5 py-2 rounded-lg transition flex items-center shadow-xs" title="Tải file CSV (tương thích Excel) đầy đủ thang 10, thang 4, điểm chữ và điểm thành phần">
+                <i class="fa-solid fa-file-csv mr-1.5"></i> Xuất Bảng Điểm CSV
               </button>
               <button onclick="exportCloReport(currentExamId || 1)" class="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-3.5 py-2 rounded-lg transition flex items-center shadow-xs" title="Tải báo cáo phân tích tỷ lệ đạt từng chuẩn đầu ra CLO">
                 <i class="fa-solid fa-chart-pie mr-1.5"></i> Xuất Báo Cáo CLO
@@ -1530,7 +1530,7 @@
                   <span class="w-6 h-6 rounded-full bg-ictu text-white text-xs font-bold flex items-center justify-center">6</span>
                   <h5 class="text-xs font-bold text-slate-800">Phúc Khảo & Xuất Báo Cáo</h5>
                 </div>
-                <p class="text-xs text-slate-600">Xem chi tiết bài làm, duyệt hoặc chấm lại tự luận/phúc khảo, sau đó xuất bảng điểm Excel chuẩn mẫu Đào tạo và phổ điểm chuẩn đầu ra.</p>
+                <p class="text-xs text-slate-600">Xem chi tiết bài làm, duyệt hoặc chấm lại tự luận/phúc khảo, sau đó xuất bảng điểm CSV (tương thích Excel) chuẩn mẫu Đào tạo và phổ điểm chuẩn đầu ra.</p>
               </div>
             </div>
           </div>
@@ -3860,8 +3860,8 @@ CLO: CLO2
                   <button onclick="extendExamTime(${e.id}, 10)" class="px-2.5 py-1.5 bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 text-xs font-semibold rounded-lg transition" title="Cộng thêm 10 phút">
                     +10p
                   </button>
-                  <button onclick="exportExcelScores(${e.id})" class="px-2.5 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 text-xs font-semibold rounded-lg transition" title="Tải bảng điểm Excel">
-                    <i class="fa-solid fa-file-excel"></i>
+                  <button onclick="exportExcelScores(${e.id})" class="px-2.5 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 text-xs font-semibold rounded-lg transition" title="Tải bảng điểm CSV (tương thích Excel)">
+                    <i class="fa-solid fa-file-csv"></i>
                   </button>
                   <button onclick="loadReport(${e.id}); switchTab('reports');" class="bg-white hover:bg-ictu hover:text-white text-ictu border border-ictu text-xs px-3 py-1.5 rounded-lg font-semibold transition shadow-xs">
                     Báo Cáo

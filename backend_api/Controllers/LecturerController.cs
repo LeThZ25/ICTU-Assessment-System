@@ -5,8 +5,10 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using backend_api.Data;
+using backend_api.Hubs;
 using backend_api.Models;
 using backend_api.Services;
 
@@ -18,11 +20,13 @@ namespace backend_api.Controllers
     {
         private readonly ApplicationDbContext _db;
         private readonly IAiServiceClient _aiClient;
+        private readonly IHubContext<ExamHub> _hub;
 
-        public LecturerController(ApplicationDbContext db, IAiServiceClient aiClient)
+        public LecturerController(ApplicationDbContext db, IAiServiceClient aiClient, IHubContext<ExamHub> hub)
         {
             _db = db;
             _aiClient = aiClient;
+            _hub = hub;
         }
 
         [HttpGet("subjects")]
@@ -251,8 +255,8 @@ namespace backend_api.Controllers
         public async Task<IActionResult> GenerateExamVariants(int id, [FromBody] GenerateVariantsDto dto)
         {
             // Vá M3: Bắt buộc có body hợp lệ — chặn fuzz rỗng tạo đề rác
-            if (dto == null || dto.VariantCount <= 0)
-                return BadRequest(new { success = false, message = "Vui lòng chỉ định số lượng mã đề hợp lệ (variantCount >= 2)." });
+            if (dto == null || !dto.VariantCount.HasValue || dto.VariantCount.Value < 2)
+                return BadRequest(new { success = false, message = "Vui lòng chỉ định số lượng mã đề hợp lệ trong request body (variantCount >= 2)." });
 
             var sourceExam = await _db.Exams
                 .Include(e => e.ExamQuestions)
@@ -266,7 +270,7 @@ namespace backend_api.Controllers
             if (sourceQuestions.Count == 0)
                 return BadRequest(new { success = false, message = "Đề thi gốc chưa có câu hỏi nào để tạo biến thể." });
 
-            int count = Math.Clamp(dto.VariantCount, 2, 8);
+            int count = Math.Clamp(dto.VariantCount.Value, 2, 8);
 
             // Vá M3: Idempotent — nếu đã có các biến thể con thì trả về danh sách cũ thay vì tạo thêm
             var existingVariants = await _db.Exams
@@ -1663,35 +1667,91 @@ namespace backend_api.Controllers
         [HttpPost("sessions/{id}/force-submit")]
         public async Task<IActionResult> ForceSubmitSession(int id)
         {
-            var session = await _db.ExamSessions.FindAsync(id);
+            var session = await _db.ExamSessions
+                .Include(s => s.Answers)
+                .ThenInclude(a => a.Question)
+                .FirstOrDefaultAsync(s => s.Id == id);
+
             if (session == null)
                 return NotFound(new { success = false, message = "Không tìm thấy phiên làm bài." });
+
+            // Chấm điểm các câu trả lời hiện có (nếu có)
+            double totalScore = 0;
+            int answerCount = session.Answers?.Count ?? 0;
+
+            if (answerCount > 0)
+            {
+                foreach (var ans in session.Answers!)
+                {
+                    if (ans.Question?.Type == "mcq")
+                    {
+                        bool isCorrect = string.Equals(ans.SelectedOption?.Trim(), ans.Question.CorrectOption?.Trim(), StringComparison.OrdinalIgnoreCase);
+                        ans.Score = isCorrect ? 10.0 : 0.0;
+                    }
+                    totalScore += ans.Score;
+                }
+                session.Score = Math.Round(totalScore / answerCount, 1);
+                session.AiFeedback = $"Cán bộ coi thi đã cưỡng chế thu bài (Hết giờ / Đình chỉ). Điểm ghi nhận theo các câu đã làm: {session.Score}/10.";
+            }
+            else
+            {
+                session.Score = 0.0;
+                session.AiFeedback = "Cán bộ coi thi đã cưỡng chế thu bài. Thí sinh chưa có câu trả lời nào được ghi nhận (0.0 điểm).";
+            }
 
             session.Status = "Submitted";
             session.EndTime = DateTime.UtcNow;
             await _db.SaveChangesAsync();
 
+            // Realtime notify lecturer
+            await _hub.Clients.Group("Lecturers").SendAsync("OnStudentSubmitted", new
+            {
+                SessionId = session.Id,
+                StudentCode = session.StudentCode,
+                StudentName = session.StudentName,
+                Score = session.Score,
+                AiFeedback = session.AiFeedback
+            });
+
             return Ok(new
             {
                 success = true,
-                message = $"Đã cưỡng chế thu bài của thí sinh {session.StudentName} ({session.StudentCode})."
+                score = session.Score,
+                message = $"Đã cưỡng chế thu bài và hoàn tất chấm điểm phiên thi của thí sinh {session.StudentName} ({session.StudentCode}). Điểm ghi nhận: {session.Score}/10."
             });
         }
 
         [HttpPost("sessions/{id}/reopen")]
         public async Task<IActionResult> ReopenSession(int id)
         {
-            var session = await _db.ExamSessions.FindAsync(id);
+            var session = await _db.ExamSessions
+                .Include(s => s.Answers)
+                .FirstOrDefaultAsync(s => s.Id == id);
+
             if (session == null)
                 return NotFound(new { success = false, message = "Không tìm thấy phiên làm bài." });
 
+            // Xóa ngay toàn bộ answers cũ và đặt lại điểm về null khi mở lại phiên thi
+            if (session.Answers != null && session.Answers.Any())
+            {
+                _db.ExamAnswers.RemoveRange(session.Answers);
+            }
+
             session.Status = "InExam";
+            session.Score = 0;
+            session.OriginalScore = null;
+            session.EndTime = null;
+            session.AiFeedback = null;
+            session.LecturerFeedback = null;
+            session.ReviewedBy = null;
+            session.ReviewedAt = null;
+
             await _db.SaveChangesAsync();
 
             return Ok(new
             {
                 success = true,
-                message = $"Đã mở lại quyền thi cho thí sinh {session.StudentName} ({session.StudentCode}). Sinh viên có thể vào lại phòng thi."
+                message = $"Đã mở lại ca thi và dọn dẹp sạch bài thi cũ cho thí sinh {session.StudentName} ({session.StudentCode}). Sinh viên có thể vào thi lại từ đầu."
             });
         }
 
@@ -1784,7 +1844,7 @@ namespace backend_api.Controllers
 
     public class GenerateVariantsDto
     {
-        public int VariantCount { get; set; } = 4;
+        public int? VariantCount { get; set; }
     }
 
     public class CreateExamDto

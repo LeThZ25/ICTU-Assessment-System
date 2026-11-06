@@ -180,7 +180,6 @@ namespace backend_api.Controllers
                 eq.Question.OptionD,
                 eq.Question.ProgrammingLanguage,
                 eq.Question.StarterCode,
-                eq.Question.TestCasesJson,
                 eq.Question.Difficulty,
                 eq.Question.CloCode,
                 eq.Question.BloomLevel
@@ -228,6 +227,17 @@ namespace backend_api.Controllers
             // Vá M2: Chặn nộp bài lần 2 nếu phiên thi đã nộp trước đó
             if (session.Status == "Submitted")
                 return BadRequest(new { success = false, message = "Bài thi đã được nộp trước đó. Không thể nộp lại." });
+
+            // Chặn nộp bài trắng (HTTP 400 nếu không có câu trả lời nào và không phải lệnh thu bài cưỡng chế Force)
+            bool hasValidAnswers = dto.Answers != null && dto.Answers.Any(a =>
+                !string.IsNullOrWhiteSpace(a.SelectedOption) ||
+                !string.IsNullOrWhiteSpace(a.EssayAnswer) ||
+                !string.IsNullOrWhiteSpace(a.CodeAnswer));
+
+            if (!hasValidAnswers && !dto.Force)
+            {
+                return BadRequest(new { success = false, message = "Không thể nộp bài thi trắng. Thí sinh phải trả lời ít nhất một câu hỏi trước khi nộp bài." });
+            }
 
             // Vá M2: Nếu session được Reopen mở lại, dọn sạch answers cũ trước khi chấm bài mới
             if (session.Answers != null && session.Answers.Any())
@@ -281,7 +291,7 @@ namespace backend_api.Controllers
                     {
                         // Automated code structure verification (Heuristic)
                         examAnswer.Score = codeContent.Length > 30 ? 9.0 : 7.0;
-                        examAnswer.AiFeedback = $"Mã nguồn {q.ProgrammingLanguage?.ToUpper()}: Cú pháp hợp lệ, hoàn thành theo yêu cầu cấu trúc thuật toán (Heuristic).";
+                        examAnswer.AiFeedback = $"Mã nguồn {q.ProgrammingLanguage?.ToUpper()}: Chấm sơ bộ theo độ dài và cấu trúc mã (Heuristic), CHƯA chạy qua bộ kiểm thử tự động (Unit Test / Test Harness). Cần giảng viên phúc khảo và chạy thử mã nguồn.";
                     }
                     totalEssayScore += examAnswer.Score;
                     feedbackList.Add($"[Bài tập Code {q.ProgrammingLanguage}]: {examAnswer.AiFeedback}");
@@ -409,6 +419,7 @@ namespace backend_api.Controllers
     public class SubmitExamDto
     {
         public int SessionId { get; set; }
+        public bool Force { get; set; } = false;
         public List<AnswerSubmissionDto> Answers { get; set; } = new();
     }
 
