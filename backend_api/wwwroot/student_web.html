@@ -684,33 +684,93 @@
       </section>
 
       <!-- ================================================================= -->
-      <!-- SECTION 6: HỎI ĐÁP VỚI TRỢ LÝ AI (STREAMING CHAT)                 -->
+      <!-- SECTION 6: HỎI ĐÁP VỚI TRỢ LÝ AI (STREAMING CHAT & LỊCH SỬ)       -->
       <!-- ================================================================= -->
       <section id="sec-qa-lecturer" class="lms-section hidden p-6 space-y-5">
-        <div class="bg-white rounded-xl border border-slate-200 p-6 shadow-2xs flex flex-col h-[540px]">
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-2">
+        <div class="bg-white rounded-xl border border-slate-200 p-6 shadow-2xs flex flex-col h-[560px] relative">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-3.5 border-b border-slate-100 gap-2 relative">
             <div>
-              <h3 class="text-base font-bold text-slate-800 flex items-center">
-                <i class="fa-solid fa-comments text-ictu mr-2"></i>
-                Hỏi Đáp Học Thuật Với Trợ Lý AI (24/7)
-              </h3>
+              <div class="flex flex-wrap items-center gap-2">
+                <h3 class="text-base font-bold text-slate-800 flex items-center">
+                  <i class="fa-solid fa-comments text-ictu mr-2"></i>
+                  Hỏi Đáp Học Thuật Với Trợ Lý AI (24/7)
+                </h3>
+                <span id="activeAiTopicBadge" class="px-2.5 py-0.5 rounded-full bg-blue-50 text-ictu border border-blue-200 text-[11px] font-bold">
+                  Chuyên đề: Phát triển ứng dụng di động &amp; CSDL
+                </span>
+              </div>
               <p class="text-xs text-slate-500 mt-0.5">Trao đổi trực tiếp về nội dung bài giảng, bài tập SQL/Lập trình và ôn tập chuẩn đầu ra (hỗ trợ phản hồi Streaming thời gian thực)</p>
             </div>
-            <span class="px-2.5 py-1 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-lg border border-emerald-200">
-              ● Streaming Realtime
-            </span>
+
+            <!-- Cụm nút Góc trên bên phải: Tạo cuộc trò chuyện mới + Nút Lịch sử trò chuyện + Streaming Realtime -->
+            <div class="flex items-center space-x-2 flex-shrink-0 relative">
+              <button type="button" onclick="startNewAiChatSession()" title="Tạo cuộc trò chuyện học thuật mới"
+                class="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-blue-50 hover:border-blue-200 text-slate-700 hover:text-ictu text-xs font-semibold transition flex items-center space-x-1.5 cursor-pointer">
+                <i class="fa-solid fa-plus text-[11px] text-ictu"></i>
+                <span>Cuộc trò chuyện mới</span>
+              </button>
+
+              <!-- Nút bấm mở danh sách Lịch sử trò chuyện chuyên môn -->
+              <div class="relative" id="aiHistoryDropdownWrapper">
+                <button type="button" id="btnToggleAiHistory" onclick="toggleAiHistoryDropdown(event)"
+                  class="px-3 py-1.5 rounded-lg border border-blue-200 bg-blue-50/80 hover:bg-ictu hover:text-white text-ictu text-xs font-bold transition flex items-center space-x-1.5 cursor-pointer shadow-2xs">
+                  <i class="fa-solid fa-clock-rotate-left"></i>
+                  <span>Lịch sử trò chuyện</span>
+                  <span id="aiHistoryCountBadge" class="px-1.5 py-0.2 rounded-full bg-ictu text-white text-[10px] font-extrabold">4</span>
+                  <i id="aiHistoryChevron" class="fa-solid fa-chevron-down text-[10px] transition-transform duration-150"></i>
+                </button>
+
+                <!-- Popover / Dropdown Danh sách Lịch sử trò chuyện theo chuyên môn -->
+                <div id="aiHistoryDropdownPanel" onclick="event.stopPropagation()"
+                  class="hidden absolute right-0 mt-2 w-[380px] sm:w-[430px] bg-white rounded-2xl border border-slate-200 shadow-2xl z-50 overflow-hidden">
+                  <!-- Header của Dropdown -->
+                  <div class="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                    <div class="flex items-center space-x-2">
+                      <i class="fa-solid fa-book-bookmark text-ictu text-sm"></i>
+                      <div>
+                        <h4 class="text-xs font-bold text-slate-800 uppercase tracking-tight">Lịch Sử Trò Chuyện Chuyên Môn</h4>
+                        <p class="text-[10px] text-slate-500">Chọn chủ đề để xem lại hoặc tiếp tục trao đổi chuyên sâu</p>
+                      </div>
+                    </div>
+                    <button type="button" onclick="startNewAiChatSession(); closeAiHistoryDropdown();"
+                      class="px-2.5 py-1 rounded-lg bg-ictu hover:bg-ictu-dark text-white text-[11px] font-bold transition cursor-pointer flex items-center space-x-1">
+                      <i class="fa-solid fa-plus text-[10px]"></i>
+                      <span>Tạo mới</span>
+                    </button>
+                  </div>
+
+                  <!-- Ô tìm kiếm & Bộ lọc chuyên đề -->
+                  <div class="p-3 border-b border-slate-100 space-y-2 bg-white">
+                    <div class="relative">
+                      <i class="fa-solid fa-magnifying-glass text-slate-400 text-xs absolute left-3 top-1/2 -translate-y-1/2"></i>
+                      <input type="text" id="inpSearchAiHistory" oninput="renderAiHistoryDropdownList()"
+                        placeholder="Tìm kiếm cuộc trò chuyện theo môn học, từ khóa (ACID, 3NF, MVVM, CLO...)"
+                        class="w-full pl-8 pr-3 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-800 focus:outline-none focus:border-ictu">
+                    </div>
+                    <div class="flex flex-wrap gap-1" id="aiHistoryCategoryPills">
+                      <button type="button" onclick="setAiHistoryFilterTag('ALL')" data-tag="ALL" class="ai-hist-tag-btn px-2 py-0.5 rounded-md text-[10px] font-bold bg-ictu text-white cursor-pointer">Tất cả</button>
+                      <button type="button" onclick="setAiHistoryFilterTag('Cơ sở dữ liệu')" data-tag="Cơ sở dữ liệu" class="ai-hist-tag-btn px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-ictu cursor-pointer">Cơ sở dữ liệu</button>
+                      <button type="button" onclick="setAiHistoryFilterTag('Lập trình Di động')" data-tag="Lập trình Di động" class="ai-hist-tag-btn px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-ictu cursor-pointer">Lập trình Di động</button>
+                      <button type="button" onclick="setAiHistoryFilterTag('SQL & Tối ưu')" data-tag="SQL & Tối ưu" class="ai-hist-tag-btn px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-ictu cursor-pointer">SQL &amp; Tối ưu</button>
+                      <button type="button" onclick="setAiHistoryFilterTag('Ôn tập CLO')" data-tag="Ôn tập CLO" class="ai-hist-tag-btn px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-ictu cursor-pointer">Ôn tập CLO</button>
+                    </div>
+                  </div>
+
+                  <!-- Danh sách các phiên trò chuyện -->
+                  <div id="aiHistoryListContainer" class="max-h-72 overflow-y-auto divide-y divide-slate-100">
+                    <!-- Populated by renderAiHistoryDropdownList() -->
+                  </div>
+                </div>
+              </div>
+
+              <span class="px-2.5 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-lg border border-emerald-200">
+                ● Streaming Realtime
+              </span>
+            </div>
           </div>
 
           <div id="qaForumChatBox" class="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50 rounded-xl my-3 border border-slate-200/80 text-xs">
-            <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs max-w-2xl">
-              <div class="flex items-center space-x-2 mb-1">
-                <span class="px-2 py-0.5 bg-ictu text-white text-[10px] font-bold rounded">Trợ lý Học tập AI</span>
-                <span class="text-[10px] text-slate-400">Học kỳ 2025_2026_2</span>
-              </div>
-              <p class="text-slate-700 leading-relaxed">
-                Chào bạn! Bạn có thể đặt câu hỏi về bài giảng học phần <b>Phát triển ứng dụng di động-2-25</b> hoặc các bài kiểm tra đánh giá chuẩn đầu ra tại đây. Trợ lý AI sẽ phản hồi trực tiếp theo luồng thời gian thực (streaming).
-              </p>
-            </div>
+            <!-- Populated by renderCurrentAiChatSession() -->
           </div>
 
           <div class="flex flex-wrap gap-1.5 pb-2">
@@ -2423,6 +2483,7 @@
       currentStudentEmail = email;
       closeAccountModal();
       updateStudentIdentityUI();
+      initAiChatHistoryForStudent();
       await loadAvailableExams(currentStudentCode);
       await loadStudentDashboard();
       switchLmsSection('timetable');
@@ -3038,17 +3099,362 @@
       box.scrollTop = box.scrollHeight;
     }
 
+    // -----------------------------------------------------------------------
+    // 7B. QUẢN LÝ LỊCH SỬ TRÒ CHUYỆN HỌC THUẬT CHUYÊN MÔN (AI CHAT HISTORY)
+    // -----------------------------------------------------------------------
+    let aiChatSessions = [];
+    let currentAiSessionId = "";
+    let currentAiHistoryFilterTag = "ALL";
+
+    function getDefaultAiChatSessions() {
+      return [
+        {
+          id: "sess_mobile_mvvm",
+          title: "Kiến trúc MVVM & Quản lý State trong Ứng dụng Di động",
+          category: "Lập trình Di động",
+          updatedAt: "Hôm nay • 10:15",
+          messages: [
+            {
+              role: "ai",
+              meta: "Học kỳ 2025_2026_2 • Học phần Phát triển ứng dụng di động-2-25",
+              text: "Chào bạn! Bạn có thể đặt câu hỏi về bài giảng học phần Phát triển ứng dụng di động-2-25 hoặc các bài kiểm tra đánh giá chuẩn đầu ra tại đây. Trợ lý AI sẽ phản hồi trực tiếp theo luồng thời gian thực (streaming)."
+            }
+          ]
+        },
+        {
+          id: "sess_db_acid",
+          title: "Giải thích 4 thuộc tính ACID & Cơ chế Transaction CSDL",
+          category: "Cơ sở dữ liệu",
+          updatedAt: "Hôm qua • 20:40",
+          messages: [
+            {
+              role: "student",
+              text: "Giải thích ngắn gọn 4 thuộc tính ACID trong Transaction kèm ví dụ thực tế?"
+            },
+            {
+              role: "ai",
+              meta: "Chuyên đề Cơ sở dữ liệu & Hệ phân tán",
+              text: "Trong hệ quản trị CSDL, 4 thuộc tính ACID đảm bảo tính toàn vẹn của giao dịch (Transaction):\n1. Atomicity (Tính nguyên tố): Giao dịch thực hiện trọn vẹn tất cả các bước hoặc không thực hiện bước nào (Commit hoặc Rollback).\n2. Consistency (Tính nhất quán): Dữ liệu luôn chuyển từ trạng thái hợp lệ này sang trạng thái hợp lệ khác (ví dụ tổng số dư trước và sau chuyển khoản không đổi).\n3. Isolation (Tính cô lập): Các giao dịch chạy đồng thời không gây nhiễu loạn dữ liệu của nhau.\n4. Durability (Tính bền vững): Khi đã Commit, kết quả giao dịch được lưu trữ vĩnh viễn ngay cả khi mất điện."
+            }
+          ]
+        },
+        {
+          id: "sess_db_normal_form",
+          title: "Phân biệt dạng chuẩn 2NF, 3NF và BCNF trong Thiết kế CSDL",
+          category: "Cơ sở dữ liệu",
+          updatedAt: "04/11/2026 • 16:20",
+          messages: [
+            {
+              role: "student",
+              text: "Hướng dẫn cách phân biệt dạng chuẩn 2NF và 3NF trong Cơ sở dữ liệu?"
+            },
+            {
+              role: "ai",
+              meta: "Chuyên đề Thiết kế & Chuẩn hóa CSDL",
+              text: "Cách phân biệt nhanh 2NF và 3NF khi làm bài thi:\n• Dạng chuẩn 2 (2NF): Bảng đã đạt 1NF và mọi thuộc tính không khóa đều phụ thuộc hàm ĐẦY ĐỦ vào khóa chính (loại bỏ phụ thuộc bộ phận vào một phần của khóa ghép).\n• Dạng chuẩn 3 (3NF): Bảng đã đạt 2NF và không có thuộc tính không khóa nào phụ thuộc BẮC CẦU vào khóa chính (tức là không có A → B → C với B không phải siêu khóa)."
+            }
+          ]
+        },
+        {
+          id: "sess_sql_clo_review",
+          title: "Tối ưu truy vấn SQL Index & Lộ trình ôn tập Chuẩn đầu ra CLO1-CLO3",
+          category: "SQL & Tối ưu",
+          updatedAt: "03/11/2026 • 09:05",
+          messages: [
+            {
+              role: "student",
+              text: "Cho em xin gợi ý ôn tập chuẩn đầu ra CLO1, CLO2, CLO3 học kỳ này?"
+            },
+            {
+              role: "ai",
+              meta: "Chuyên đề Ôn tập Chuẩn đầu ra CLO & SQL",
+              text: "Lộ trình ôn tập trọng tâm theo 3 Chuẩn đầu ra (CLO):\n• CLO1 (Kiến thức nền tảng): Nắm vững mô hình thực thể liên kết (ERD), đại số quan hệ và các ràng buộc toàn vẹn.\n• CLO2 (Truy vấn & Lập trình SQL): Thành thạo SELECT có JOIN nhiều bảng, GROUP BY ... HAVING, Subquery và tối ưu chỉ mục (B-Tree Index).\n• CLO3 (Giao dịch & Phân tán): Hiểu rõ ACID, mức cô lập giao dịch (Isolation Levels), khóa (Locking) và xử lý Deadlock."
+            }
+          ]
+        }
+      ];
+    }
+
+    function detectAiTopicCategoryAndTitle(questionText) {
+      const q = (questionText || "").trim();
+      const lower = q.toLowerCase();
+      let category = "Học thuật chung";
+      if (lower.includes("acid") || lower.includes("2nf") || lower.includes("3nf") || lower.includes("csdl") || lower.includes("cơ sở dữ liệu") || lower.includes("transaction") || lower.includes("khóa")) {
+        category = "Cơ sở dữ liệu";
+      } else if (lower.includes("sql") || lower.includes("join") || lower.includes("select") || lower.includes("index") || lower.includes("truy vấn")) {
+        category = "SQL & Tối ưu";
+      } else if (lower.includes("clo") || lower.includes("chuẩn đầu ra") || lower.includes("ôn tập") || lower.includes("kiểm tra")) {
+        category = "Ôn tập CLO";
+      } else if (lower.includes("di động") || lower.includes("mobile") || lower.includes("android") || lower.includes("flutter") || lower.includes("mvvm")) {
+        category = "Lập trình Di động";
+      }
+      const cleanTitle = q.length > 56 ? q.substring(0, 56) + "..." : q;
+      return { category, title: cleanTitle };
+    }
+
+    function getAiHistoryStorageKey() {
+      return `ictu_ai_chat_sessions_${(currentStudentCode || 'DTC235210069').toUpperCase()}`;
+    }
+
+    function saveAiChatSessionsToLocal() {
+      try {
+        localStorage.setItem(getAiHistoryStorageKey(), JSON.stringify(aiChatSessions));
+      } catch (e) {}
+    }
+
+    function initAiChatHistoryForStudent() {
+      try {
+        const raw = localStorage.getItem(getAiHistoryStorageKey());
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            aiChatSessions = parsed;
+          } else {
+            aiChatSessions = getDefaultAiChatSessions();
+          }
+        } else {
+          aiChatSessions = getDefaultAiChatSessions();
+          saveAiChatSessionsToLocal();
+        }
+      } catch (e) {
+        aiChatSessions = getDefaultAiChatSessions();
+      }
+      currentAiSessionId = aiChatSessions[0].id;
+      renderCurrentAiChatSession();
+      renderAiHistoryDropdownList();
+    }
+
+    function getCurrentAiSession() {
+      let sess = aiChatSessions.find(s => s.id === currentAiSessionId);
+      if (!sess) {
+        if (aiChatSessions.length === 0) {
+          aiChatSessions = getDefaultAiChatSessions();
+        }
+        sess = aiChatSessions[0];
+        currentAiSessionId = sess.id;
+      }
+      return sess;
+    }
+
+    function escapeHtmlText(str) {
+      return String(str || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+    }
+
+    function renderCurrentAiChatSession() {
+      const sess = getCurrentAiSession();
+      const box = document.getElementById('qaForumChatBox');
+      const badge = document.getElementById('activeAiTopicBadge');
+      const countBadge = document.getElementById('aiHistoryCountBadge');
+
+      if (badge && sess) {
+        badge.innerText = `${sess.category}: ${sess.title}`;
+      }
+      if (countBadge) {
+        countBadge.innerText = String(aiChatSessions.length);
+      }
+      if (!box || !sess) return;
+
+      box.innerHTML = (sess.messages || []).map(m => {
+        if (m.role === 'student') {
+          return `
+            <div class="bg-ictu text-white p-3.5 rounded-xl max-w-xl ml-auto shadow-2xs">
+              <div class="text-[10px] text-sky-200 font-semibold mb-0.5">${escapeHtmlText(currentStudentName)} (${escapeHtmlText(currentStudentCode)})</div>
+              <p class="leading-relaxed whitespace-pre-line">${escapeHtmlText(m.text)}</p>
+            </div>
+          `;
+        } else {
+          return `
+            <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs max-w-2xl">
+              <div class="flex items-center space-x-2 mb-1">
+                <span class="px-2 py-0.5 bg-ictu text-white text-[10px] font-bold rounded">Trợ lý Học tập AI</span>
+                <span class="text-[10px] text-slate-400">${escapeHtmlText(m.meta || sess.category || 'Học kỳ 2025_2026_2')}</span>
+              </div>
+              <p class="text-slate-700 leading-relaxed whitespace-pre-line">${escapeHtmlText(m.text)}</p>
+            </div>
+          `;
+        }
+      }).join("");
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function toggleAiHistoryDropdown(event) {
+      if (event) event.stopPropagation();
+      const panel = document.getElementById('aiHistoryDropdownPanel');
+      const chevron = document.getElementById('aiHistoryChevron');
+      if (!panel) return;
+      const isHidden = panel.classList.contains('hidden');
+      if (isHidden) {
+        renderAiHistoryDropdownList();
+        panel.classList.remove('hidden');
+        if (chevron) chevron.style.transform = 'rotate(180deg)';
+      } else {
+        closeAiHistoryDropdown();
+      }
+    }
+
+    function closeAiHistoryDropdown() {
+      const panel = document.getElementById('aiHistoryDropdownPanel');
+      const chevron = document.getElementById('aiHistoryChevron');
+      if (panel) panel.classList.add('hidden');
+      if (chevron) chevron.style.transform = 'rotate(0deg)';
+    }
+
+    document.addEventListener('click', (e) => {
+      const wrapper = document.getElementById('aiHistoryDropdownWrapper');
+      if (wrapper && !wrapper.contains(e.target)) {
+        closeAiHistoryDropdown();
+      }
+    });
+
+    function setAiHistoryFilterTag(tag) {
+      currentAiHistoryFilterTag = tag || "ALL";
+      document.querySelectorAll('.ai-hist-tag-btn').forEach(btn => {
+        if (btn.getAttribute('data-tag') === currentAiHistoryFilterTag) {
+          btn.className = "ai-hist-tag-btn px-2 py-0.5 rounded-md text-[10px] font-bold bg-ictu text-white cursor-pointer";
+        } else {
+          btn.className = "ai-hist-tag-btn px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-ictu cursor-pointer";
+        }
+      });
+      renderAiHistoryDropdownList();
+    }
+
+    function renderAiHistoryDropdownList() {
+      const listEl = document.getElementById('aiHistoryListContainer');
+      const countBadge = document.getElementById('aiHistoryCountBadge');
+      if (countBadge) countBadge.innerText = String(aiChatSessions.length);
+      if (!listEl) return;
+
+      const keyword = (document.getElementById('inpSearchAiHistory')?.value || "").trim().toLowerCase();
+      const filtered = aiChatSessions.filter(s => {
+        const matchTag = currentAiHistoryFilterTag === "ALL" || s.category === currentAiHistoryFilterTag;
+        if (!matchTag) return false;
+        if (!keyword) return true;
+        const inTitle = (s.title || "").toLowerCase().includes(keyword);
+        const inCat = (s.category || "").toLowerCase().includes(keyword);
+        const inMsgs = (s.messages || []).some(m => (m.text || "").toLowerCase().includes(keyword));
+        return inTitle || inCat || inMsgs;
+      });
+
+      if (filtered.length === 0) {
+        listEl.innerHTML = `
+          <div class="p-6 text-center text-xs text-slate-400">
+            <i class="fa-regular fa-folder-open text-lg mb-1.5 block"></i>
+            Không tìm thấy cuộc trò chuyện nào khớp với bộ lọc chuyên môn.
+          </div>
+        `;
+        return;
+      }
+
+      listEl.innerHTML = filtered.map(s => {
+        const isActive = s.id === currentAiSessionId;
+        const msgCount = (s.messages || []).length;
+        const lastMsg = msgCount > 0 ? s.messages[msgCount - 1].text : "";
+        return `
+          <div onclick="selectAiChatSession('${s.id}')"
+            class="p-3.5 hover:bg-blue-50/60 transition cursor-pointer flex items-start justify-between gap-2.5 ${isActive ? 'bg-blue-50/70 border-l-4 border-l-ictu' : ''}">
+            <div class="min-w-0 flex-1 space-y-1">
+              <div class="flex items-center flex-wrap gap-1.5">
+                <span class="px-2 py-0.5 rounded bg-blue-100 text-ictu text-[10px] font-bold">${escapeHtmlText(s.category || 'Chuyên đề')}</span>
+                ${isActive ? '<span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[9px] font-bold">● Đang mở</span>' : ''}
+                <span class="text-[10px] text-slate-400 ml-auto">${escapeHtmlText(s.updatedAt || 'Vừa xong')}</span>
+              </div>
+              <p class="text-xs font-bold text-slate-800 truncate">${escapeHtmlText(s.title)}</p>
+              <p class="text-[11px] text-slate-500 truncate">${escapeHtmlText(lastMsg)}</p>
+            </div>
+            <button type="button" onclick="deleteAiChatSession(event, '${s.id}')" title="Xóa lịch sử cuộc trò chuyện này"
+              class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition flex-shrink-0 cursor-pointer">
+              <i class="fa-regular fa-trash-can text-xs"></i>
+            </button>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function selectAiChatSession(sessionId) {
+      currentAiSessionId = sessionId;
+      renderCurrentAiChatSession();
+      renderAiHistoryDropdownList();
+      closeAiHistoryDropdown();
+    }
+
+    function startNewAiChatSession() {
+      const now = new Date();
+      const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      const newSess = {
+        id: "sess_" + Date.now(),
+        title: "Cuộc trò chuyện học thuật mới",
+        category: "Chuyên đề mới",
+        updatedAt: `Hôm nay • ${timeStr}`,
+        isNewUntouched: true,
+        messages: [
+          {
+            role: "ai",
+            meta: "Trợ lý Học tập AI • Chuyên đề mới",
+            text: "Chào bạn! Đây là phiên trò chuyện chuyên môn mới. Bạn muốn tập trung trao đổi về học phần hay chủ đề nào (VD: Cơ sở dữ liệu, Lập trình di động, Truy vấn SQL, Ôn tập chuẩn đầu ra CLO)?"
+          }
+        ]
+      };
+      aiChatSessions.unshift(newSess);
+      currentAiSessionId = newSess.id;
+      saveAiChatSessionsToLocal();
+      renderCurrentAiChatSession();
+      renderAiHistoryDropdownList();
+      const inp = document.getElementById('qaForumInput');
+      if (inp) inp.focus();
+    }
+
+    function deleteAiChatSession(event, sessionId) {
+      if (event) event.stopPropagation();
+      if (aiChatSessions.length <= 1) {
+        alert("Cần giữ lại ít nhất 1 cuộc trò chuyện trong danh sách!");
+        return;
+      }
+      aiChatSessions = aiChatSessions.filter(s => s.id !== sessionId);
+      if (currentAiSessionId === sessionId) {
+        currentAiSessionId = aiChatSessions[0].id;
+        renderCurrentAiChatSession();
+      }
+      saveAiChatSessionsToLocal();
+      renderAiHistoryDropdownList();
+    }
+
     async function sendStudyQuestion(presetMsg = null) {
       const inp = document.getElementById('qaForumInput');
       const msg = presetMsg || inp.value.trim();
       if (!msg) return;
       if (!presetMsg) inp.value = "";
 
+      const sess = getCurrentAiSession();
+      const now = new Date();
+      const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      sess.updatedAt = `Hôm nay • ${timeStr}`;
+
+      // Tự động đặt tên chuyên đề tập trung khi sinh viên gửi câu hỏi đầu tiên trong cuộc trò chuyện
+      const hasStudentMsgBefore = (sess.messages || []).some(m => m.role === 'student');
+      if (!hasStudentMsgBefore || sess.isNewUntouched) {
+        const detected = detectAiTopicCategoryAndTitle(msg);
+        sess.category = detected.category;
+        sess.title = detected.title;
+        delete sess.isNewUntouched;
+      }
+
+      sess.messages.push({
+        role: "student",
+        text: msg
+      });
+      saveAiChatSessionsToLocal();
+
+      const badge = document.getElementById('activeAiTopicBadge');
+      if (badge) badge.innerText = `${sess.category}: ${sess.title}`;
+
       const box = document.getElementById('qaForumChatBox');
       box.innerHTML += `
         <div class="bg-ictu text-white p-3.5 rounded-xl max-w-xl ml-auto shadow-2xs">
-          <div class="text-[10px] text-sky-200 font-semibold mb-0.5">${currentStudentName} (${currentStudentCode})</div>
-          <p class="leading-relaxed">${msg}</p>
+          <div class="text-[10px] text-sky-200 font-semibold mb-0.5">${escapeHtmlText(currentStudentName)} (${escapeHtmlText(currentStudentCode)})</div>
+          <p class="leading-relaxed whitespace-pre-line">${escapeHtmlText(msg)}</p>
         </div>
       `;
 
@@ -3057,16 +3463,26 @@
         <div class="bg-white p-3.5 rounded-xl border border-slate-200 max-w-2xl shadow-2xs">
           <div class="flex items-center space-x-2 mb-1">
             <span class="px-2 py-0.5 bg-emerald-600 text-white text-[10px] font-bold rounded">Trợ lý Học tập AI</span>
-            <span class="text-[10px] text-emerald-600 font-semibold">● Đang phản hồi trực tiếp</span>
+            <span class="text-[10px] text-emerald-600 font-semibold">● Đang phản hồi trực tiếp (${escapeHtmlText(sess.category)})</span>
           </div>
-          <p id="${replyId}" class="text-slate-700 leading-relaxed typing-cursor">...</p>
+          <p id="${replyId}" class="text-slate-700 leading-relaxed whitespace-pre-line typing-cursor">...</p>
         </div>
       `;
       box.scrollTop = box.scrollHeight;
 
       const targetSpan = document.getElementById(replyId);
-      await streamAiReplyToElement(currentStudentCode, 1, msg, "Tư vấn học tập & Ôn tập chuẩn đầu ra", targetSpan);
+      await streamAiReplyToElement(currentStudentCode, 1, msg, `Chuyên đề ${sess.category}: ${sess.title}`, targetSpan);
       box.scrollTop = box.scrollHeight;
+
+      // Lưu nội dung phản hồi của AI vào lịch sử cuộc trò chuyện chuyên môn hiện tại
+      const finalReplyText = (targetSpan?.innerText || "").trim();
+      sess.messages.push({
+        role: "ai",
+        meta: `Chuyên đề ${sess.category}`,
+        text: finalReplyText || "Đã ghi nhận câu hỏi học thuật của bạn."
+      });
+      saveAiChatSessionsToLocal();
+      renderAiHistoryDropdownList();
     }
 
     // -----------------------------------------------------------------------
@@ -3163,6 +3579,7 @@
         openAccountModal(true);
       }
 
+      initAiChatHistoryForStudent();
       syncScheduleFiltersFromPlan(true);
       await loadAvailableExams(currentStudentCode);
       await loadStudentDashboard();
