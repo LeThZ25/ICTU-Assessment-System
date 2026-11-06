@@ -24,6 +24,18 @@ namespace backend_api.Controllers
         [HttpPost("log-violation")]
         public async Task<IActionResult> LogViolation([FromBody] ViolationDto dto)
         {
+            if (dto == null || dto.SessionId <= 0)
+            {
+                return BadRequest(new { success = false, message = "Phiên thi (SessionId) không hợp lệ." });
+            }
+
+            // Vá M1: Kiểm tra session tồn tại trước khi ghi log — tránh FK exception 500
+            var session = await _db.ExamSessions.FindAsync(dto.SessionId);
+            if (session == null)
+            {
+                return NotFound(new { success = false, message = $"Không tìm thấy phiên thi với SessionId={dto.SessionId}." });
+            }
+
             var log = new CheatingLog
             {
                 ExamSessionId = dto.SessionId,

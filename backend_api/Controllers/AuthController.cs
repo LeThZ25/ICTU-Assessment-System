@@ -78,6 +78,28 @@ namespace backend_api.Controllers
                 });
             }
 
+            // Strict filter if caller requires Lecturer role
+            if (dto.RequireLecturer)
+            {
+                if (!input.EndsWith("@ictu.edu.vn"))
+                {
+                    return BadRequest(new
+                    {
+                        Success = false,
+                        Message = "Truy cập bị từ chối! Cổng Giảng viên chỉ chấp nhận tài khoản Google của cán bộ nhà trường có định dạng @ictu.edu.vn."
+                    });
+                }
+
+                if (role != "Lecturer")
+                {
+                    return BadRequest(new
+                    {
+                        Success = false,
+                        Message = $"Truy cập bị từ chối! Email '{input}' là tài khoản sinh viên (DTC), không có quyền truy cập Cổng Khảo thí Giảng viên ICTU."
+                    });
+                }
+            }
+
             // Find or create UserAccount
             var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email);
             if (user == null)
@@ -134,6 +156,11 @@ namespace backend_api.Controllers
         [HttpPost("sso-mock")]
         public async Task<IActionResult> SsoMock([FromBody] SsoMockDto dto)
         {
+            if (dto == null || string.IsNullOrWhiteSpace(dto.Provider))
+            {
+                return BadRequest(new { success = false, message = "Vui lòng chọn cổng đăng nhập (Google hoặc Microsoft)." });
+            }
+
             string email;
             string name;
             if (dto.Provider == "Microsoft")
@@ -178,6 +205,7 @@ namespace backend_api.Controllers
         public string? FullName { get; set; }
         public string? Password { get; set; }
         public string? Provider { get; set; }
+        public bool RequireLecturer { get; set; } = false;
     }
 
     public class SsoMockDto

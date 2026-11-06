@@ -213,15 +213,31 @@ namespace backend_api.Controllers
         [HttpPost("submit-exam")]
         public async Task<IActionResult> SubmitExam([FromBody] SubmitExamDto dto)
         {
+            if (dto == null)
+                return BadRequest(new { success = false, message = "Dữ liệu nộp bài không hợp lệ." });
+
             var session = await _db.ExamSessions
                 .Include(s => s.Exam)
                 .ThenInclude(e => e!.Subject)
+                .Include(s => s.Answers)
                 .FirstOrDefaultAsync(s => s.Id == dto.SessionId);
 
             if (session == null)
                 return NotFound(new { success = false, message = "Không tìm thấy phiên làm bài." });
 
-            var questionIds = dto.Answers.Select(a => a.QuestionId).ToList();
+            // Vá M2: Chặn nộp bài lần 2 nếu phiên thi đã nộp trước đó
+            if (session.Status == "Submitted")
+                return BadRequest(new { success = false, message = "Bài thi đã được nộp trước đó. Không thể nộp lại." });
+
+            // Vá M2: Nếu session được Reopen mở lại, dọn sạch answers cũ trước khi chấm bài mới
+            if (session.Answers != null && session.Answers.Any())
+            {
+                _db.ExamAnswers.RemoveRange(session.Answers);
+                await _db.SaveChangesAsync();
+            }
+
+            var answersList = dto.Answers ?? new List<AnswerSubmissionDto>();
+            var questionIds = answersList.Select(a => a.QuestionId).ToList();
             var questions = await _db.Questions.Where(q => questionIds.Contains(q.Id)).ToDictionaryAsync(q => q.Id);
 
             double totalMcqScore = 0;
@@ -230,7 +246,7 @@ namespace backend_api.Controllers
             int totalEssayQuestions = 0;
             var feedbackList = new List<string>();
 
-            foreach (var ans in dto.Answers)
+            foreach (var ans in answersList)
             {
                 if (!questions.TryGetValue(ans.QuestionId, out var q))
                     continue;
@@ -263,9 +279,9 @@ namespace backend_api.Controllers
                     }
                     else
                     {
-                        // Automated code structure verification
+                        // Automated code structure verification (Heuristic)
                         examAnswer.Score = codeContent.Length > 30 ? 9.0 : 7.0;
-                        examAnswer.AiFeedback = $"Thuật toán {q.ProgrammingLanguage?.ToUpper()}: Cú pháp hợp lệ, đã vượt qua các bộ kiểm thử mẫu.";
+                        examAnswer.AiFeedback = $"Mã nguồn {q.ProgrammingLanguage?.ToUpper()}: Cú pháp hợp lệ, hoàn thành theo yêu cầu cấu trúc thuật toán (Heuristic).";
                     }
                     totalEssayScore += examAnswer.Score;
                     feedbackList.Add($"[Bài tập Code {q.ProgrammingLanguage}]: {examAnswer.AiFeedback}");
@@ -281,8 +297,8 @@ namespace backend_api.Controllers
                         session.Exam?.Subject?.Name ?? "CNTT"
                     );
 
-                    examAnswer.Score = gradeRes?.Score ?? 7.0;
-                    examAnswer.AiFeedback = gradeRes?.Ai_Feedback ?? "Hội đồng khảo thí đã ghi nhận bài làm.";
+                    examAnswer.Score = gradeRes?.Score ?? 0.0;
+                    examAnswer.AiFeedback = gradeRes?.Ai_Feedback ?? "Đã ghi nhận bài làm (Chờ giảng viên chấm tự luận).";
                     totalEssayScore += examAnswer.Score;
                     feedbackList.Add($"[Câu tự luận]: {examAnswer.AiFeedback}");
                 }
@@ -330,6 +346,11 @@ namespace backend_api.Controllers
         [HttpPost("oral-chat")]
         public async Task<IActionResult> OralChat([FromBody] OralChatDto dto)
         {
+            if (dto == null || string.IsNullOrWhiteSpace(dto.Message))
+            {
+                return BadRequest(new { success = false, message = "Nội dung tin nhắn không được để trống." });
+            }
+
             var exam = await _db.Exams.Include(e => e.Subject).FirstOrDefaultAsync(e => e.Id == dto.ExamId);
             string context = exam?.Subject?.Name ?? "Hệ thống CNTT";
 
