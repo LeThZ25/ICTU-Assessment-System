@@ -1,253 +1,610 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
-using System.Text.RegularExpressions;
+using System.Drawing.Drawing2D;
+using System.IO;
+using System.Text.Json;
 using System.Windows.Forms;
 
 namespace student_desktop_app
 {
     public class LoginForm : Form
     {
-        private TextBox txtEmailOrCode;
-        private TextBox txtStudentName;
-        private TextBox txtAccessCode;
-        private Label lblProviderDetect;
-        private Button btnLogin;
-        private Button btnMockGoogle;
-        private Button btnMockMicrosoft;
-        private Label lblStatus;
-        private readonly ApiClient _api;
+        private Panel pnlCard = null!;
+        private Panel pnlStudentLogin = null!;
+        private Label lblSubtitle = null!;
+        private TextBox txtStudentCode = null!;
+        private TextBox txtPassword = null!;
+        private Button btnTogglePassword = null!;
+        private bool _isPasswordVisible = false;
+        private Label lblError = null!;
+        private Button btnLogin = null!;
 
-        public LoginForm()
+        private readonly ApiClient _api;
+        private readonly string _serverUrl;
+        private readonly bool _useLegacy;
+
+        private readonly Dictionary<string, string> _knownStudents = new(StringComparer.OrdinalIgnoreCase)
         {
+            { "DTC235210069", "Phạm Hồng Ngọc Kiên" },
+            { "DTC205122001", "Nguyễn Văn An" },
+            { "DTC205122002", "Trần Thị Bình" }
+        };
+
+        public LoginForm(
+            string serverUrl = "http://localhost:5000/student_web.html?mode=desktop_kiosk",
+            bool useLegacy = false)
+        {
+            _serverUrl = serverUrl;
+            _useLegacy = useLegacy;
             _api = new ApiClient();
             InitializeComponent();
         }
 
         private void InitializeComponent()
         {
-            this.Text = "Hệ Thống Khảo Thí & Đánh Giá Năng Lực Sinh Viên ICTU";
-            this.Size = new Size(540, 600);
+            this.Text = "Đăng nhập hệ thống";
+            this.Size = new Size(760, 520);
             this.StartPosition = FormStartPosition.CenterScreen;
-            this.FormBorderStyle = FormBorderStyle.FixedDialog;
+            this.FormBorderStyle = FormBorderStyle.FixedSingle;
             this.MaximizeBox = false;
-            this.BackColor = Color.FromArgb(248, 250, 252);
+            this.BackColor = Color.FromArgb(24, 24, 29); // #18181d dark background
             this.Font = new Font("Segoe UI", 9.5F, FontStyle.Regular, GraphicsUnit.Point);
 
-            var pnlHeader = new Panel
+            pnlCard = new Panel
             {
-                Dock = DockStyle.Top,
-                Height = 90,
-                BackColor = Color.FromArgb(0, 51, 102) // ICTU Navy
+                Size = new Size(490, 415),
+                Location = new Point((this.ClientSize.Width - 490) / 2, (this.ClientSize.Height - 415) / 2),
+                BackColor = Color.FromArgb(18, 18, 20) // #121214 card
+            };
+            pnlCard.Paint += (s, e) =>
+            {
+                using var pen = new Pen(Color.FromArgb(42, 42, 46), 1);
+                e.Graphics.DrawRectangle(pen, 0, 0, pnlCard.Width - 1, pnlCard.Height - 1);
+            };
+            this.Resize += (s, e) =>
+            {
+                pnlCard.Location = new Point((this.ClientSize.Width - pnlCard.Width) / 2, (this.ClientSize.Height - pnlCard.Height) / 2);
             };
 
-            var pnlOrangeLine = new Panel
+            // Top ICTU Logo / Icon
+            var picLogo = new PictureBox
             {
-                Dock = DockStyle.Bottom,
-                Height = 4,
-                BackColor = Color.FromArgb(242, 101, 34) // ICTU Orange Accent
+                Size = new Size(44, 44),
+                Location = new Point((pnlCard.Width - 44) / 2, 24),
+                SizeMode = PictureBoxSizeMode.Zoom,
+                BackColor = Color.Transparent
             };
-            pnlHeader.Controls.Add(pnlOrangeLine);
+            TryLoadIctuLogo(picLogo);
 
-            var lblLogo = new Label
+            var lblTitle = new Label
             {
-                Text = "CỔNG KHẢO THÍ TRỰC TUYẾN ICTU",
+                Text = "Đăng nhập hệ thống",
                 ForeColor = Color.White,
-                Font = new Font("Segoe UI", 12.5F, FontStyle.Bold, GraphicsUnit.Point),
-                Location = new Point(85, 18),
+                Font = new Font("Segoe UI", 18F, FontStyle.Bold, GraphicsUnit.Point),
+                AutoSize = false,
+                Size = new Size(pnlCard.Width, 38),
+                Location = new Point(0, 74),
+                TextAlign = ContentAlignment.MiddleCenter
+            };
+
+            lblSubtitle = new Label
+            {
+                Text = "Nhập Mã sinh viên (MSV) và mật khẩu (mặc định: 123456)",
+                ForeColor = Color.FromArgb(161, 161, 170),
+                Font = new Font("Segoe UI", 9.5F, FontStyle.Regular, GraphicsUnit.Point),
+                AutoSize = false,
+                Size = new Size(pnlCard.Width, 24),
+                Location = new Point(0, 114),
+                TextAlign = ContentAlignment.MiddleCenter
+            };
+
+            pnlCard.Controls.Add(picLogo);
+            pnlCard.Controls.Add(lblTitle);
+            pnlCard.Controls.Add(lblSubtitle);
+
+            // =================================================================
+            // FORM NHẬP TRỰC TIẾP MÃ SINH VIÊN (MSV) & MẬT KHẨU (MẶC ĐỊNH 123456)
+            // =================================================================
+            pnlStudentLogin = new Panel
+            {
+                Size = new Size(440, 255),
+                Location = new Point(25, 145),
+                BackColor = Color.Transparent,
+                Visible = true
+            };
+
+            var lblCode = new Label
+            {
+                Text = "Mã sinh viên (MSV):",
+                ForeColor = Color.FromArgb(228, 228, 231),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Location = new Point(15, 4),
                 AutoSize = true
             };
 
-            var lblSub = new Label
+            var pnlCodeWrapper = new Panel
             {
-                Text = "Trường Đại học Công nghệ Thông tin & Truyền thông • Đại học Thái Nguyên",
-                ForeColor = Color.FromArgb(226, 232, 240),
-                Font = new Font("Segoe UI", 8.5F, FontStyle.Regular, GraphicsUnit.Point),
-                Location = new Point(85, 48),
+                Location = new Point(15, 27),
+                Size = new Size(410, 29),
+                BackColor = Color.FromArgb(28, 28, 34),
+                Cursor = Cursors.IBeam
+            };
+            pnlCodeWrapper.Paint += (s, e) =>
+            {
+                using var pen = new Pen(Color.FromArgb(100, 100, 110), 1);
+                e.Graphics.DrawRectangle(pen, 0, 0, pnlCodeWrapper.Width - 1, pnlCodeWrapper.Height - 1);
+            };
+            pnlCodeWrapper.Click += (s, e) => txtStudentCode.Focus();
+
+            txtStudentCode = new TextBox
+            {
+                Text = "DTC235210069",
+                Location = new Point(6, 5),
+                Width = 398,
+                BackColor = Color.FromArgb(28, 28, 34),
+                ForeColor = Color.White,
+                BorderStyle = BorderStyle.None,
+                Font = new Font("Segoe UI", 10.5F, FontStyle.Regular)
+            };
+            pnlCodeWrapper.Controls.Add(txtStudentCode);
+
+            var lblPass = new Label
+            {
+                Text = "Mật khẩu (mặc định: 123456):",
+                ForeColor = Color.FromArgb(228, 228, 231),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Location = new Point(15, 68),
                 AutoSize = true
             };
 
-            if (System.IO.File.Exists("ictu_logo.png"))
+            // Khung gộp chung ô nhập mật khẩu và biểu tượng con mắt vào cùng 1 ô liền mạch
+            var pnlPasswordWrapper = new Panel
             {
-                var picLogo = new PictureBox
+                Location = new Point(15, 91),
+                Size = new Size(410, 29),
+                BackColor = Color.FromArgb(28, 28, 34)
+            };
+            pnlPasswordWrapper.Paint += (s, e) =>
+            {
+                using var pen = new Pen(Color.FromArgb(100, 100, 110), 1);
+                e.Graphics.DrawRectangle(pen, 0, 0, pnlPasswordWrapper.Width - 1, pnlPasswordWrapper.Height - 1);
+            };
+
+            txtPassword = new TextBox
+            {
+                Text = "123456",
+                Location = new Point(6, 5),
+                Width = 362,
+                BackColor = Color.FromArgb(28, 28, 34),
+                ForeColor = Color.White,
+                BorderStyle = BorderStyle.None,
+                UseSystemPasswordChar = true,
+                Font = new Font("Segoe UI", 10.5F, FontStyle.Regular)
+            };
+
+            btnTogglePassword = new Button
+            {
+                Text = "",
+                Location = new Point(372, 1),
+                Size = new Size(37, 27),
+                BackColor = Color.FromArgb(28, 28, 34),
+                ForeColor = Color.FromArgb(161, 161, 170),
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand,
+                TabStop = false
+            };
+            btnTogglePassword.FlatAppearance.BorderSize = 0;
+            btnTogglePassword.FlatAppearance.MouseOverBackColor = Color.FromArgb(28, 28, 34);
+            btnTogglePassword.FlatAppearance.MouseDownBackColor = Color.FromArgb(28, 28, 34);
+            btnTogglePassword.Paint += (s, e) =>
+            {
+                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                var col = _isPasswordVisible ? Color.FromArgb(79, 143, 247) : Color.FromArgb(161, 161, 170);
+                using var pen = new Pen(col, 1.6f);
+                using var brush = new SolidBrush(col);
+                int cx = btnTogglePassword.Width / 2;
+                int cy = btnTogglePassword.Height / 2;
+
+                // Vẽ viền con mắt
+                Point[] eyeOutline =
                 {
-                    Image = Image.FromFile("ictu_logo.png"),
-                    SizeMode = PictureBoxSizeMode.Zoom,
-                    Size = new Size(58, 58),
-                    Location = new Point(16, 14),
-                    BackColor = Color.Transparent
+                    new Point(cx - 10, cy),
+                    new Point(cx - 5, cy - 5),
+                    new Point(cx, cy - 6),
+                    new Point(cx + 5, cy - 5),
+                    new Point(cx + 10, cy),
+                    new Point(cx + 5, cy + 5),
+                    new Point(cx, cy + 6),
+                    new Point(cx - 5, cy + 5)
                 };
-                pnlHeader.Controls.Add(picLogo);
-            }
-            else
-            {
-                lblLogo.Location = new Point(20, 18);
-                lblSub.Location = new Point(20, 50);
-            }
+                e.Graphics.DrawPolygon(pen, eyeOutline);
+                // Con ngươi
+                e.Graphics.FillEllipse(brush, cx - 3, cy - 3, 6, 6);
 
-            pnlHeader.Controls.Add(lblLogo);
-            pnlHeader.Controls.Add(lblSub);
-
-            // SSO Buttons
-            var lblSso = new Label { Text = "Đăng Nhập Nhanh Qua Cổng Trường:", Location = new Point(45, 105), AutoSize = true, Font = new Font("Segoe UI", 8.5F, FontStyle.Bold), ForeColor = Color.FromArgb(71, 85, 105) };
-            
-            btnMockGoogle = new Button
-            {
-                Text = "G Google Workspace (ictu.edu.vn)",
-                Location = new Point(45, 128),
-                Width = 215,
-                Height = 36,
-                BackColor = Color.White,
-                ForeColor = Color.FromArgb(217, 48, 37),
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 8F, FontStyle.Bold)
+                // Đường gạch chéo khi đang hiện mật khẩu (nhấn để ẩn lại)
+                if (_isPasswordVisible)
+                {
+                    e.Graphics.DrawLine(pen, cx - 8, cy + 7, cx + 8, cy - 7);
+                }
             };
-            btnMockGoogle.FlatAppearance.BorderColor = Color.FromArgb(226, 232, 240);
-            btnMockGoogle.Click += (s, e) =>
+            btnTogglePassword.Click += (s, e) =>
             {
-                txtEmailOrCode.Text = "dtc205122001@ictu.edu.vn";
-                txtStudentName.Text = "Nguyễn Văn An";
+                _isPasswordVisible = !_isPasswordVisible;
+                txtPassword.UseSystemPasswordChar = !_isPasswordVisible;
+                btnTogglePassword.Invalidate();
+                txtPassword.Focus();
+                txtPassword.SelectionStart = txtPassword.Text.Length;
             };
 
-            btnMockMicrosoft = new Button
+            pnlPasswordWrapper.Controls.Add(txtPassword);
+            pnlPasswordWrapper.Controls.Add(btnTogglePassword);
+
+            // Dòng nhỏ bên dưới ô nhập mật khẩu cho sinh viên quên mật khẩu bấm vào lấy lại mật khẩu ngẫu nhiên
+            var lblForgotPassword = new Label
             {
-                Text = " Microsoft 365 (ms.ictu.edu.vn)",
-                Location = new Point(270, 128),
-                Width = 215,
-                Height = 36,
-                BackColor = Color.White,
-                ForeColor = Color.FromArgb(0, 120, 212),
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 8F, FontStyle.Bold)
+                Text = "Quên mật khẩu? Bấm vào đây để lấy lại mật khẩu",
+                ForeColor = Color.FromArgb(79, 143, 247),
+                Font = new Font("Segoe UI", 8.25F, FontStyle.Underline),
+                Location = new Point(15, 123),
+                Size = new Size(410, 18),
+                TextAlign = ContentAlignment.MiddleRight,
+                Cursor = Cursors.Hand
             };
-            btnMockMicrosoft.FlatAppearance.BorderColor = Color.FromArgb(226, 232, 240);
-            btnMockMicrosoft.Click += (s, e) =>
+            lblForgotPassword.Click += (s, e) => ShowForgotPasswordDialog();
+
+            // Nút chọn nhanh MSV mẫu
+            var btnDemo1 = CreateQuickCodeButton("DTC235210069 (Kiên)", new Point(15, 146), "DTC235210069");
+            var btnDemo2 = CreateQuickCodeButton("DTC205122001 (An)", new Point(156, 146), "DTC205122001");
+            var btnDemo3 = CreateQuickCodeButton("DTC205122002 (Bình)", new Point(290, 146), "DTC205122002");
+
+            lblError = new Label
             {
-                txtEmailOrCode.Text = "dtc205122002@ms.ictu.edu.vn";
-                txtStudentName.Text = "Trần Thị Bình";
-            };
-
-            // Form inputs
-            var lblCode = new Label { Text = "Email Trường / Mã Sinh Viên:", Location = new Point(45, 180), AutoSize = true, Font = new Font("Segoe UI", 9F, FontStyle.Bold) };
-            txtEmailOrCode = new TextBox { Text = "dtc205122001@ictu.edu.vn", Location = new Point(45, 205), Width = 440, Height = 32 };
-            txtEmailOrCode.TextChanged += TxtEmailOrCode_TextChanged;
-
-            lblProviderDetect = new Label
-            {
-                Text = "✓ Nhận diện: Google Workspace ICTU",
-                ForeColor = Color.FromArgb(16, 185, 129),
-                Location = new Point(45, 240),
-                AutoSize = true,
-                Font = new Font("Segoe UI", 8F, FontStyle.Bold)
-            };
-
-            var lblName = new Label { Text = "Họ và Tên Sinh Viên:", Location = new Point(45, 268), AutoSize = true, Font = new Font("Segoe UI", 9F, FontStyle.Bold) };
-            txtStudentName = new TextBox { Text = "Nguyễn Văn An", Location = new Point(45, 292), Width = 440, Height = 32 };
-
-            var lblAccess = new Label { Text = "Mã Phòng Thi (Access Code):", Location = new Point(45, 335), AutoSize = true, Font = new Font("Segoe UI", 9F, FontStyle.Bold) };
-            txtAccessCode = new TextBox { Text = "ICTU2026", Location = new Point(45, 360), Width = 440, Height = 32, Font = new Font("Segoe UI", 10F, FontStyle.Bold) };
-
-            lblStatus = new Label
-            {
-                Text = "Chế độ giám sát quy chế thi ICTU: Khóa chuyển ứng dụng, giám sát toàn màn hình.",
-                ForeColor = Color.FromArgb(100, 116, 139),
-                Location = new Point(45, 405),
-                Width = 440,
-                Height = 35,
-                Font = new Font("Segoe UI", 8F)
+                Text = "",
+                ForeColor = Color.FromArgb(248, 113, 113),
+                Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
+                Location = new Point(15, 174),
+                Size = new Size(410, 20),
+                TextAlign = ContentAlignment.MiddleLeft
             };
 
             btnLogin = new Button
             {
-                Text = "VÀO PHÒNG THI AN TOÀN (SAFE EXAM)",
-                Location = new Point(45, 450),
-                Width = 440,
-                Height = 48,
-                BackColor = Color.FromArgb(0, 74, 153), // ICTU Blue
+                Text = "Đăng nhập hệ thống",
+                Location = new Point(15, 198),
+                Size = new Size(410, 40),
+                BackColor = Color.FromArgb(37, 99, 235),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                Cursor = Cursors.Hand
             };
             btnLogin.FlatAppearance.BorderSize = 0;
             btnLogin.Click += BtnLogin_Click;
 
-            this.Controls.Add(pnlHeader);
-            this.Controls.Add(lblSso);
-            this.Controls.Add(btnMockGoogle);
-            this.Controls.Add(btnMockMicrosoft);
-            this.Controls.Add(lblCode);
-            this.Controls.Add(txtEmailOrCode);
-            this.Controls.Add(lblProviderDetect);
-            this.Controls.Add(lblName);
-            this.Controls.Add(txtStudentName);
-            this.Controls.Add(lblAccess);
-            this.Controls.Add(txtAccessCode);
-            this.Controls.Add(lblStatus);
-            this.Controls.Add(btnLogin);
+            this.AcceptButton = btnLogin;
+
+            pnlStudentLogin.Controls.Add(lblCode);
+            pnlStudentLogin.Controls.Add(pnlCodeWrapper);
+            pnlStudentLogin.Controls.Add(lblPass);
+            pnlStudentLogin.Controls.Add(pnlPasswordWrapper);
+            pnlStudentLogin.Controls.Add(lblForgotPassword);
+            pnlStudentLogin.Controls.Add(btnDemo1);
+            pnlStudentLogin.Controls.Add(btnDemo2);
+            pnlStudentLogin.Controls.Add(btnDemo3);
+            pnlStudentLogin.Controls.Add(lblError);
+            pnlStudentLogin.Controls.Add(btnLogin);
+
+            pnlCard.Controls.Add(pnlStudentLogin);
+            this.Controls.Add(pnlCard);
         }
 
-        private void TxtEmailOrCode_TextChanged(object? sender, EventArgs e)
+        private Button CreateQuickCodeButton(string label, Point location, string studentCode)
         {
-            var text = txtEmailOrCode.Text.Trim().ToLower();
-            if (text.EndsWith("@ms.ictu.edu.vn"))
+            var btn = new Button
             {
-                lblProviderDetect.Text = "✓ Nhận diện: Microsoft 365 ICTU (@ms.ictu.edu.vn)";
-                lblProviderDetect.ForeColor = Color.FromArgb(0, 120, 212);
-            }
-            else if (text.EndsWith("@ictu.edu.vn"))
+                Text = label,
+                Location = location,
+                Size = new Size(135, 24),
+                BackColor = Color.FromArgb(24, 24, 29),
+                ForeColor = Color.FromArgb(161, 161, 170),
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 7.75F, FontStyle.Regular),
+                Cursor = Cursors.Hand
+            };
+            btn.FlatAppearance.BorderColor = Color.FromArgb(46, 46, 52);
+            btn.Click += (s, e) =>
             {
-                lblProviderDetect.Text = "✓ Nhận diện: Google Workspace ICTU (@ictu.edu.vn)";
-                lblProviderDetect.ForeColor = Color.FromArgb(16, 185, 129);
-            }
-            else
+                txtStudentCode.Text = studentCode;
+                txtPassword.Text = GetExpectedPassword(studentCode);
+                lblError.Text = "";
+            };
+            return btn;
+        }
+
+        private static string GetExpectedPassword(string studentCode)
+        {
+            try
             {
-                lblProviderDetect.Text = "• Nhập mã SV hoặc email trường ICTU";
-                lblProviderDetect.ForeColor = Color.FromArgb(100, 116, 139);
+                string filePath = Path.Combine(Path.GetTempPath(), "ICTU_Student_Passwords.json");
+                if (File.Exists(filePath))
+                {
+                    string raw = File.ReadAllText(filePath);
+                    var map = JsonSerializer.Deserialize<Dictionary<string, string>>(raw);
+                    if (map != null && map.TryGetValue(studentCode.Trim().ToUpperInvariant(), out var savedPwd) && !string.IsNullOrEmpty(savedPwd))
+                    {
+                        return savedPwd;
+                    }
+                }
             }
+            catch { }
+            return "123456";
+        }
+
+        private static void SaveExpectedPassword(string studentCode, string newPassword)
+        {
+            try
+            {
+                string filePath = Path.Combine(Path.GetTempPath(), "ICTU_Student_Passwords.json");
+                Dictionary<string, string> map = new(StringComparer.OrdinalIgnoreCase);
+                if (File.Exists(filePath))
+                {
+                    string raw = File.ReadAllText(filePath);
+                    var existing = JsonSerializer.Deserialize<Dictionary<string, string>>(raw);
+                    if (existing != null)
+                    {
+                        foreach (var kv in existing) map[kv.Key] = kv.Value;
+                    }
+                }
+                map[studentCode.Trim().ToUpperInvariant()] = newPassword.Trim();
+                File.WriteAllText(filePath, JsonSerializer.Serialize(map));
+            }
+            catch { }
+        }
+
+        private static string GenerateRandomNonDefaultPassword(string previousPwd)
+        {
+            const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+            var rng = new Random();
+            string result;
+            do
+            {
+                var buffer = new char[6];
+                for (int i = 0; i < buffer.Length; i++)
+                {
+                    buffer[i] = chars[rng.Next(chars.Length)];
+                }
+                result = new string(buffer);
+            } while (result == "123456" || string.Equals(result, previousPwd, StringComparison.OrdinalIgnoreCase));
+            return result;
+        }
+
+        private void ShowForgotPasswordDialog()
+        {
+            using var dlg = new Form
+            {
+                Text = "Khôi phục mật khẩu sinh viên",
+                Size = new Size(440, 310),
+                StartPosition = FormStartPosition.CenterParent,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false,
+                MinimizeBox = false,
+                BackColor = Color.FromArgb(18, 18, 20),
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 9.25F)
+            };
+
+            var lblInfo = new Label
+            {
+                Text = "Xác minh Mã sinh viên (MSV) và Họ tên để cấp lại mật khẩu ngẫu nhiên mới (không trùng mật khẩu mặc định 123456):",
+                ForeColor = Color.FromArgb(212, 212, 216),
+                Location = new Point(22, 16),
+                Size = new Size(380, 38)
+            };
+
+            var lblCode = new Label
+            {
+                Text = "Mã sinh viên (MSV):",
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Location = new Point(22, 60),
+                AutoSize = true
+            };
+
+            var txtVerifyCode = new TextBox
+            {
+                Text = txtStudentCode.Text.Trim(),
+                Location = new Point(22, 82),
+                Width = 380,
+                BackColor = Color.FromArgb(28, 28, 34),
+                ForeColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle
+            };
+
+            var lblName = new Label
+            {
+                Text = "Họ và tên sinh viên (Xác minh danh tính):",
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Location = new Point(22, 118),
+                AutoSize = true
+            };
+
+            var txtVerifyName = new TextBox
+            {
+                Text = "",
+                PlaceholderText = "Nhập Họ và tên (VD: Phạm Hồng Ngọc Kiên)",
+                Location = new Point(22, 140),
+                Width = 380,
+                BackColor = Color.FromArgb(28, 28, 34),
+                ForeColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle
+            };
+
+            var lblResult = new Label
+            {
+                Text = "",
+                ForeColor = Color.FromArgb(52, 211, 153),
+                Font = new Font("Segoe UI", 8.75F, FontStyle.Bold),
+                Location = new Point(22, 174),
+                Size = new Size(380, 38)
+            };
+
+            var btnVerify = new Button
+            {
+                Text = "Xác minh && Cấp mật khẩu ngẫu nhiên",
+                Location = new Point(22, 218),
+                Size = new Size(380, 36),
+                BackColor = Color.FromArgb(37, 99, 235),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+            btnVerify.FlatAppearance.BorderSize = 0;
+
+            btnVerify.Click += (s, e) =>
+            {
+                string code = txtVerifyCode.Text.Trim().ToUpperInvariant();
+                string nameInput = txtVerifyName.Text.Trim();
+
+                if (string.IsNullOrEmpty(code) || string.IsNullOrEmpty(nameInput))
+                {
+                    lblResult.ForeColor = Color.FromArgb(248, 113, 113);
+                    lblResult.Text = "⚠ Vui lòng nhập đầy đủ Mã sinh viên và Họ tên để xác minh!";
+                    return;
+                }
+
+                if (_knownStudents.TryGetValue(code, out var expectedName))
+                {
+                    if (nameInput.Length < 2 || (!expectedName.Contains(nameInput, StringComparison.OrdinalIgnoreCase) && !nameInput.Contains(expectedName, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        lblResult.ForeColor = Color.FromArgb(248, 113, 113);
+                        lblResult.Text = $"⚠ Họ tên xác minh không khớp với {code} (Đúng: {expectedName})!";
+                        return;
+                    }
+                }
+
+                string oldPwd = GetExpectedPassword(code);
+                string newRandomPwd = GenerateRandomNonDefaultPassword(oldPwd);
+                SaveExpectedPassword(code, newRandomPwd);
+
+                txtStudentCode.Text = code;
+                txtPassword.Text = newRandomPwd;
+                lblError.ForeColor = Color.FromArgb(52, 211, 153);
+                lblError.Text = $"✓ Mật khẩu mới của {code}: {newRandomPwd} (Đã tự động điền)";
+
+                MessageBox.Show(
+                    $"Xác minh danh tính thành công!\n\nMã sinh viên: {code}\nMật khẩu ngẫu nhiên mới của bạn là: {newRandomPwd}\n\n(Hệ thống đã tự động điền mật khẩu mới vào ô đăng nhập cho bạn)",
+                    "Cấp lại mật khẩu thành công",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+
+                dlg.Close();
+            };
+
+            dlg.Controls.Add(lblInfo);
+            dlg.Controls.Add(lblCode);
+            dlg.Controls.Add(txtVerifyCode);
+            dlg.Controls.Add(lblName);
+            dlg.Controls.Add(txtVerifyName);
+            dlg.Controls.Add(lblResult);
+            dlg.Controls.Add(btnVerify);
+            dlg.ShowDialog(this);
+        }
+
+        private void TryLoadIctuLogo(PictureBox pic)
+        {
+            try
+            {
+                string[] candidatePaths =
+                {
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "backend_api", "wwwroot", "images", "ictu_logo.png"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wwwroot", "images", "ictu_logo.png"),
+                    @"c:\Users\APlaptop\source\repos\ICTU-Assessment-System\backend_api\wwwroot\images\ictu_logo.png"
+                };
+
+                foreach (var p in candidatePaths)
+                {
+                    if (File.Exists(p))
+                    {
+                        pic.Image = Image.FromFile(p);
+                        return;
+                    }
+                }
+            }
+            catch
+            {
+            }
+
+            pic.Paint += (s, e) =>
+            {
+                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                using var brush = new SolidBrush(Color.FromArgb(0, 102, 204));
+                e.Graphics.FillEllipse(brush, 2, 2, 38, 38);
+                using var font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+                e.Graphics.DrawString("ICTU", font, Brushes.White, new PointF(6, 12));
+            };
         }
 
         private async void BtnLogin_Click(object? sender, EventArgs e)
         {
-            var input = txtEmailOrCode.Text.Trim();
-            var studentName = txtStudentName.Text.Trim();
-            var accessCode = txtAccessCode.Text.Trim();
+            var rawCode = txtStudentCode.Text.Trim();
+            var password = txtPassword.Text.Trim();
 
-            if (string.IsNullOrEmpty(input) || string.IsNullOrEmpty(studentName))
+            if (string.IsNullOrEmpty(rawCode))
             {
-                MessageBox.Show("Vui lòng nhập đầy đủ Email/Mã SV và Họ tên.", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                lblError.Text = "⚠ Vui lòng nhập Mã sinh viên (MSV)!";
                 return;
             }
 
-            // Extract pure StudentCode from email or string
-            string studentCode = input;
-            if (studentCode.Contains("@"))
+            string studentCode = rawCode.Contains("@") ? rawCode.Split('@')[0].ToUpper() : rawCode.ToUpper();
+            string expectedPassword = GetExpectedPassword(studentCode);
+
+            if (password != expectedPassword)
             {
-                studentCode = studentCode.Split('@')[0].ToUpper();
+                lblError.Text = expectedPassword == "123456"
+                    ? "⚠ Sai mật khẩu! Mật khẩu mặc định của sinh viên là: 123456"
+                    : "⚠ Sai mật khẩu! Vui lòng nhập đúng mật khẩu mới bạn đã đổi.";
+                return;
             }
-            else
-            {
-                studentCode = studentCode.ToUpper();
-            }
+            string studentName = _knownStudents.TryGetValue(studentCode, out var name) ? name : $"Sinh viên {studentCode}";
+            string studentEmail = $"{studentCode.ToLower()}@student.edu.vn";
 
             btnLogin.Enabled = false;
-            lblStatus.Text = "Đang kết nối API và lấy dữ liệu đề thi...";
-            lblStatus.ForeColor = Color.FromArgb(79, 70, 229);
+            btnLogin.Text = "Đang đăng nhập...";
+            lblError.ForeColor = Color.FromArgb(96, 165, 250);
+            lblError.Text = "Đang xác thực tài khoản sinh viên và mở cổng học tập...";
 
-            var startRes = await _api.StartExamAsync(1, studentCode, studentName, accessCode);
-            if (startRes != null && startRes.Success)
+            if (_useLegacy)
             {
-                lblStatus.Text = "Vào thi thành công! Đang kích hoạt môi trường thi chống gian lận...";
-                this.Hide();
+                var startRes = await _api.StartExamAsync(1, studentCode, studentName, "ICTU2026");
+                if (startRes != null && startRes.Success)
+                {
+                    this.Hide();
+                    var examForm = new ExamForm(_api, startRes, studentCode, studentName);
+                    examForm.FormClosed += (s, args) => this.Close();
+                    examForm.Show();
+                }
+                else
+                {
+                    lblError.ForeColor = Color.FromArgb(248, 113, 113);
+                    lblError.Text = "Không thể kết nối máy chủ khảo thí.";
+                    btnLogin.Enabled = true;
+                    btnLogin.Text = "Đăng nhập hệ thống";
+                }
+                return;
+            }
 
-                var examForm = new ExamForm(_api, startRes, studentCode, studentName);
-                examForm.FormClosed += (s, args) => this.Close();
-                examForm.Show();
-            }
-            else
-            {
-                lblStatus.Text = "Không thể vào phòng thi. Kiểm tra máy chủ hoặc mã phòng thi.";
-                lblStatus.ForeColor = Color.FromArgb(225, 29, 72);
-                btnLogin.Enabled = true;
-            }
+            await _api.LoginStudentAsync(studentCode, studentName);
+
+            string separator = _serverUrl.Contains("?") ? "&" : "?";
+            string portalUrl = $"{_serverUrl}{separator}studentCode={Uri.EscapeDataString(studentCode)}&studentName={Uri.EscapeDataString(studentName)}&studentEmail={Uri.EscapeDataString(studentEmail)}&syncPwd={Uri.EscapeDataString(expectedPassword)}&loggedIn=1&_t={DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}";
+
+            this.Hide();
+            var kioskForm = new ExamKioskForm(portalUrl, studentCode, studentName);
+            kioskForm.FormClosed += (s, args) => this.Close();
+            kioskForm.Show();
         }
     }
 }

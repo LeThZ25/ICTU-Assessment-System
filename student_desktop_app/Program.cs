@@ -25,14 +25,8 @@ namespace student_desktop_app
                 }
             }
 
-            if (useLegacy)
-            {
-                Application.Run(new LoginForm());
-            }
-            else
-            {
-                Application.Run(new ExamKioskForm(serverUrl));
-            }
-        }    
+            // Luôn mở giao diện Đăng nhập (LoginForm) trước tiên khi khởi chạy chương trình
+            Application.Run(new LoginForm(serverUrl, useLegacy));
+        }
     }
 }
