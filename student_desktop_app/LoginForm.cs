@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Windows.Forms;
 
@@ -10,15 +11,21 @@ namespace student_desktop_app
 {
     public class LoginForm : Form
     {
+        private const int EM_SETCUEBANNER = 0x1501;
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, string lParam);
+
         private Panel pnlCard = null!;
         private Panel pnlStudentLogin = null!;
-        private Label lblSubtitle = null!;
         private TextBox txtStudentCode = null!;
         private TextBox txtPassword = null!;
-        private Button btnTogglePassword = null!;
+        private Panel btnTogglePassword = null!;
         private bool _isPasswordVisible = false;
+        private bool _isLoginBtnHovered = false;
+        private string _loginBtnText = "Đăng nhập hệ thống";
         private Label lblError = null!;
-        private Button btnLogin = null!;
+        private Panel btnLogin = null!;
 
         private readonly ApiClient _api;
         private readonly string _serverUrl;
@@ -41,26 +48,50 @@ namespace student_desktop_app
             InitializeComponent();
         }
 
+        private static GraphicsPath CreateRoundedPath(Rectangle rect, int radius)
+        {
+            var path = new GraphicsPath();
+            int d = radius * 2;
+            path.AddArc(rect.X, rect.Y, d, d, 180, 90);
+            path.AddArc(rect.Right - d, rect.Y, d, d, 270, 90);
+            path.AddArc(rect.Right - d, rect.Bottom - d, d, d, 0, 90);
+            path.AddArc(rect.X, rect.Bottom - d, d, d, 90, 90);
+            path.CloseFigure();
+            return path;
+        }
+
         private void InitializeComponent()
         {
             this.Text = "Đăng nhập hệ thống";
-            this.Size = new Size(760, 520);
+            this.Size = new Size(780, 540);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
             this.MaximizeBox = false;
-            this.BackColor = Color.FromArgb(24, 24, 29); // #18181d dark background
+            this.BackColor = Color.FromArgb(24, 24, 27); // #18181b dark background
             this.Font = new Font("Segoe UI", 9.5F, FontStyle.Regular, GraphicsUnit.Point);
+            this.DoubleBuffered = true;
+
+            Color cardBg = Color.FromArgb(18, 18, 20);     // #121214
+            Color cardBorder = Color.FromArgb(39, 39, 42); // #27272a
+            Color inputBg = Color.FromArgb(24, 24, 27);    // #18181b
+            Color inputBorder = Color.FromArgb(46, 46, 50);// #2e2e32
+            Color accentBlue = Color.FromArgb(79, 143, 247);// #4f8ff7
 
             pnlCard = new Panel
             {
-                Size = new Size(490, 415),
-                Location = new Point((this.ClientSize.Width - 490) / 2, (this.ClientSize.Height - 415) / 2),
-                BackColor = Color.FromArgb(18, 18, 20) // #121214 card
+                Size = new Size(460, 410),
+                Location = new Point((this.ClientSize.Width - 460) / 2, (this.ClientSize.Height - 410) / 2),
+                BackColor = Color.Transparent
             };
             pnlCard.Paint += (s, e) =>
             {
-                using var pen = new Pen(Color.FromArgb(42, 42, 46), 1);
-                e.Graphics.DrawRectangle(pen, 0, 0, pnlCard.Width - 1, pnlCard.Height - 1);
+                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                var rect = new Rectangle(0, 0, pnlCard.Width - 1, pnlCard.Height - 1);
+                using var path = CreateRoundedPath(rect, 16);
+                using var brush = new SolidBrush(cardBg);
+                using var pen = new Pen(cardBorder, 1f);
+                e.Graphics.FillPath(brush, path);
+                e.Graphics.DrawPath(pen, path);
             };
             this.Resize += (s, e) =>
             {
@@ -70,10 +101,10 @@ namespace student_desktop_app
             // Top ICTU Logo / Icon
             var picLogo = new PictureBox
             {
-                Size = new Size(44, 44),
-                Location = new Point((pnlCard.Width - 44) / 2, 24),
+                Size = new Size(48, 48),
+                Location = new Point((pnlCard.Width - 48) / 2, 28),
                 SizeMode = PictureBoxSizeMode.Zoom,
-                BackColor = Color.Transparent
+                BackColor = cardBg
             };
             TryLoadIctuLogo(picLogo);
 
@@ -81,151 +112,250 @@ namespace student_desktop_app
             {
                 Text = "Đăng nhập hệ thống",
                 ForeColor = Color.White,
-                Font = new Font("Segoe UI", 18F, FontStyle.Bold, GraphicsUnit.Point),
+                BackColor = cardBg,
+                Font = new Font("Segoe UI", 18.5F, FontStyle.Bold, GraphicsUnit.Point),
                 AutoSize = false,
-                Size = new Size(pnlCard.Width, 38),
-                Location = new Point(0, 74),
-                TextAlign = ContentAlignment.MiddleCenter
-            };
-
-            lblSubtitle = new Label
-            {
-                Text = "Nhập Mã sinh viên (MSV) và mật khẩu (mặc định: 123456)",
-                ForeColor = Color.FromArgb(161, 161, 170),
-                Font = new Font("Segoe UI", 9.5F, FontStyle.Regular, GraphicsUnit.Point),
-                AutoSize = false,
-                Size = new Size(pnlCard.Width, 24),
-                Location = new Point(0, 114),
+                Size = new Size(pnlCard.Width - 4, 38),
+                Location = new Point(2, 84),
                 TextAlign = ContentAlignment.MiddleCenter
             };
 
             pnlCard.Controls.Add(picLogo);
             pnlCard.Controls.Add(lblTitle);
-            pnlCard.Controls.Add(lblSubtitle);
 
             // =================================================================
-            // FORM NHẬP TRỰC TIẾP MÃ SINH VIÊN (MSV) & MẬT KHẨU (MẶC ĐỊNH 123456)
+            // FORM NHẬP MÃ SINH VIÊN (MSV) & MẬT KHẨU (MẶC ĐỊNH 123456)
             // =================================================================
             pnlStudentLogin = new Panel
             {
-                Size = new Size(440, 255),
-                Location = new Point(25, 145),
-                BackColor = Color.Transparent,
+                Size = new Size(400, 265),
+                Location = new Point(30, 132),
+                BackColor = cardBg,
                 Visible = true
             };
 
-            var lblCode = new Label
+            // 1. Nhãn Mã sinh viên (MSV) kèm icon thẻ xanh giống ảnh 1
+            var pnlCodeHeader = new Panel
             {
-                Text = "Mã sinh viên (MSV):",
-                ForeColor = Color.FromArgb(228, 228, 231),
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                Location = new Point(15, 4),
-                AutoSize = true
+                Location = new Point(2, 0),
+                Size = new Size(396, 22),
+                BackColor = cardBg
+            };
+            pnlCodeHeader.Paint += (s, e) =>
+            {
+                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                e.Graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+                using var iconBrush = new SolidBrush(accentBlue);
+                using var darkPen = new Pen(cardBg, 1.3f);
+                // Vẽ icon thẻ sinh viên (fa-id-card)
+                using (var badgePath = CreateRoundedPath(new Rectangle(1, 4, 15, 11), 2))
+                {
+                    e.Graphics.FillPath(iconBrush, badgePath);
+                }
+                e.Graphics.FillEllipse(new SolidBrush(cardBg), 3, 6, 4, 4);
+                e.Graphics.DrawLine(darkPen, 9, 7, 14, 7);
+                e.Graphics.DrawLine(darkPen, 9, 11, 13, 11);
+
+                using var fLabel = new Font("Segoe UI", 9F, FontStyle.Bold);
+                using var textBrush = new SolidBrush(Color.FromArgb(212, 212, 216));
+                e.Graphics.DrawString("Mã sinh viên (MSV)", fLabel, textBrush, new PointF(21, 1));
             };
 
             var pnlCodeWrapper = new Panel
             {
-                Location = new Point(15, 27),
-                Size = new Size(410, 29),
-                BackColor = Color.FromArgb(28, 28, 34),
+                Location = new Point(2, 24),
+                Size = new Size(396, 40),
+                BackColor = cardBg,
                 Cursor = Cursors.IBeam
             };
             pnlCodeWrapper.Paint += (s, e) =>
             {
-                using var pen = new Pen(Color.FromArgb(100, 100, 110), 1);
-                e.Graphics.DrawRectangle(pen, 0, 0, pnlCodeWrapper.Width - 1, pnlCodeWrapper.Height - 1);
+                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                var rect = new Rectangle(0, 0, pnlCodeWrapper.Width - 1, pnlCodeWrapper.Height - 1);
+                using var path = CreateRoundedPath(rect, 10);
+                using var fill = new SolidBrush(inputBg);
+                bool focused = txtStudentCode != null && txtStudentCode.Focused;
+                using var pen = new Pen(focused ? accentBlue : inputBorder, focused ? 1.4f : 1f);
+                e.Graphics.FillPath(fill, path);
+                e.Graphics.DrawPath(pen, path);
             };
             pnlCodeWrapper.Click += (s, e) => txtStudentCode.Focus();
 
             txtStudentCode = new TextBox
             {
-                Text = "DTC235210069",
-                Location = new Point(6, 5),
-                Width = 398,
-                BackColor = Color.FromArgb(28, 28, 34),
+                Text = "",
+                Location = new Point(12, 10),
+                Width = 372,
+                BackColor = inputBg,
                 ForeColor = Color.White,
                 BorderStyle = BorderStyle.None,
-                Font = new Font("Segoe UI", 10.5F, FontStyle.Regular)
+                Font = new Font("Segoe UI", 10F, FontStyle.Regular)
             };
+            var lblCodePlaceholder = new Label
+            {
+                Text = "Nhập MSV",
+                Location = new Point(10, 10),
+                AutoSize = true,
+                BackColor = inputBg,
+                ForeColor = Color.FromArgb(113, 113, 122),
+                Font = new Font("Segoe UI", 10F, FontStyle.Regular),
+                Cursor = Cursors.IBeam
+            };
+            lblCodePlaceholder.Click += (s, e) => txtStudentCode.Focus();
+
+            void SyncCodePlaceholder()
+            {
+                lblCodePlaceholder.Visible = string.IsNullOrEmpty(txtStudentCode.Text) && !txtStudentCode.Focused;
+                pnlCodeWrapper.Invalidate();
+            }
+            txtStudentCode.GotFocus += (s, e) => SyncCodePlaceholder();
+            txtStudentCode.LostFocus += (s, e) => SyncCodePlaceholder();
+            txtStudentCode.TextChanged += (s, e) => SyncCodePlaceholder();
+            txtStudentCode.KeyDown += (s, e) =>
+            {
+                if (e.KeyCode == Keys.Enter)
+                {
+                    e.SuppressKeyPress = true;
+                    BtnLogin_Click(btnLogin, EventArgs.Empty);
+                }
+            };
+            pnlCodeWrapper.Controls.Add(lblCodePlaceholder);
             pnlCodeWrapper.Controls.Add(txtStudentCode);
 
-            var lblPass = new Label
+            // 2. Nhãn Mật khẩu (trái: icon khóa xanh + Mật khẩu | phải: Mật khẩu mặc định: 123456)
+            var pnlPassHeader = new Panel
             {
-                Text = "Mật khẩu (mặc định: 123456):",
-                ForeColor = Color.FromArgb(228, 228, 231),
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                Location = new Point(15, 68),
-                AutoSize = true
+                Location = new Point(2, 78),
+                Size = new Size(396, 22),
+                BackColor = cardBg
+            };
+            pnlPassHeader.Paint += (s, e) =>
+            {
+                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                e.Graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+                using var iconBrush = new SolidBrush(accentBlue);
+                using var iconPen = new Pen(accentBlue, 1.6f);
+                // Vẽ icon ổ khóa (fa-lock)
+                e.Graphics.DrawArc(iconPen, 4, 3, 7, 7, 180, 180);
+                using (var lockBody = CreateRoundedPath(new Rectangle(2, 8, 11, 8), 2))
+                {
+                    e.Graphics.FillPath(iconBrush, lockBody);
+                }
+
+                using var fLabel = new Font("Segoe UI", 9F, FontStyle.Bold);
+                using var textBrush = new SolidBrush(Color.FromArgb(212, 212, 216));
+                e.Graphics.DrawString("Mật khẩu", fLabel, textBrush, new PointF(19, 1));
+
+                // Bên phải: Mật khẩu mặc định: 123456
+                using var fRightReg = new Font("Segoe UI", 8.5F, FontStyle.Regular);
+                using var fRightBold = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+                using var mutedBrush = new SolidBrush(Color.FromArgb(161, 161, 170));
+                string prefix = "Mật khẩu mặc định: ";
+                string code = "123456";
+                SizeF codeSize = e.Graphics.MeasureString(code, fRightBold);
+                SizeF prefixSize = e.Graphics.MeasureString(prefix, fRightReg);
+                float rightX = pnlPassHeader.Width - codeSize.Width + 2;
+                float prefixX = rightX - prefixSize.Width + 4;
+                e.Graphics.DrawString(prefix, fRightReg, mutedBrush, new PointF(prefixX, 2));
+                e.Graphics.DrawString(code, fRightBold, iconBrush, new PointF(rightX, 2));
             };
 
-            // Khung gộp chung ô nhập mật khẩu và biểu tượng con mắt vào cùng 1 ô liền mạch
+            // Khung gộp chung ô nhập mật khẩu và biểu tượng con mắt vào cùng 1 ô bo góc liền mạch
             var pnlPasswordWrapper = new Panel
             {
-                Location = new Point(15, 91),
-                Size = new Size(410, 29),
-                BackColor = Color.FromArgb(28, 28, 34)
+                Location = new Point(2, 102),
+                Size = new Size(396, 40),
+                BackColor = cardBg,
+                Cursor = Cursors.IBeam
             };
             pnlPasswordWrapper.Paint += (s, e) =>
             {
-                using var pen = new Pen(Color.FromArgb(100, 100, 110), 1);
-                e.Graphics.DrawRectangle(pen, 0, 0, pnlPasswordWrapper.Width - 1, pnlPasswordWrapper.Height - 1);
+                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                var rect = new Rectangle(0, 0, pnlPasswordWrapper.Width - 1, pnlPasswordWrapper.Height - 1);
+                using var path = CreateRoundedPath(rect, 10);
+                using var fill = new SolidBrush(inputBg);
+                bool focused = txtPassword != null && txtPassword.Focused;
+                using var pen = new Pen(focused ? accentBlue : inputBorder, focused ? 1.4f : 1f);
+                e.Graphics.FillPath(fill, path);
+                e.Graphics.DrawPath(pen, path);
             };
+            pnlPasswordWrapper.Click += (s, e) => txtPassword.Focus();
 
             txtPassword = new TextBox
             {
-                Text = "123456",
-                Location = new Point(6, 5),
-                Width = 362,
-                BackColor = Color.FromArgb(28, 28, 34),
+                Text = "",
+                Location = new Point(12, 10),
+                Width = 342,
+                BackColor = inputBg,
                 ForeColor = Color.White,
                 BorderStyle = BorderStyle.None,
                 UseSystemPasswordChar = true,
-                Font = new Font("Segoe UI", 10.5F, FontStyle.Regular)
+                Font = new Font("Segoe UI", 10F, FontStyle.Regular)
+            };
+            var lblPasswordPlaceholder = new Label
+            {
+                Text = "Nhập mật khẩu",
+                Location = new Point(10, 10),
+                AutoSize = true,
+                BackColor = inputBg,
+                ForeColor = Color.FromArgb(113, 113, 122),
+                Font = new Font("Segoe UI", 10F, FontStyle.Regular),
+                Cursor = Cursors.IBeam
+            };
+            lblPasswordPlaceholder.Click += (s, e) => txtPassword.Focus();
+
+            void SyncPasswordPlaceholder()
+            {
+                lblPasswordPlaceholder.Visible = string.IsNullOrEmpty(txtPassword.Text) && !txtPassword.Focused;
+                pnlPasswordWrapper.Invalidate();
+            }
+            txtPassword.GotFocus += (s, e) => SyncPasswordPlaceholder();
+            txtPassword.LostFocus += (s, e) => SyncPasswordPlaceholder();
+            txtPassword.TextChanged += (s, e) => SyncPasswordPlaceholder();
+            txtPassword.KeyDown += (s, e) =>
+            {
+                if (e.KeyCode == Keys.Enter)
+                {
+                    e.SuppressKeyPress = true;
+                    BtnLogin_Click(btnLogin, EventArgs.Empty);
+                }
             };
 
-            btnTogglePassword = new Button
+            btnTogglePassword = new Panel
             {
-                Text = "",
-                Location = new Point(372, 1),
-                Size = new Size(37, 27),
-                BackColor = Color.FromArgb(28, 28, 34),
-                ForeColor = Color.FromArgb(161, 161, 170),
-                FlatStyle = FlatStyle.Flat,
-                Cursor = Cursors.Hand,
-                TabStop = false
+                Location = new Point(356, 4),
+                Size = new Size(34, 32),
+                BackColor = inputBg,
+                Cursor = Cursors.Hand
             };
-            btnTogglePassword.FlatAppearance.BorderSize = 0;
-            btnTogglePassword.FlatAppearance.MouseOverBackColor = Color.FromArgb(28, 28, 34);
-            btnTogglePassword.FlatAppearance.MouseDownBackColor = Color.FromArgb(28, 28, 34);
             btnTogglePassword.Paint += (s, e) =>
             {
                 e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-                var col = _isPasswordVisible ? Color.FromArgb(79, 143, 247) : Color.FromArgb(161, 161, 170);
-                using var pen = new Pen(col, 1.6f);
+                using var clearBrush = new SolidBrush(inputBg);
+                e.Graphics.FillRectangle(clearBrush, btnTogglePassword.ClientRectangle);
+                var col = _isPasswordVisible ? accentBlue : Color.FromArgb(161, 161, 170);
+                using var pen = new Pen(col, 1.5f);
                 using var brush = new SolidBrush(col);
                 int cx = btnTogglePassword.Width / 2;
                 int cy = btnTogglePassword.Height / 2;
 
-                // Vẽ viền con mắt
                 Point[] eyeOutline =
                 {
-                    new Point(cx - 10, cy),
+                    new Point(cx - 9, cy),
                     new Point(cx - 5, cy - 5),
                     new Point(cx, cy - 6),
                     new Point(cx + 5, cy - 5),
-                    new Point(cx + 10, cy),
+                    new Point(cx + 9, cy),
                     new Point(cx + 5, cy + 5),
                     new Point(cx, cy + 6),
                     new Point(cx - 5, cy + 5)
                 };
                 e.Graphics.DrawPolygon(pen, eyeOutline);
-                // Con ngươi
-                e.Graphics.FillEllipse(brush, cx - 3, cy - 3, 6, 6);
+                e.Graphics.FillEllipse(brush, cx - 2, cy - 2, 5, 5);
 
-                // Đường gạch chéo khi đang hiện mật khẩu (nhấn để ẩn lại)
                 if (_isPasswordVisible)
                 {
-                    e.Graphics.DrawLine(pen, cx - 8, cy + 7, cx + 8, cy - 7);
+                    e.Graphics.DrawLine(pen, cx - 7, cy + 6, cx + 7, cy - 6);
                 }
             };
             btnTogglePassword.Click += (s, e) =>
@@ -237,66 +367,83 @@ namespace student_desktop_app
                 txtPassword.SelectionStart = txtPassword.Text.Length;
             };
 
+            pnlPasswordWrapper.Controls.Add(lblPasswordPlaceholder);
             pnlPasswordWrapper.Controls.Add(txtPassword);
             pnlPasswordWrapper.Controls.Add(btnTogglePassword);
 
-            // Dòng nhỏ bên dưới ô nhập mật khẩu cho sinh viên quên mật khẩu bấm vào lấy lại mật khẩu ngẫu nhiên
+            // Dòng nhỏ bên dưới ô nhập mật khẩu cho sinh viên quên mật khẩu
             var lblForgotPassword = new Label
             {
-                Text = "Quên mật khẩu? Bấm vào đây để lấy lại mật khẩu",
-                ForeColor = Color.FromArgb(79, 143, 247),
-                Font = new Font("Segoe UI", 8.25F, FontStyle.Underline),
-                Location = new Point(15, 123),
-                Size = new Size(410, 18),
+                Text = "Quên mật khẩu?",
+                ForeColor = accentBlue,
+                BackColor = cardBg,
+                Font = new Font("Segoe UI", 8.5F, FontStyle.Regular),
+                Location = new Point(2, 148),
+                Size = new Size(396, 18),
                 TextAlign = ContentAlignment.MiddleRight,
                 Cursor = Cursors.Hand
             };
+            lblForgotPassword.MouseEnter += (s, e) => lblForgotPassword.Font = new Font("Segoe UI", 8.5F, FontStyle.Underline);
+            lblForgotPassword.MouseLeave += (s, e) => lblForgotPassword.Font = new Font("Segoe UI", 8.5F, FontStyle.Regular);
             lblForgotPassword.Click += (s, e) => ShowForgotPasswordDialog();
-
-            // Nút chọn nhanh MSV mẫu
-            var btnDemo1 = CreateQuickCodeButton("DTC235210069 (Kiên)", new Point(15, 146), "DTC235210069");
-            var btnDemo2 = CreateQuickCodeButton("DTC205122001 (An)", new Point(156, 146), "DTC205122001");
-            var btnDemo3 = CreateQuickCodeButton("DTC205122002 (Bình)", new Point(290, 146), "DTC205122002");
 
             lblError = new Label
             {
                 Text = "",
                 ForeColor = Color.FromArgb(248, 113, 113),
+                BackColor = cardBg,
                 Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
-                Location = new Point(15, 174),
-                Size = new Size(410, 20),
+                Location = new Point(2, 172),
+                Size = new Size(396, 20),
                 TextAlign = ContentAlignment.MiddleLeft
             };
 
-            btnLogin = new Button
+            btnLogin = new Panel
             {
-                Text = "Đăng nhập hệ thống",
-                Location = new Point(15, 198),
-                Size = new Size(410, 40),
-                BackColor = Color.FromArgb(37, 99, 235),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                Location = new Point(2, 198),
+                Size = new Size(396, 42),
+                BackColor = cardBg,
                 Cursor = Cursors.Hand
             };
-            btnLogin.FlatAppearance.BorderSize = 0;
+            btnLogin.MouseEnter += (s, e) => { _isLoginBtnHovered = true; btnLogin.Invalidate(); };
+            btnLogin.MouseLeave += (s, e) => { _isLoginBtnHovered = false; btnLogin.Invalidate(); };
+            btnLogin.Paint += (s, e) =>
+            {
+                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                e.Graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+                using var clearBrush = new SolidBrush(cardBg);
+                e.Graphics.FillRectangle(clearBrush, btnLogin.ClientRectangle);
+
+                var rect = new Rectangle(0, 0, btnLogin.Width - 1, btnLogin.Height - 1);
+                using var path = CreateRoundedPath(rect, 11);
+                Color btnColor = _isLoginBtnHovered
+                    ? Color.FromArgb(29, 78, 216)  // #1d4ed8
+                    : Color.FromArgb(37, 99, 235); // #2563eb
+                using var fill = new SolidBrush(btnColor);
+                e.Graphics.FillPath(fill, path);
+
+                using var btnFont = new Font("Segoe UI", 9.75F, FontStyle.Bold);
+                TextRenderer.DrawText(
+                    e.Graphics,
+                    _loginBtnText,
+                    btnFont,
+                    btnLogin.ClientRectangle,
+                    Color.White,
+                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+            };
             btnLogin.Click += BtnLogin_Click;
 
-            this.AcceptButton = btnLogin;
-
-            pnlStudentLogin.Controls.Add(lblCode);
+            pnlStudentLogin.Controls.Add(pnlCodeHeader);
             pnlStudentLogin.Controls.Add(pnlCodeWrapper);
-            pnlStudentLogin.Controls.Add(lblPass);
+            pnlStudentLogin.Controls.Add(pnlPassHeader);
             pnlStudentLogin.Controls.Add(pnlPasswordWrapper);
             pnlStudentLogin.Controls.Add(lblForgotPassword);
-            pnlStudentLogin.Controls.Add(btnDemo1);
-            pnlStudentLogin.Controls.Add(btnDemo2);
-            pnlStudentLogin.Controls.Add(btnDemo3);
             pnlStudentLogin.Controls.Add(lblError);
             pnlStudentLogin.Controls.Add(btnLogin);
 
             pnlCard.Controls.Add(pnlStudentLogin);
             this.Controls.Add(pnlCard);
+            this.Shown += (s, e) => SyncCodePlaceholder();
         }
 
         private Button CreateQuickCodeButton(string label, Point location, string studentCode)
@@ -423,7 +570,7 @@ namespace student_desktop_app
 
             var lblName = new Label
             {
-                Text = "Họ và tên sinh viên (Xác minh danh tính):",
+                Text = "Họ và tên sinh viên:",
                 ForeColor = Color.White,
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                 Location = new Point(22, 118),
@@ -433,7 +580,7 @@ namespace student_desktop_app
             var txtVerifyName = new TextBox
             {
                 Text = "",
-                PlaceholderText = "Nhập Họ và tên (VD: Phạm Hồng Ngọc Kiên)",
+                PlaceholderText = "Nhập Họ và tên",
                 Location = new Point(22, 140),
                 Width = 380,
                 BackColor = Color.FromArgb(28, 28, 34),
@@ -563,16 +710,16 @@ namespace student_desktop_app
 
             if (password != expectedPassword)
             {
-                lblError.Text = expectedPassword == "123456"
-                    ? "⚠ Sai mật khẩu! Mật khẩu mặc định của sinh viên là: 123456"
-                    : "⚠ Sai mật khẩu! Vui lòng nhập đúng mật khẩu mới bạn đã đổi.";
+                lblError.ForeColor = Color.FromArgb(248, 113, 113);
+                lblError.Text = "⚠ Sai mật khẩu";
                 return;
             }
             string studentName = _knownStudents.TryGetValue(studentCode, out var name) ? name : $"Sinh viên {studentCode}";
             string studentEmail = $"{studentCode.ToLower()}@student.edu.vn";
 
             btnLogin.Enabled = false;
-            btnLogin.Text = "Đang đăng nhập...";
+            _loginBtnText = "Đang đăng nhập...";
+            btnLogin.Invalidate();
             lblError.ForeColor = Color.FromArgb(96, 165, 250);
             lblError.Text = "Đang xác thực tài khoản sinh viên và mở cổng học tập...";
 
@@ -591,7 +738,8 @@ namespace student_desktop_app
                     lblError.ForeColor = Color.FromArgb(248, 113, 113);
                     lblError.Text = "Không thể kết nối máy chủ khảo thí.";
                     btnLogin.Enabled = true;
-                    btnLogin.Text = "Đăng nhập hệ thống";
+                    _loginBtnText = "Đăng nhập hệ thống";
+                    btnLogin.Invalidate();
                 }
                 return;
             }

@@ -123,11 +123,20 @@
     body.dark-theme .bg-slate-50\/60,
     body.dark-theme .bg-slate-50\/50,
     body.dark-theme .bg-slate-50\/40,
+    body.dark-theme .bg-\[\#f0f6fc\],
+    body.dark-theme .bg-\[\#f8f9fa\],
     body.dark-theme .bg-\[\#f8fafc\],
     body.dark-theme .bg-\[\#f1f3f4\],
     body.dark-theme .bg-\[\#eef4fb\] {
       background-color: #0f172a !important;
       color: #cbd5e1 !important;
+    }
+    body.dark-theme .bg-white\/80 {
+      background-color: #1e293b !important;
+      color: #e2e8f0 !important;
+    }
+    body.dark-theme .hover\:bg-slate-100:hover {
+      background-color: #1e293b !important;
     }
     body.dark-theme .from-\[\#f0f7ff\] {
       --tw-gradient-from: #0f172a !important;
@@ -303,7 +312,7 @@
 
     <!-- TOP HEADER BAR -->
     <header id="topHeaderBar" class="bg-white px-5 py-2.5 flex items-center justify-between flex-shrink-0 z-20 relative border-b border-slate-200">
-      <div class="flex items-center space-x-3.5">
+      <div class="flex items-center gap-3.5">
         <button id="btnToggleSidebar" onclick="toggleSidebar()" class="w-9 h-9 rounded-lg bg-[#f1f3f4] hover:bg-slate-200 text-slate-700 flex items-center justify-center transition">
           <i class="fa-solid fa-bars text-sm"></i>
         </button>
@@ -319,22 +328,12 @@
         <span id="examTimer">20:00</span>
       </div>
 
-      <!-- Right Controls (Exam Security Status, Zoom & Proctor Exit) -->
+      <!-- Right Controls (Exam Security Status & Proctor Exit - Only visible during active exam) -->
       <div class="flex items-center space-x-2">
         <span id="examSecurityStatusBadge" class="hidden px-2.5 py-1 rounded-full bg-rose-50 text-rose-600 border border-rose-200 text-[11px] font-bold items-center space-x-1.5">
           <i class="fa-solid fa-shield-halved"></i>
           <span>Chế độ Fullscreen &amp; Anti-Cheat: ĐANG BẬT</span>
         </span>
-
-        <div id="headerZoomControl" class="hidden items-center bg-slate-100 hover:bg-slate-200/70 rounded-lg border border-slate-200 px-1 py-0.5 text-xs transition">
-          <button type="button" onclick="adjustWebFontSize(-1)" title="Giảm cỡ chữ" class="w-6 h-6 flex items-center justify-center text-slate-700 hover:bg-white rounded font-bold transition">
-            <i class="fa-solid fa-minus text-[10px]"></i>
-          </button>
-          <span id="lblWebZoom" class="px-2 text-[11px] font-semibold text-slate-700 select-none">100%</span>
-          <button type="button" onclick="adjustWebFontSize(1)" title="Tăng cỡ chữ" class="w-6 h-6 flex items-center justify-center text-slate-700 hover:bg-white rounded font-bold transition">
-            <i class="fa-solid fa-plus text-[10px]"></i>
-          </button>
-        </div>
 
         <button type="button" id="btnDesktopProctorExit" onclick="handleDesktopProctorExit()" class="hidden px-2.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold transition flex items-center space-x-1 shadow-xs">
           <i class="fa-solid fa-shield-halved"></i>
@@ -393,15 +392,15 @@
         </div>
 
         <!-- Centered Week Heading -->
-        <div class="py-4 text-center border-b border-slate-200 bg-white">
+        <div class="py-4 text-center border-b border-slate-300 bg-white">
           <h3 id="lblScheduleWeekTitle" class="text-[15px] font-bold text-slate-900">
             Tuần bắt đầu từ 30/03/2026 đến 05/04/2026
           </h3>
         </div>
 
-        <!-- 7-Column Weekly Schedule Grid (Thứ 2 -> Chủ nhật) -->
+        <!-- 7-Column Weekly Schedule Grid (Thứ 2 -> Chủ nhật, chia 2 khung Sáng / Chiều) -->
         <div class="overflow-x-auto">
-          <div id="weeklyScheduleGrid" class="grid grid-cols-7 min-w-[900px] min-h-[420px] divide-x divide-slate-200 border-b border-slate-200">
+          <div id="weeklyScheduleGrid" class="grid grid-cols-7 min-w-[900px] border-b border-slate-300">
             <!-- Dynamically populated by renderWeeklyScheduleGrid() -->
           </div>
         </div>
@@ -478,46 +477,19 @@
         <div id="stepLogin" class="bg-white p-7 rounded-xl shadow-xs border border-slate-200 max-w-lg mx-auto w-full my-2">
           <div class="text-center mb-5 pb-4 border-b border-slate-100">
             <img src="/images/ictu_logo.png" alt="ICTU Logo" class="w-14 h-14 object-contain mx-auto mb-2.5">
-            <div class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-600 border border-rose-200 mb-1">
-              <i class="fa-solid fa-lock mr-1"></i> CHẾ ĐỘ FULLSCREEN &amp; ANTI-CHEAT ĐANG BẬT
-            </div>
             <h3 class="text-lg font-bold text-slate-800 uppercase tracking-tight">Xác Thực Vào Phòng Thi An Toàn</h3>
             <p class="text-xs text-slate-500 mt-1">Sử dụng tài khoản sinh viên và Mã phòng thi do Cán bộ coi thi cung cấp</p>
-          </div>
-
-          <div class="grid grid-cols-3 gap-2 mb-4">
-            <button type="button" onclick="quickFillStudent('dtc235210069@student.edu.vn', 'Phạm Hồng Ngọc Kiên')" class="p-2 border border-slate-200 hover:border-ictu hover:bg-ictu-light/40 rounded-lg text-left transition flex items-center space-x-2">
-              <i class="fa-solid fa-user-graduate text-ictu text-xs"></i>
-              <div class="truncate">
-                <p class="text-[11px] font-bold text-slate-700 leading-tight truncate">Phạm Hồng Ngọc Kiên</p>
-                <p class="text-[9px] text-slate-400 truncate">DTC235210069</p>
-              </div>
-            </button>
-            <button type="button" onclick="quickFillStudent('dtc205122001@student.edu.vn', 'Nguyễn Văn An')" class="p-2 border border-slate-200 hover:border-ictu hover:bg-ictu-light/40 rounded-lg text-left transition flex items-center space-x-2">
-              <i class="fa-brands fa-google text-red-500 text-xs"></i>
-              <div class="truncate">
-                <p class="text-[11px] font-bold text-slate-700 leading-tight truncate">Nguyễn Văn An</p>
-                <p class="text-[9px] text-slate-400 truncate">DTC205122001</p>
-              </div>
-            </button>
-            <button type="button" onclick="quickFillStudent('dtc205122002@student.edu.vn', 'Trần Thị Bình')" class="p-2 border border-slate-200 hover:border-ictu hover:bg-ictu-light/40 rounded-lg text-left transition flex items-center space-x-2">
-              <i class="fa-brands fa-microsoft text-sky-600 text-xs"></i>
-              <div class="truncate">
-                <p class="text-[11px] font-bold text-slate-700 leading-tight truncate">Trần Thị Bình</p>
-                <p class="text-[9px] text-slate-400 truncate">DTC205122002</p>
-              </div>
-            </button>
           </div>
 
           <form onsubmit="handleStartExam(event)" class="space-y-3.5">
             <div>
               <label class="block text-xs font-semibold text-slate-700 mb-1">Email Sinh Viên / Mã Sinh Viên (MSV)</label>
-              <input type="text" id="inpStudentCode" required value="dtc235210069@student.edu.vn" oninput="detectDomain(this.value)" class="w-full px-3.5 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:border-ictu font-medium">
-              <span id="detectedDomainBadge" class="text-[11px] text-emerald-600 font-semibold mt-1 block">✓ Đã xác thực tài khoản sinh viên chính quy</span>
+              <input type="text" id="inpStudentCode" required value="" placeholder="Nhập Mã sinh viên hoặc Email sinh viên" oninput="detectDomain(this.value)" class="w-full px-3.5 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:border-ictu font-medium">
+              <span id="detectedDomainBadge" class="hidden text-[11px] text-slate-400 font-medium mt-1">• Nhập mã SV hoặc email sinh viên</span>
             </div>
             <div>
               <label class="block text-xs font-semibold text-slate-700 mb-1">Họ Và Tên Thí Sinh</label>
-              <input type="text" id="inpStudentName" required value="Phạm Hồng Ngọc Kiên" class="w-full px-3.5 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:border-ictu">
+              <input type="text" id="inpStudentName" required value="" placeholder="Nhập họ và tên thí sinh" class="w-full px-3.5 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:border-ictu">
             </div>
             <div>
               <label class="block text-xs font-semibold text-slate-700 mb-1">Ca Thi / Bài Kiểm Tra Học Phần</label>
@@ -527,12 +499,7 @@
             </div>
             <div>
               <label class="block text-xs font-semibold text-slate-700 mb-1">Mã Mở Khóa Phòng Thi (Access Code)</label>
-              <input type="text" id="inpAccessCode" required value="ICTU2026" class="w-full px-3.5 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:border-ictu font-mono font-bold text-ictu bg-slate-50">
-            </div>
-
-            <div class="p-3 bg-amber-50 border border-amber-200 rounded-lg text-[11px] text-amber-900 flex items-start space-x-2">
-              <i class="fa-solid fa-shield-halved text-amber-600 mt-0.5"></i>
-              <span>Khi vào các chức năng Kiểm tra / Thi, chế độ Fullscreen &amp; Anti-Cheat tự động bật. Hệ thống nghiêm cấm chuyển cửa sổ (Alt+Tab), sao chép/dán (Copy/Paste) và mở phần mềm điều khiển từ xa.</span>
+              <input type="text" id="inpAccessCode" required value="" placeholder="Nhập mã mở khóa phòng thi" class="w-full px-3.5 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:border-ictu font-mono font-bold text-ictu bg-slate-50">
             </div>
 
             <button type="submit" id="btnStart" class="w-full bg-ictu hover:bg-ictu-dark text-white font-semibold py-2.5 rounded-lg transition text-sm flex items-center justify-center shadow-xs">
@@ -702,22 +669,18 @@
               <p class="text-xs text-slate-500 mt-0.5">Trao đổi trực tiếp về nội dung bài giảng, bài tập SQL/Lập trình và ôn tập chuẩn đầu ra (hỗ trợ phản hồi Streaming thời gian thực)</p>
             </div>
 
-            <!-- Cụm nút Góc trên bên phải: Tạo cuộc trò chuyện mới + Nút Lịch sử trò chuyện + Streaming Realtime -->
+            <!-- Cụm nút Góc trên bên phải: Icon Tạo cuộc trò chuyện mới + Icon Lịch sử trò chuyện + Streaming Realtime -->
             <div class="flex items-center space-x-2 flex-shrink-0 relative">
-              <button type="button" onclick="startNewAiChatSession()" title="Tạo cuộc trò chuyện học thuật mới"
-                class="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-blue-50 hover:border-blue-200 text-slate-700 hover:text-ictu text-xs font-semibold transition flex items-center space-x-1.5 cursor-pointer">
-                <i class="fa-solid fa-plus text-[11px] text-ictu"></i>
-                <span>Cuộc trò chuyện mới</span>
+              <button type="button" onclick="startNewAiChatSession()" title="Cuộc trò chuyện mới"
+                class="w-8 h-8 rounded-lg border border-slate-200 bg-slate-50 hover:bg-blue-50 hover:border-blue-200 text-slate-600 hover:text-ictu transition flex items-center justify-center cursor-pointer shadow-2xs">
+                <i class="fa-solid fa-plus text-xs"></i>
               </button>
 
-              <!-- Nút bấm mở danh sách Lịch sử trò chuyện chuyên môn -->
+              <!-- Nút icon mở danh sách Lịch sử trò chuyện chuyên môn -->
               <div class="relative" id="aiHistoryDropdownWrapper">
-                <button type="button" id="btnToggleAiHistory" onclick="toggleAiHistoryDropdown(event)"
-                  class="px-3 py-1.5 rounded-lg border border-blue-200 bg-blue-50/80 hover:bg-ictu hover:text-white text-ictu text-xs font-bold transition flex items-center space-x-1.5 cursor-pointer shadow-2xs">
-                  <i class="fa-solid fa-clock-rotate-left"></i>
-                  <span>Lịch sử trò chuyện</span>
-                  <span id="aiHistoryCountBadge" class="px-1.5 py-0.2 rounded-full bg-ictu text-white text-[10px] font-extrabold">4</span>
-                  <i id="aiHistoryChevron" class="fa-solid fa-chevron-down text-[10px] transition-transform duration-150"></i>
+                <button type="button" id="btnToggleAiHistory" onclick="toggleAiHistoryDropdown(event)" title="Lịch sử trò chuyện"
+                  class="w-8 h-8 rounded-lg border border-slate-200 bg-slate-50 hover:bg-blue-50 hover:border-blue-200 text-slate-600 hover:text-ictu transition flex items-center justify-center cursor-pointer shadow-2xs">
+                  <i class="fa-solid fa-clock-rotate-left text-xs"></i>
                 </button>
 
                 <!-- Popover / Dropdown Danh sách Lịch sử trò chuyện theo chuyên môn -->
@@ -732,11 +695,6 @@
                         <p class="text-[10px] text-slate-500">Chọn chủ đề để xem lại hoặc tiếp tục trao đổi chuyên sâu</p>
                       </div>
                     </div>
-                    <button type="button" onclick="startNewAiChatSession(); closeAiHistoryDropdown();"
-                      class="px-2.5 py-1 rounded-lg bg-ictu hover:bg-ictu-dark text-white text-[11px] font-bold transition cursor-pointer flex items-center space-x-1">
-                      <i class="fa-solid fa-plus text-[10px]"></i>
-                      <span>Tạo mới</span>
-                    </button>
                   </div>
 
                   <!-- Ô tìm kiếm & Bộ lọc chuyên đề -->
@@ -893,7 +851,7 @@
       <div class="flex flex-col items-center">
         <img src="/images/ictu_logo.png" alt="ICTU Logo" class="w-12 h-12 object-contain mb-3">
         <h2 class="text-[26px] font-bold text-white tracking-tight">Đăng nhập hệ thống</h2>
-        <p id="loginGateSubtitle" class="text-[13px] text-zinc-400 mt-1">Nhập Mã sinh viên (MSV) và mật khẩu (mặc định: 123456)</p>
+        <p id="loginGateSubtitle" class="hidden text-[13px] text-zinc-400 mt-1"></p>
       </div>
 
       <!-- FORM NHẬP MÃ SINH VIÊN (MSV) & MẬT KHẨU (MẶC ĐỊNH 123456) -->
@@ -902,7 +860,7 @@
           <label class="block text-xs font-semibold text-zinc-300 mb-1.5">
             <i class="fa-solid fa-id-card text-[#4f8ff7] mr-1.5"></i>Mã sinh viên (MSV)
           </label>
-          <input type="text" id="modalCustomCode" value="DTC235210069" placeholder="Nhập Mã sinh viên (VD: DTC235210069)" required
+          <input type="text" id="modalCustomCode" value="" placeholder="Nhập Mã sinh viên" required
             class="w-full px-3.5 py-2.5 rounded-xl bg-[#18181b] border border-[#2e2e32] text-white text-sm placeholder-zinc-500 focus:outline-none focus:border-[#4f8ff7]">
         </div>
 
@@ -914,7 +872,7 @@
             <span class="text-[11px] text-zinc-400">Mật khẩu mặc định: <b class="text-[#4f8ff7]">123456</b></span>
           </div>
           <div class="relative">
-            <input type="password" id="modalCustomPassword" value="123456" placeholder="Nhập mật khẩu (mặc định: 123456)" required
+            <input type="password" id="modalCustomPassword" value="" placeholder="Nhập mật khẩu" required
               class="w-full pl-3.5 pr-10 py-2.5 rounded-xl bg-[#18181b] border border-[#2e2e32] text-white text-sm placeholder-zinc-500 focus:outline-none focus:border-[#4f8ff7]">
             <button type="button" onclick="toggleStudentPasswordVisibility()" title="Hiện / Ẩn mật khẩu"
               class="absolute inset-y-0 right-0 px-3.5 flex items-center text-zinc-400 hover:text-white transition cursor-pointer">
@@ -924,28 +882,12 @@
           <!-- Dòng nhỏ bên dưới ô nhập mật khẩu cho sinh viên quên mật khẩu -->
           <div class="flex items-center justify-end mt-1.5">
             <button type="button" onclick="openForgotPasswordStep()" class="text-[11.5px] text-[#4f8ff7] hover:text-blue-300 hover:underline font-medium transition cursor-pointer">
-              Quên mật khẩu? Bấm vào đây để lấy lại mật khẩu
+              Quên mật khẩu?
             </button>
           </div>
         </div>
 
         <p id="loginGateError" class="hidden text-xs font-semibold text-rose-400 bg-rose-950/50 border border-rose-800/60 rounded-lg px-3 py-2"></p>
-
-        <!-- Gợi ý chọn nhanh MSV mẫu để test -->
-        <div class="pt-1">
-          <p class="text-[11px] text-zinc-400 mb-1.5">Chọn nhanh Mã sinh viên trong danh sách lớp:</p>
-          <div class="flex flex-wrap gap-1.5">
-            <button type="button" onclick="fillStudentLoginDemo('DTC235210069')" class="px-2.5 py-1 rounded-lg bg-[#18181b] hover:bg-[#27272a] border border-[#2e2e32] text-[11px] text-zinc-300 transition">
-              DTC235210069 (Phạm Hồng Ngọc Kiên)
-            </button>
-            <button type="button" onclick="fillStudentLoginDemo('DTC205122001')" class="px-2.5 py-1 rounded-lg bg-[#18181b] hover:bg-[#27272a] border border-[#2e2e32] text-[11px] text-zinc-300 transition">
-              DTC205122001 (Nguyễn Văn An)
-            </button>
-            <button type="button" onclick="fillStudentLoginDemo('DTC205122002')" class="px-2.5 py-1 rounded-lg bg-[#18181b] hover:bg-[#27272a] border border-[#2e2e32] text-[11px] text-zinc-300 transition">
-              DTC205122002 (Trần Thị Bình)
-            </button>
-          </div>
-        </div>
 
         <div class="pt-2">
           <button type="submit" class="w-full bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-bold py-2.5 rounded-xl text-xs transition shadow-md cursor-pointer">
@@ -965,7 +907,7 @@
           <label class="block text-xs font-semibold text-zinc-300 mb-1.5">
             <i class="fa-solid fa-id-card text-[#4f8ff7] mr-1.5"></i>Mã sinh viên (MSV) cần khôi phục
           </label>
-          <input type="text" id="forgotStudentCode" value="DTC235210069" placeholder="Nhập Mã sinh viên (VD: DTC235210069)" required
+          <input type="text" id="forgotStudentCode" value="" placeholder="Nhập Mã sinh viên" required
             class="w-full px-3.5 py-2.5 rounded-xl bg-[#18181b] border border-[#2e2e32] text-white text-sm placeholder-zinc-500 focus:outline-none focus:border-[#4f8ff7]">
         </div>
 
@@ -973,7 +915,7 @@
           <label class="block text-xs font-semibold text-zinc-300 mb-1.5">
             <i class="fa-solid fa-user-check text-[#4f8ff7] mr-1.5"></i>Họ và tên sinh viên (Xác minh danh tính)
           </label>
-          <input type="text" id="forgotStudentName" placeholder="Nhập Họ và tên (VD: Phạm Hồng Ngọc Kiên)" required
+          <input type="text" id="forgotStudentName" placeholder="Nhập Họ và tên" required
             class="w-full px-3.5 py-2.5 rounded-xl bg-[#18181b] border border-[#2e2e32] text-white text-sm placeholder-zinc-500 focus:outline-none focus:border-[#4f8ff7]">
         </div>
 
@@ -1176,6 +1118,7 @@
       }
       const sb = document.getElementById('lmsSidebar');
       sb.classList.toggle('hidden');
+      renderWeeklyScheduleGrid();
     }
 
     function switchLmsSection(sectionKey) {
@@ -1184,13 +1127,8 @@
         return;
       }
 
-      // Chỉ bật chế độ Fullscreen & Anti-Cheat khi bấm vào các chức năng liên quan đến Kiểm tra / Thi
-      const isExamRelatedSection = (
-        sectionKey === 'regular-test' ||
-        sectionKey === 'quiz-15' ||
-        sectionKey === 'final-exam'
-      );
-      setExamSecurityMode(isExamRelatedSection || isExamInProgress);
+      // Chỉ hiện thông báo Fullscreen & Anti-Cheat và nút Giám thị khi sinh viên thực sự bấm bắt đầu làm bài (isExamInProgress)
+      setExamSecurityMode(isExamInProgress);
 
       document.querySelectorAll('#lmsSidebar .lms-nav-item').forEach(btn => btn.classList.remove('active'));
       if (sectionKey === 'bulletin' || sectionKey === 'projects') {
@@ -1216,14 +1154,16 @@
       document.querySelectorAll('.lms-section').forEach(sec => sec.classList.add('hidden'));
 
       const titleEl = document.getElementById('headerExamTitle');
-      const zoomCtrl = document.getElementById('headerZoomControl');
-
-      if (sectionKey === 'final-exam') {
-        zoomCtrl.classList.remove('hidden');
-        zoomCtrl.classList.add('flex');
-      } else {
-        zoomCtrl.classList.add('hidden');
-        zoomCtrl.classList.remove('flex');
+      const btnToggleSb = document.getElementById('btnToggleSidebar');
+      if (btnToggleSb) {
+        if (sectionKey === 'timetable') {
+          btnToggleSb.classList.remove('hidden');
+        } else {
+          btnToggleSb.classList.add('hidden');
+        }
+      }
+      if (sectionKey !== 'timetable' && !isExamInProgress) {
+        document.getElementById('lmsSidebar')?.classList.remove('hidden');
       }
 
       if (sectionKey === 'timetable') {
@@ -1495,6 +1435,7 @@
         {
           className: "Phát triển ứng dụng di động-2-25 (CNTTQT K22B. KNUK22.K2.D1.N01)",
           room: "Học trên lớp",
+          location: "Phòng thực hành C5.302 - Nhà C5",
           lecturerName: "Vũ Huy Hoàng",
           lecturerShort: "Vũ Huy...",
           dayOfWeek: 5,
@@ -1511,53 +1452,105 @@
         return cYear === yearVal && cSem === semVal;
       });
 
-      grid.innerHTML = dayNames.map((dayName, colIdx) => {
-        const dayNumber = colIdx + 2; // 2 = Thứ 2, 5 = Thứ 5, 8 = Chủ nhật
-        const dayClasses = classes.filter(c => (c.dayOfWeek || 5) === dayNumber);
+      const isAfternoonClass = (c) => {
+        if (c.session && String(c.session).toLowerCase() === 'afternoon') return true;
+        const pStr = String(c.period || '');
+        if (pStr.toLowerCase().includes('chiều') || pStr.toLowerCase().includes('tối')) return true;
+        const m = pStr.match(/(\d+)/);
+        if (m && parseInt(m[1], 10) >= 6) return true;
+        return false;
+      };
 
-        const cardsHtml = dayClasses.map(c => `
-          <div class="bg-white border border-slate-200 rounded-xl p-3 shadow-2xs text-left space-y-2.5 mt-4 mx-1">
-            <p class="text-[12.5px] font-bold text-slate-900 leading-snug break-words">
-              ${c.className}
-            </p>
-            <div>
-              <span title="${c.room || 'Học trên lớp'}" class="inline-flex items-center px-2.5 py-1 rounded-full bg-[#e0ecff] text-[#1967d2] text-[11px] font-semibold">
-                <i class="fa-regular fa-building mr-1.5 text-[11px]"></i> Học trê...
-              </span>
-            </div>
-            <div class="flex items-center space-x-2.5 pt-0.5">
-              <div class="w-7 h-7 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center flex-shrink-0">
-                <i class="fa-regular fa-user text-xs"></i>
-              </div>
-              <div class="text-[11.5px] leading-tight min-w-0">
-                <span class="text-slate-500 block">Giảng viên</span>
-                <b title="${c.lecturerName || 'Vũ Huy Hoàng'}" class="text-slate-900 truncate block">${c.lecturerShort || 'Vũ Huy...'}</b>
-              </div>
-            </div>
-            <div class="flex items-center space-x-2.5">
-              <div class="w-7 h-7 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0">
-                <i class="fa-solid fa-stopwatch text-xs"></i>
-              </div>
-              <div class="text-[11.5px] leading-tight">
-                <span class="text-slate-500 block">Tiết học</span>
-                <b class="text-slate-900 block">${c.period || 'Tiết 3 - 5'}</b>
-              </div>
-            </div>
-          </div>
-        `).join("");
+      const getClassLocation = (c) => {
+        if (c.location && String(c.location).trim() !== '') return c.location;
+        if (c.room && c.room !== 'Học trên lớp') return c.room;
+        return 'Phòng C5.302 - Nhà C5';
+      };
+
+      const isScheduleExpanded = document.getElementById('lmsSidebar')?.classList.contains('hidden');
+
+      const renderScheduleCard = (c) => {
+        const fullRoom = c.room || 'Học trên lớp';
+        const fullLecturer = c.lecturerName || 'Vũ Huy Hoàng';
+        const fullLocation = getClassLocation(c);
+
+        const displayRoom = isScheduleExpanded ? fullRoom : (fullRoom === 'Học trên lớp' ? 'Học trê...' : fullRoom);
+        const displayLecturer = isScheduleExpanded ? fullLecturer : (c.lecturerShort || 'Vũ Huy...');
+        const textWrapClass = isScheduleExpanded ? 'break-words' : 'truncate';
 
         return `
-          <div class="p-2 text-center flex flex-col">
-            <div class="pb-2">
-              <p class="text-[13px] font-medium text-slate-800">${dayName}</p>
-              <p class="text-[13px] font-normal text-slate-700 mt-0.5">${dates[colIdx]}</p>
+        <div class="bg-white border border-slate-200 rounded-xl p-3.5 shadow-2xs text-left space-y-2.5">
+          <p class="text-[13px] font-bold text-slate-900 leading-snug break-words">
+            ${c.className}
+          </p>
+          <div>
+            <span title="${fullRoom}" class="inline-flex items-center px-2.5 py-1 rounded-full bg-[#e0ecff] text-[#1967d2] text-[11px] font-semibold max-w-full">
+              <i class="fa-regular fa-building mr-1.5 text-[11px] flex-shrink-0"></i>
+              <span class="${textWrapClass}">${displayRoom}</span>
+            </span>
+          </div>
+          <div class="flex items-start space-x-2.5 pt-0.5">
+            <div class="w-7 h-7 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <i class="fa-regular fa-user text-xs"></i>
             </div>
-            <div class="flex-1">
-              ${cardsHtml}
+            <div class="text-[11.5px] leading-snug min-w-0 flex-1">
+              <span class="text-slate-500 block">Giảng viên</span>
+              <b title="${fullLecturer}" class="text-slate-900 ${textWrapClass} block">${displayLecturer}</b>
             </div>
+          </div>
+          <div class="flex items-start space-x-2.5">
+            <div class="w-7 h-7 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <i class="fa-solid fa-location-dot text-xs"></i>
+            </div>
+            <div class="text-[11.5px] leading-snug min-w-0 flex-1">
+              <span class="text-slate-500 block">Địa điểm học</span>
+              <b title="${fullLocation}" class="text-slate-900 ${textWrapClass} block">${fullLocation}</b>
+            </div>
+          </div>
+          <div class="flex items-start space-x-2.5">
+            <div class="w-7 h-7 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <i class="fa-solid fa-stopwatch text-xs"></i>
+            </div>
+            <div class="text-[11.5px] leading-snug min-w-0 flex-1">
+              <span class="text-slate-500 block">Tiết học</span>
+              <b class="text-slate-900 ${textWrapClass} block">${c.period || 'Tiết 3 - 5'}</b>
+            </div>
+          </div>
+        </div>
+      `;
+      };
+
+      // Hàng 1: Tiêu đề Thứ 2 -> Chủ nhật
+      const headerRowHtml = dayNames.map((dayName, colIdx) => `
+        <div class="pt-2.5 pb-2 px-2 text-center border-r last:border-r-0 border-slate-300">
+          <p class="text-[13px] font-medium text-slate-800">${dayName}</p>
+          <p class="text-[13px] font-normal text-slate-700 mt-0.5">${dates[colIdx]}</p>
+        </div>
+      `).join("");
+
+      // Hàng 2: Khung lịch học Buổi sáng (Tiết 1 - 5), có đường kẻ ngang rõ nét ngăn cách với buổi chiều ở tất cả các buổi
+      const morningRowHtml = dayNames.map((_, colIdx) => {
+        const dayNumber = colIdx + 2;
+        const morningClasses = classes.filter(c => (c.dayOfWeek || 5) === dayNumber && !isAfternoonClass(c));
+        return `
+          <div style="border-bottom: 1.5px solid #94a3b8;" class="p-2.5 min-h-[225px] border-r last:border-r-0 border-slate-300 space-y-2.5">
+            ${morningClasses.map(renderScheduleCard).join("")}
           </div>
         `;
       }).join("");
+
+      // Hàng 3: Khung lịch học Buổi chiều (Tiết 6 - 10) ở tất cả các buổi
+      const afternoonRowHtml = dayNames.map((_, colIdx) => {
+        const dayNumber = colIdx + 2;
+        const afternoonClasses = classes.filter(c => (c.dayOfWeek || 5) === dayNumber && isAfternoonClass(c));
+        return `
+          <div class="p-2.5 min-h-[225px] border-r last:border-r-0 border-slate-300 space-y-2.5">
+            ${afternoonClasses.map(renderScheduleCard).join("")}
+          </div>
+        `;
+      }).join("");
+
+      grid.innerHTML = headerRowHtml + morningRowHtml + afternoonRowHtml;
     }
 
     function openTrainingPlanModal() {
@@ -1847,11 +1840,6 @@
         nameEl.title = currentStudentName;
       }
       document.getElementById('sidebarStudentCode').innerText = currentStudentCode;
-
-      const inpCode = document.getElementById('inpStudentCode');
-      const inpName = document.getElementById('inpStudentName');
-      if (inpCode) inpCode.value = currentStudentEmail || currentStudentCode;
-      if (inpName) inpName.value = currentStudentName;
     }
 
     function renderClassCards(classes) {
@@ -1868,7 +1856,7 @@
               </div>
               <h4 class="text-sm font-bold text-slate-800">${c.className}</h4>
               <p class="text-xs text-slate-500">
-                <i class="fa-solid fa-chalkboard-user mr-1 text-slate-400"></i> Giảng viên: <b>${c.lecturerName || 'Vũ Huy Hoàng'}</b> • Hình thức: <b>${c.room || 'Học trên lớp'}</b> (${c.period || 'Tiết 3 - 5'})
+                <i class="fa-solid fa-chalkboard-user mr-1 text-slate-400"></i> Giảng viên: <b>${c.lecturerName || 'Vũ Huy Hoàng'}</b> • Địa điểm: <b>${c.location || (c.room && c.room !== 'Học trên lớp' ? c.room : 'Phòng C5.302 - Nhà C5')}</b> (${c.period || 'Tiết 3 - 5'})
               </p>
               <div class="pt-2">
                 <p class="text-[11px] font-bold text-slate-600 uppercase mb-1">Đề cương &amp; Học liệu số (${docs.length}):</p>
@@ -2426,7 +2414,9 @@
       }
 
       if (isLoggedOut) {
+        const inpCode = document.getElementById('modalCustomCode');
         const inpPass = document.getElementById('modalCustomPassword');
+        if (inpCode) inpCode.value = '';
         if (inpPass) inpPass.value = '';
       }
 
@@ -2468,7 +2458,7 @@
       const subtitle = document.getElementById('loginGateSubtitle');
       const errEl = document.getElementById('forgotPasswordError');
       const successBox = document.getElementById('forgotPasswordSuccessBox');
-      const currentCode = (document.getElementById('modalCustomCode')?.value || 'DTC235210069').trim().toUpperCase();
+      const currentCode = (document.getElementById('modalCustomCode')?.value || '').trim().toUpperCase();
 
       if (loginForm) loginForm.classList.add('hidden');
       if (forgotForm) forgotForm.classList.remove('hidden');
@@ -2492,7 +2482,10 @@
       const errEl = document.getElementById('forgotPasswordError');
       if (forgotForm) forgotForm.classList.add('hidden');
       if (loginForm) loginForm.classList.remove('hidden');
-      if (subtitle) subtitle.innerText = 'Nhập Mã sinh viên (MSV) và mật khẩu (mặc định: 123456)';
+      if (subtitle) {
+        subtitle.innerText = '';
+        subtitle.classList.add('hidden');
+      }
       if (errEl) errEl.classList.add('hidden');
     }
 
@@ -2618,12 +2611,11 @@
       const expectedPwd = getStudentExpectedPassword(cleanCode);
 
       if (pwd !== expectedPwd) {
-        const hint = expectedPwd === "123456" ? "Mật khẩu mặc định của sinh viên là: 123456" : "Vui lòng nhập đúng mật khẩu mới bạn đã đổi trong mục Cài đặt.";
         if (err) {
-          err.innerText = `Mật khẩu không chính xác! ${hint}`;
+          err.innerText = "⚠ Sai mật khẩu";
           err.classList.remove('hidden');
         } else {
-          alert(`Mật khẩu không chính xác! ${hint}`);
+          alert("Sai mật khẩu");
         }
         return;
       }
@@ -2758,8 +2750,11 @@
 
     function detectDomain(val) {
       const b = document.getElementById('detectedDomainBadge');
+      if (!b) return;
       const v = (val || '').toLowerCase().trim();
-      if (v.includes('@')) {
+      if (!v) {
+        b.className = "hidden text-[11px] text-slate-400 font-medium mt-1";
+      } else if (v.includes('@')) {
         b.innerText = "✓ Đã xác thực tài khoản email sinh viên";
         b.className = "text-[11px] text-emerald-600 font-semibold mt-1 block";
       } else if (v.length >= 5) {
@@ -2784,8 +2779,6 @@
       btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Đang tải đề thi & kích hoạt khóa Kiosk...`;
 
       try {
-        setExamSecurityMode(true);
-
         let res = await fetch("/api/student/start-exam", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -2818,6 +2811,7 @@
           timerSeconds = (data.durationMinutes || 20) * 60;
           isExamInProgress = true;
           violationCount = 0;
+          setExamSecurityMode(true);
           document.getElementById('antiCheatWarnCount').innerText = "0 Lần Cảnh Báo";
 
           restoreDraftFromLocal(currentSessionId);
@@ -3104,6 +3098,7 @@
         const data = await res.json();
         if (data.success) {
           isExamInProgress = false;
+          setExamSecurityMode(false);
           try { localStorage.removeItem(`ictu_draft_${currentSessionId}`); } catch (e) {}
 
           if (window.chrome && window.chrome.webview) {
