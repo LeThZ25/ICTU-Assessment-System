@@ -123,6 +123,9 @@
     body.dark-theme .bg-slate-50\/60,
     body.dark-theme .bg-slate-50\/50,
     body.dark-theme .bg-slate-50\/40,
+    body.dark-theme .bg-emerald-50\/30,
+    body.dark-theme .bg-blue-50\/30,
+    body.dark-theme .bg-rose-50\/40,
     body.dark-theme .bg-\[\#f0f6fc\],
     body.dark-theme .bg-\[\#f8f9fa\],
     body.dark-theme .bg-\[\#f8fafc\],
@@ -135,7 +138,9 @@
       background-color: #1e293b !important;
       color: #e2e8f0 !important;
     }
-    body.dark-theme .hover\:bg-slate-100:hover {
+    body.dark-theme .hover\:bg-slate-100:hover,
+    body.dark-theme .hover\:bg-emerald-50\/60:hover,
+    body.dark-theme .hover\:bg-blue-50\/60:hover {
       background-color: #1e293b !important;
     }
     body.dark-theme .from-\[\#f0f7ff\] {
@@ -1030,6 +1035,42 @@
         </button>
         <button type="button" onclick="saveTrainingPlanConfig()" class="px-4 py-2 rounded-lg bg-ictu hover:bg-ictu-dark text-white font-semibold text-xs transition shadow-2xs">
           <i class="fa-solid fa-floppy-disk mr-1"></i> Áp Dụng Kế Hoạch Đào Tạo
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 4: CHI TIẾT SỐ BUỔI NGHỈ & ĐIỀU KIỆN DỰ THI THEO TỪNG MÔN HỌC   -->
+  <!-- ===================================================================== -->
+  <div id="attendanceDetailModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-2xs z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-2xl w-full p-6 space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div class="flex items-center space-x-3">
+          <div class="w-9 h-9 rounded-xl bg-blue-50 text-ictu flex items-center justify-center">
+            <i class="fa-solid fa-calendar-check text-base"></i>
+          </div>
+          <div>
+            <h4 class="text-sm font-bold text-slate-800 uppercase tracking-tight">Chi Tiết Chuyên Cần &amp; Điều Kiện Dự Thi Theo Môn</h4>
+            <p class="text-[11px] text-slate-500 mt-0.5">Theo dõi số buổi đã nghỉ trên tổng số buổi tối đa được phép nghỉ để không bị cấm thi</p>
+          </div>
+        </div>
+        <button type="button" onclick="closeAttendanceDetailModal()" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center text-xs cursor-pointer">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div id="attendanceDetailListContainer" class="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+        <!-- Dynamically populated by openAttendanceDetailModal() -->
+      </div>
+
+      <div class="flex items-center justify-between pt-3 border-t border-slate-100 text-[11px] text-slate-500">
+        <div class="flex items-center space-x-4">
+          <span class="inline-flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-emerald-600 mr-1.5"></span>Đủ điều kiện thi</span>
+          <span class="inline-flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-rose-600 mr-1.5"></span>Không đủ điều kiện thi (Nghỉ quá số buổi)</span>
+        </div>
+        <button type="button" onclick="closeAttendanceDetailModal()" class="px-4 py-2 rounded-lg bg-ictu hover:bg-ictu-dark text-white font-semibold text-xs transition cursor-pointer">
+          Đóng
         </button>
       </div>
     </div>
@@ -2095,14 +2136,17 @@
                     </div>
                   </div>
 
-                  <!-- 5. Số buổi nghỉ -->
-                  <div class="p-4 rounded-xl bg-slate-50 border border-slate-200/90 flex items-center justify-between">
+                  <!-- 5. Số buổi nghỉ (Click để xem chi tiết từng môn đã nghỉ bao nhiêu buổi / tối đa được nghỉ) -->
+                  <div onclick="openAttendanceDetailModal()" title="Nhấn để xem chi tiết số buổi nghỉ và điều kiện dự thi từng môn" class="p-4 rounded-xl bg-slate-50 hover:bg-emerald-50/60 border border-slate-200/90 hover:border-emerald-400 flex items-center justify-between cursor-pointer transition group">
                     <div>
-                      <p class="text-xs text-slate-500 font-medium">5. Số buổi nghỉ</p>
-                      <p class="text-lg font-bold ${totalAbsentSessions > 0 ? 'text-rose-600' : 'text-emerald-600'} mt-0.5">${totalAbsentSessions} buổi nghỉ</p>
-                      <p class="text-xs text-slate-500 mt-0.5">Chuyên cần học kỳ hiện tại: ${totalAbsentSessions === 0 ? 'Đi học đầy đủ (Đủ điều kiện dự thi)' : 'Cần lưu ý đảm bảo tỷ lệ chuyên cần'}</p>
+                      <div class="flex items-center space-x-2">
+                        <p class="text-xs text-slate-500 font-medium">5. Số buổi nghỉ</p>
+                        <span class="px-2 py-0.5 rounded bg-emerald-100/80 text-emerald-700 text-[10px] font-bold group-hover:bg-emerald-600 group-hover:text-white transition">Bấm để xem chi tiết từng môn &rarr;</span>
+                      </div>
+                      <p class="text-lg font-bold ${totalAbsentSessions > 3 ? 'text-rose-600' : 'text-emerald-600'} mt-0.5">${totalAbsentSessions} buổi nghỉ</p>
+                      <p class="text-xs text-slate-500 mt-0.5">Chuyên cần học kỳ hiện tại: ${totalAbsentSessions > 3 ? 'Vượt quá số buổi nghỉ tối đa (Không đủ điều kiện thi)' : 'Đảm bảo chuyên cần (Đủ điều kiện thi)'}</p>
                     </div>
-                    <div class="w-10 h-10 rounded-xl ${totalAbsentSessions > 0 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'} flex items-center justify-center">
+                    <div class="w-10 h-10 rounded-xl ${totalAbsentSessions > 3 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'} flex items-center justify-center">
                       <i class="fa-solid fa-user-check text-base"></i>
                     </div>
                   </div>
@@ -2255,6 +2299,82 @@
           </div>
         `;
       }
+    }
+
+    function openAttendanceDetailModal() {
+      const modal = document.getElementById('attendanceDetailModal');
+      const container = document.getElementById('attendanceDetailListContainer');
+      if (!modal || !container) return;
+
+      const rawClasses = (cachedDashboardData && cachedDashboardData.classes && cachedDashboardData.classes.length > 0)
+        ? cachedDashboardData.classes
+        : [
+            {
+              classCode: "CS301.01",
+              className: "Phát triển ứng dụng di động-2-25 (CNTTQT K22B. KNUK22.K2.D1.N01)",
+              lecturerName: "Vũ Huy Hoàng",
+              soBuoiNghi: 0,
+              maxAllowedAbsent: 3
+            }
+          ];
+
+      container.innerHTML = rawClasses.map((c, idx) => {
+        const absent = Number(c.soBuoiNghi ?? c.absentSessions ?? 0);
+        const maxAllowed = Number(c.maxAllowedAbsent ?? c.soBuoiNghiToiDa ?? 3);
+        const isExceeded = absent > maxAllowed;
+        const percent = Math.min(100, Math.round((absent / Math.max(1, maxAllowed)) * 100));
+
+        // Nghỉ quá số buổi -> Màu đỏ + Đánh dấu "Không đủ điều kiện thi"
+        // Nghỉ chưa đến số buổi hoặc chưa nghỉ buổi nào -> Màu xanh lá + Đánh dấu "Đủ điều kiện thi"
+        const borderClass = isExceeded ? 'border-rose-300 bg-rose-50/40' : 'border-emerald-200 bg-emerald-50/30';
+        const textAccent = isExceeded ? 'text-rose-600' : 'text-emerald-600';
+        const badgeBg = isExceeded
+          ? 'bg-rose-100 text-rose-700 border border-rose-300'
+          : 'bg-emerald-100 text-emerald-700 border border-emerald-300';
+        const barColor = isExceeded ? 'bg-rose-600' : 'bg-emerald-600';
+        const statusText = isExceeded ? 'Không đủ điều kiện thi' : 'Đủ điều kiện thi';
+        const statusIcon = isExceeded ? 'fa-circle-xmark' : 'fa-circle-check';
+
+        return `
+          <div class="p-4 rounded-xl border ${borderClass} space-y-2.5">
+            <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
+              <div class="space-y-1">
+                <div class="flex items-center space-x-2">
+                  <span class="px-2 py-0.5 rounded bg-slate-200/80 text-slate-700 text-[10px] font-bold font-mono">${c.classCode || `MÔN 0${idx + 1}`}</span>
+                  <span class="text-xs text-slate-500">Giảng viên: <b>${c.lecturerName || 'Vũ Huy Hoàng'}</b></span>
+                </div>
+                <h5 class="text-sm font-bold text-slate-900 leading-snug">${c.className}</h5>
+              </div>
+              <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold flex-shrink-0 ${badgeBg}">
+                <i class="fa-solid ${statusIcon} mr-1.5"></i>${statusText}
+              </span>
+            </div>
+
+            <div class="pt-1 space-y-1.5">
+              <div class="flex items-center justify-between text-xs">
+                <span class="text-slate-600 font-medium">Số buổi đã nghỉ / Tối đa được phép nghỉ:</span>
+                <span class="font-bold text-sm ${textAccent}">${absent} / ${maxAllowed} buổi</span>
+              </div>
+              <div class="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
+                <div class="h-full ${barColor} rounded-full transition-all" style="width: ${percent}%"></div>
+              </div>
+              <p class="text-[11px] font-medium ${textAccent}">
+                ${isExceeded
+                  ? `⚠ Sinh viên đã nghỉ ${absent}/${maxAllowed} buổi (vượt quá giới hạn cho phép) — Bị cấm thi học phần này.`
+                  : (absent === 0
+                      ? `✓ Sinh viên chưa nghỉ buổi nào (0/${maxAllowed} buổi) — Đủ điều kiện dự thi kết thúc học phần.`
+                      : `✓ Sinh viên đã nghỉ ${absent}/${maxAllowed} buổi (vẫn trong giới hạn cho phép) — Đủ điều kiện dự thi kết thúc học phần.`)}
+              </p>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      modal.classList.remove('hidden');
+    }
+
+    function closeAttendanceDetailModal() {
+      document.getElementById('attendanceDetailModal')?.classList.add('hidden');
     }
 
     // -----------------------------------------------------------------------
