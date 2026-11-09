@@ -1,8 +1,8 @@
 @echo off
 title KHOI DONG TOAN BO HE THONG ICTU ASSESSMENT
 echo ========================================================
-echo  KHOI DONG TOAN BO HE THONG DANH GIA SINH VIEN & AI AGENT
-echo  DE TAI NCKH - TRUONG DAI HOC CNTT & TRUYEN THONG (ICTU)
+echo  KHOI DONG TOAN BO HE THONG DANH GIA SINH VIEN VA AI AGENT
+echo  DE TAI NCKH - TRUONG DAI HOC CNTT VA TRUYEN THONG [ICTU]
 echo ========================================================
 echo.
 echo [1/3] Khoi dong AI Service (Port 8000)...
@@ -10,7 +10,7 @@ start "ICTU AI Agent" "%~dp0start_ai_service.bat"
 
 timeout /t 3 /nobreak >nul
 
-echo [2/3] Khoi dong Middle Tier Web API & Lecturer Portal (Port 5000)...
+echo [2/3] Khoi dong Middle Tier Web API - Lecturer Portal (Port 5000)...
 start "ICTU Middle Tier API" "%~dp0start_backend_api.bat"
 
 timeout /t 4 /nobreak >nul
