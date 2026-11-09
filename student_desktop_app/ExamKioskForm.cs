@@ -25,6 +25,10 @@ namespace student_desktop_app
         private readonly string[] _blacklistedProcesses = new[] { "anydesk", "teamviewer", "ultraviewer", "discord", "obs64" };
 
         private int _violationCount = 0;
+        private int _activeSessionId = 0;
+        private string _activeStudentCode = "DTC235210069";
+        private string _activeStudentName = "Phạm Hồng Ngọc Kiên";
+        private bool _isExamSecurityActive = false;
         private bool _isInternalDialogOpen = false;
         private bool _isFormFullyLoaded = false;
         private DateTime _lastDeactivateViolation = DateTime.MinValue;
@@ -58,9 +62,14 @@ namespace student_desktop_app
 
         private static ExamKioskForm? _currentInstance;
 
-        public ExamKioskForm(string serverUrl = "http://localhost:5000/student_web.html?mode=desktop_kiosk")
+        public ExamKioskForm(
+            string serverUrl = "http://localhost:5000/student_web.html?mode=desktop_kiosk",
+            string studentCode = "DTC235210069",
+            string studentName = "Phạm Hồng Ngọc Kiên")
         {
             _targetUrl = serverUrl;
+            _activeStudentCode = string.IsNullOrWhiteSpace(studentCode) ? "DTC235210069" : studentCode;
+            _activeStudentName = string.IsNullOrWhiteSpace(studentName) ? "Phạm Hồng Ngọc Kiên" : studentName;
             _api = new ApiClient("http://localhost:5000");
 
             ConfigureKioskWindow();
@@ -71,18 +80,20 @@ namespace student_desktop_app
 
         private void ConfigureKioskWindow()
         {
-            this.FormBorderStyle = FormBorderStyle.None;
+            // Khởi đầu ở chế độ cửa sổ bình thường khi xem Bảng tin / Thời khóa biểu / Hồ sơ.
+            // Chỉ bật Fullscreen không viền + Anti-Cheat khi sinh viên bấm vào chức năng Kiểm tra / Thi.
+            this.FormBorderStyle = FormBorderStyle.Sizable;
             this.WindowState = FormWindowState.Maximized;
-            this.TopMost = true; // Lock on top of all windows
+            this.TopMost = false;
             this.KeyPreview = true;
-            this.BackColor = Color.FromArgb(0, 51, 102); // ICTU Navy
-            this.Text = "Cổng Khảo Thí Trực Tuyến & Giám Sát Phòng Thi An Toàn - ICTU";
+            this.BackColor = Color.FromArgb(0, 51, 102);
+            this.Text = "Hệ Thống Quản Lý Học Tập & Khảo Thí Thông Minh";
 
             this.Shown += (s, e) => { _isFormFullyLoaded = true; };
 
-            this.Deactivate += async (s, e) =>
+            this.Deactivate += (s, e) =>
             {
-                if (!_isFormFullyLoaded || _isInternalDialogOpen) return;
+                if (!_isFormFullyLoaded || _isInternalDialogOpen || !_isExamSecurityActive) return;
 
                 try
                 {
@@ -95,15 +106,40 @@ namespace student_desktop_app
                 if ((DateTime.UtcNow - _lastDeactivateViolation).TotalSeconds < 6) return;
                 _lastDeactivateViolation = DateTime.UtcNow;
 
-                _violationCount++;
-                System.Media.SystemSounds.Beep.Play();
-                await _api.LogViolationAsync(0, "KIOSK_STUDENT", "Sinh viên Kiosk", "WindowDeactivated (Alt+Tab)", "Thí sinh mất tiêu điểm cửa sổ phòng thi an toàn");
+                TriggerViolation("WindowDeactivated (Alt+Tab)", "Thí sinh mất tiêu điểm cửa sổ trong chế độ kiểm tra an toàn");
             };
 
             this.FormClosing += (s, e) =>
             {
                 CleanupTimersAndHook();
             };
+        }
+
+        private void SetExamSecurityMode(bool enable)
+        {
+            if (this.InvokeRequired)
+            {
+                this.Invoke(new Action(() => SetExamSecurityMode(enable)));
+                return;
+            }
+
+            _isExamSecurityActive = enable;
+            if (enable)
+            {
+                this.Text = "Phòng Thi An Toàn - Chế Độ Khóa Màn Hình & Chống Gian Lận";
+                this.WindowState = FormWindowState.Normal;
+                this.FormBorderStyle = FormBorderStyle.None;
+                this.TopMost = true;
+                this.WindowState = FormWindowState.Maximized;
+                _processScanTimer?.Start();
+            }
+            else
+            {
+                this.Text = "Hệ Thống Quản Lý Học Tập & Khảo Thí Thông Minh";
+                _processScanTimer?.Stop();
+                this.TopMost = false;
+                this.FormBorderStyle = FormBorderStyle.Sizable;
+            }
         }
 
         private void InitializeComponent()
@@ -156,7 +192,7 @@ namespace student_desktop_app
 
             var lblTitle = new Label
             {
-                Text = "CỔNG KHẢO THÍ TRỰC TUYẾN ICTU",
+                Text = "HỆ THỐNG HỌC TẬP & KHẢO THÍ THÔNG MINH",
                 Font = new Font("Segoe UI", 12F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(0, 51, 102),
                 TextAlign = ContentAlignment.MiddleCenter,
@@ -193,7 +229,7 @@ namespace student_desktop_app
 
             _btnRetry = new Button
             {
-                Text = "KẾT NỐI LẠI PHÒNG THI",
+                Text = "KẾT NỐI LẠI HỆ THỐNG LMS",
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                 ForeColor = Color.White,
                 BackColor = Color.FromArgb(0, 74, 153),
@@ -213,7 +249,10 @@ namespace student_desktop_app
                 await Task.Delay(500);
                 if (_webView != null && _webView.CoreWebView2 != null)
                 {
-                    _webView.CoreWebView2.Navigate(_targetUrl);
+                    string navUrl = _targetUrl.Contains("?")
+                    ? $"{_targetUrl}&_t={DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}"
+                    : $"{_targetUrl}?_t={DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}";
+                _webView.CoreWebView2.Navigate(navUrl);
                 }
                 else
                 {
@@ -248,8 +287,15 @@ namespace student_desktop_app
                 settings.AreDevToolsEnabled = false;               // Block F12 / Inspect
                 settings.AreDefaultContextMenusEnabled = false;     // Block right-click context menu
                 settings.IsStatusBarEnabled = false;                // Hide bottom url status
-                settings.AreBrowserAcceleratorKeysEnabled = false;  // Block browser shortcuts (Ctrl+R, F5, Ctrl+P)
+                settings.AreBrowserAcceleratorKeysEnabled = true;   // Allow F5 reload in normal study mode (blocked by HookCallback in Exam mode)
                 settings.IsBuiltInErrorPageEnabled = false;
+
+                try
+                {
+                    await _webView.CoreWebView2.CallDevToolsProtocolMethodAsync("Network.enable", "{}");
+                    await _webView.CoreWebView2.CallDevToolsProtocolMethodAsync("Network.setCacheDisabled", "{\"cacheDisabled\":true}");
+                }
+                catch { }
 
                 // Block any external popups / new window attempts
                 _webView.CoreWebView2.NewWindowRequested += (s, e) =>
@@ -269,11 +315,14 @@ namespace student_desktop_app
                     }
                     else
                     {
-                        ShowFallbackScreen($"Không thể tải trang thi: {e.WebErrorStatus}. Kiểm tra lại Backend API.");
+                        ShowFallbackScreen($"Không thể tải cổng LMS: {e.WebErrorStatus}. Vui lòng kiểm tra lại Backend API (cổng 5000).");
                     }
                 };
 
-                _webView.CoreWebView2.Navigate(_targetUrl);
+                string navUrl = _targetUrl.Contains("?")
+                    ? $"{_targetUrl}&_t={DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}"
+                    : $"{_targetUrl}?_t={DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}";
+                _webView.CoreWebView2.Navigate(navUrl);
             }
             catch (Exception ex)
             {
@@ -305,13 +354,71 @@ namespace student_desktop_app
                     string action = actionElem.GetString() ?? "";
                     if (action == "exit")
                     {
+                        CleanupTimersAndHook();
                         this.Close();
                     }
                     else if (action == "proctorExit")
                     {
                         HandleProctorExit();
                     }
+                    else if (action == "enableExamMode")
+                    {
+                        SetExamSecurityMode(true);
+                    }
+                    else if (action == "disableExamMode")
+                    {
+                        if (_activeSessionId == 0)
+                        {
+                            SetExamSecurityMode(false);
+                        }
+                    }
+                    else if (action == "examStarted")
+                    {
+                        if (doc.RootElement.TryGetProperty("sessionId", out var sidElem) && sidElem.TryGetInt32(out int sid))
+                            _activeSessionId = sid;
+                        if (doc.RootElement.TryGetProperty("studentCode", out var scElem))
+                            _activeStudentCode = scElem.GetString() ?? _activeStudentCode;
+                        if (doc.RootElement.TryGetProperty("studentName", out var snElem))
+                            _activeStudentName = snElem.GetString() ?? _activeStudentName;
+                        _violationCount = 0;
+                        SetExamSecurityMode(true);
+                    }
+                    else if (action == "examEnded")
+                    {
+                        _activeSessionId = 0;
+                        SetExamSecurityMode(false);
+                    }
+                    else if (action == "updatePassword")
+                    {
+                        string code = doc.RootElement.TryGetProperty("studentCode", out var cEl) ? (cEl.GetString() ?? "") : "";
+                        string newPwd = doc.RootElement.TryGetProperty("newPassword", out var pEl) ? (pEl.GetString() ?? "") : "";
+                        if (!string.IsNullOrWhiteSpace(code) && !string.IsNullOrWhiteSpace(newPwd))
+                        {
+                            SaveLocalStudentPassword(code.Trim().ToUpperInvariant(), newPwd.Trim());
+                        }
+                    }
                 }
+            }
+            catch { }
+        }
+
+        private static void SaveLocalStudentPassword(string studentCode, string newPassword)
+        {
+            try
+            {
+                string filePath = Path.Combine(Path.GetTempPath(), "ICTU_Student_Passwords.json");
+                Dictionary<string, string> map = new(StringComparer.OrdinalIgnoreCase);
+                if (File.Exists(filePath))
+                {
+                    string raw = File.ReadAllText(filePath);
+                    var existing = JsonSerializer.Deserialize<Dictionary<string, string>>(raw);
+                    if (existing != null)
+                    {
+                        foreach (var kv in existing) map[kv.Key] = kv.Value;
+                    }
+                }
+                map[studentCode] = newPassword;
+                File.WriteAllText(filePath, JsonSerializer.Serialize(map));
             }
             catch { }
         }
@@ -333,8 +440,9 @@ namespace student_desktop_app
         private void SetupProcessScanner()
         {
             _processScanTimer = new System.Windows.Forms.Timer { Interval = 10000 };
-            _processScanTimer.Tick += async (s, e) =>
+            _processScanTimer.Tick += (s, e) =>
             {
+                if (!_isExamSecurityActive) return;
                 try
                 {
                     var running = Process.GetProcesses();
@@ -346,16 +454,13 @@ namespace student_desktop_app
                             if (pName.Contains(black) && !_reportedProcesses.Contains(pName))
                             {
                                 _reportedProcesses.Add(pName);
-                                _violationCount++;
-                                System.Media.SystemSounds.Beep.Play();
-                                await _api.LogViolationAsync(0, "KIOSK_STUDENT", "Sinh viên Kiosk", $"BlacklistedProcess ({pName})", $"Phát hiện phần mềm chia sẻ màn hình/điều khiển từ xa: {p.ProcessName}");
+                                TriggerViolation($"BlacklistedProcess ({pName})", $"Phát hiện phần mềm chia sẻ màn hình/điều khiển từ xa: {p.ProcessName}");
                             }
                         }
                     }
                 }
                 catch { }
             };
-            _processScanTimer.Start();
         }
 
         private void CleanupTimersAndHook()
@@ -370,13 +475,14 @@ namespace student_desktop_app
 
         private static IntPtr HookCallback(int nCode, IntPtr wParam, IntPtr lParam)
         {
-            if (nCode >= 0 && (wParam == (IntPtr)WM_KEYDOWN || wParam == (IntPtr)WM_SYSKEYDOWN))
+            if (_currentInstance != null && _currentInstance._isExamSecurityActive &&
+                nCode >= 0 && (wParam == (IntPtr)WM_KEYDOWN || wParam == (IntPtr)WM_SYSKEYDOWN))
             {
                 int vkCode = Marshal.ReadInt32(lParam);
                 int flags = Marshal.ReadInt32(lParam, 8);
                 bool altDown = (flags & 0x20) != 0;
 
-                // Block Alt+Tab (9), Alt+Esc (27), Win (0x5B, 0x5C), Alt+F4 (0x73)
+                // Block Alt+Tab (9), Alt+Esc (27), Win (0x5B, 0x5C), Alt+F4 (0x73) only when in exam mode
                 if ((vkCode == 9 && altDown) || (vkCode == 27 && altDown) || vkCode == 0x5B || vkCode == 0x5C || (vkCode == 0x73 && altDown))
                 {
                     _currentInstance?.TriggerViolation("SystemKeyBlocked (Win/Alt+Tab)", "Chặn phím tắt chuyển màn hình hoặc thoát ứng dụng");
@@ -390,7 +496,24 @@ namespace student_desktop_app
         {
             _violationCount++;
             System.Media.SystemSounds.Beep.Play();
-            await _api.LogViolationAsync(0, "KIOSK_STUDENT", "Sinh viên Kiosk", type, details);
+
+            try
+            {
+                if (_webView != null && _webView.CoreWebView2 != null)
+                {
+                    string jsonMsg = JsonSerializer.Serialize(new
+                    {
+                        eventType = "nativeViolation",
+                        violationCount = _violationCount,
+                        type = type,
+                        details = details
+                    });
+                    _webView.CoreWebView2.PostWebMessageAsJson(jsonMsg);
+                }
+            }
+            catch { }
+
+            await _api.LogViolationAsync(_activeSessionId, _activeStudentCode, _activeStudentName, type, details);
         }
 
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
@@ -402,8 +525,8 @@ namespace student_desktop_app
                 return true;
             }
 
-            // Block Alt+F4
-            if (keyData == (Keys.Alt | Keys.F4))
+            // Block Alt+F4 only when exam security is active
+            if (_isExamSecurityActive && keyData == (Keys.Alt | Keys.F4))
             {
                 TriggerViolation("Alt+F4 Attempt", "Cố tình đóng ứng dụng phòng thi");
                 return true;
@@ -484,4 +607,3 @@ namespace student_desktop_app
         }
     }
 }
-
