@@ -46,4 +46,5 @@ backend_api/storage/
 Thumbs.db
 *.log
 *.tmp
+scripts/
 tests/test_remote_module3.py
