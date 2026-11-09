@@ -35,7 +35,11 @@ env/
 venv/
 .venv/
 ai_service/uploads/
+backend_api/storage/
+.vscode/
 uploads/
+backend_api/storage/
+.vscode/
 
 # 5. OS and Temporary files
 .DS_Store

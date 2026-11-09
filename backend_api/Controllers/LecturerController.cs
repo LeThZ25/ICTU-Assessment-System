@@ -16,7 +16,7 @@ namespace backend_api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class LecturerController : ControllerBase
+    public partial class LecturerController : ControllerBase
     {
         private readonly ApplicationDbContext _db;
         private readonly IAiServiceClient _aiClient;
@@ -40,8 +40,23 @@ namespace backend_api.Controllers
                 {
                     s.Id,
                     s.Code,
+                    SubjectCode = s.Code,
                     s.Name,
+                    SubjectName = s.Name,
                     s.Description,
+                    s.TotalCredits,
+                    s.PracticeCredits,
+                    s.Department,
+                    s.Faculty,
+                    s.ExamFormat,
+                    s.TotalHours,
+                    s.TheoryHours,
+                    s.DiscussionHours,
+                    s.PracticeHours,
+                    s.PeriodicExamHours,
+                    s.SelfStudyHours,
+                    s.FinalExamType,
+                    s.HomeFailBanThresholdPercent,
                     DocumentsCount = s.Documents.Count,
                     QuestionsCount = s.Questions.Count,
                     ExamsCount = s.Exams.Count
@@ -49,6 +64,228 @@ namespace backend_api.Controllers
                 .ToListAsync();
 
             return Ok(subjects);
+        }
+
+        [HttpPut("subjects/{id}/lcms-profile")]
+        public async Task<IActionResult> UpdateSubjectLcmsProfile(int id, [FromBody] UpdateLcmsProfileDto dto)
+        {
+            var subject = await _db.Subjects.FindAsync(id);
+            if (subject == null)
+                return NotFound(new { success = false, code = "NOT_FOUND", message = "Không tìm thấy môn học." });
+
+            if (!string.IsNullOrWhiteSpace(dto.FinalExamType))
+            {
+                var validTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    "Trắc nghiệm", "Thực hành", "Tự luận", "Vấn đáp", "Đồ án", "Dự án", "Báo cáo", "Tiểu luận"
+                };
+                if (!validTypes.Contains(dto.FinalExamType.Trim()))
+                {
+                    return BadRequest(new { success = false, code = "INVALID_EXAM_TYPE", message = "Hình thức thi kết thúc học phần không hợp lệ." });
+                }
+            }
+
+            if (dto.TotalCredits.HasValue)
+            {
+                if (dto.TotalCredits.Value <= 0)
+                    return BadRequest(new { success = false, code = "VALIDATION", message = "Số tín chỉ phải lớn hơn 0." });
+
+                // D5: Đổi TotalCredits bị từ chối nếu đã có bài trên lớp
+                if (dto.TotalCredits.Value != subject.TotalCredits)
+                {
+                    var hasInClass = await _db.InClassAssessments.AnyAsync(a => a.SubjectId == id);
+                    if (hasInClass)
+                    {
+                        return StatusCode(409, new { success = false, code = "CREDITS_LOCKED", message = "Không thể thay đổi số tín chỉ khi môn học đã có bài kiểm tra trên lớp." });
+                    }
+                    subject.TotalCredits = dto.TotalCredits.Value;
+                }
+            }
+
+            if (dto.PracticeCredits.HasValue)
+            {
+                if (dto.PracticeCredits.Value < 0)
+                    return BadRequest(new { success = false, code = "VALIDATION", message = "Số tín chỉ thực hành không được âm." });
+                subject.PracticeCredits = dto.PracticeCredits.Value;
+            }
+
+            if (dto.HomeFailBanThresholdPercent.HasValue)
+            {
+                if (dto.HomeFailBanThresholdPercent.Value < 0 || dto.HomeFailBanThresholdPercent.Value > 100)
+                    return BadRequest(new { success = false, code = "VALIDATION", message = "Ngưỡng cấm thi bài ở nhà phải từ 0 đến 100%." });
+                subject.HomeFailBanThresholdPercent = dto.HomeFailBanThresholdPercent.Value;
+            }
+
+            if (dto.Department != null) subject.Department = dto.Department.Trim();
+            if (dto.Faculty != null) subject.Faculty = dto.Faculty.Trim();
+            if (dto.ExamFormat != null) subject.ExamFormat = dto.ExamFormat.Trim();
+            if (dto.TotalHours.HasValue) subject.TotalHours = dto.TotalHours.Value;
+            if (dto.TheoryHours.HasValue) subject.TheoryHours = dto.TheoryHours.Value;
+            if (dto.DiscussionHours.HasValue) subject.DiscussionHours = dto.DiscussionHours.Value;
+            if (dto.PracticeHours.HasValue) subject.PracticeHours = dto.PracticeHours.Value;
+            if (dto.PeriodicExamHours.HasValue) subject.PeriodicExamHours = dto.PeriodicExamHours.Value;
+            if (dto.SelfStudyHours.HasValue) subject.SelfStudyHours = dto.SelfStudyHours.Value;
+            if (!string.IsNullOrWhiteSpace(dto.FinalExamType)) subject.FinalExamType = dto.FinalExamType.Trim();
+
+            await _db.SaveChangesAsync();
+
+            return Ok(new
+            {
+                success = true,
+                message = "Cập nhật thông tin học phần LCMS thành công.",
+                subject = new
+                {
+                    subject.Id,
+                    subject.Code,
+                    subject.Name,
+                    subject.TotalCredits,
+                    subject.PracticeCredits,
+                    subject.Department,
+                    subject.Faculty,
+                    subject.ExamFormat,
+                    subject.TotalHours,
+                    subject.TheoryHours,
+                    subject.DiscussionHours,
+                    subject.PracticeHours,
+                    subject.PeriodicExamHours,
+                    subject.SelfStudyHours,
+                    subject.FinalExamType,
+                    subject.HomeFailBanThresholdPercent
+                }
+            });
+        }
+
+        [HttpGet("subjects/{id}/in-class-assessments")]
+        public async Task<IActionResult> GetInClassAssessments(int id)
+        {
+            var subject = await _db.Subjects.FindAsync(id);
+            if (subject == null)
+                return NotFound(new { success = false, code = "NOT_FOUND", message = "Không tìm thấy môn học." });
+
+            var assessments = await _db.InClassAssessments
+                .Where(a => a.SubjectId == id)
+                .OrderBy(a => a.AssessmentOrder)
+                .Select(a => new
+                {
+                    a.Id,
+                    a.SubjectId,
+                    a.AssessmentOrder,
+                    a.Title,
+                    a.AssessmentType,
+                    a.DurationMinutes,
+                    a.MaxScore,
+                    a.WeightPercentage,
+                    a.IsActive
+                })
+                .ToListAsync();
+
+            return Ok(new
+            {
+                success = true,
+                subjectId = id,
+                totalCredits = subject.TotalCredits,
+                count = assessments.Count,
+                assessments
+            });
+        }
+
+        [HttpPost("subjects/{id}/in-class-assessments")]
+        public async Task<IActionResult> CreateInClassAssessment(int id, [FromBody] CreateInClassAssessmentDto dto)
+        {
+            var subject = await _db.Subjects.FindAsync(id);
+            if (subject == null)
+                return NotFound(new { success = false, code = "NOT_FOUND", message = "Không tìm thấy môn học." });
+
+            if (string.IsNullOrWhiteSpace(dto.Title))
+                return BadRequest(new { success = false, code = "VALIDATION", message = "Tiêu đề bài kiểm tra không được để trống." });
+
+            // D1 & D2: Đếm số bài hiện tại. Tạo bài thứ N+1 -> 409 ASSESSMENT_LIMIT
+            var existingCount = await _db.InClassAssessments.CountAsync(a => a.SubjectId == id);
+            if (existingCount >= subject.TotalCredits)
+            {
+                return StatusCode(409, new
+                {
+                    success = false,
+                    code = "ASSESSMENT_LIMIT",
+                    message = $"Số bài kiểm tra trên lớp không được vượt quá số tín chỉ của học phần ({subject.TotalCredits} bài)."
+                });
+            }
+
+            var validTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Theory", "CodingPractice", "Hybrid" };
+            var type = string.IsNullOrWhiteSpace(dto.AssessmentType) ? "Theory" : dto.AssessmentType.Trim();
+            if (!validTypes.Contains(type))
+                return BadRequest(new { success = false, code = "VALIDATION", message = "AssessmentType phải là Theory, CodingPractice hoặc Hybrid." });
+
+            if (dto.WeightPercentage <= 0 || dto.WeightPercentage > 100)
+                return BadRequest(new { success = false, code = "VALIDATION", message = "Trọng số phải lớn hơn 0 và không vượt quá 100%." });
+
+            var duration = dto.DurationMinutes > 0 && dto.DurationMinutes <= 180 ? dto.DurationMinutes : 45;
+
+            var assessment = new InClassAssessment
+            {
+                SubjectId = id,
+                AssessmentOrder = existingCount + 1,
+                Title = dto.Title.Trim(),
+                AssessmentType = type,
+                DurationMinutes = duration,
+                MaxScore = 10.0,
+                WeightPercentage = Math.Round(dto.WeightPercentage, 1),
+                IsActive = dto.IsActive ?? true
+            };
+
+            _db.InClassAssessments.Add(assessment);
+            await _db.SaveChangesAsync();
+
+            return Ok(new
+            {
+                success = true,
+                message = $"Đã tạo bài kiểm tra trên lớp #{assessment.AssessmentOrder} thành công.",
+                assessment = new
+                {
+                    assessment.Id,
+                    assessment.SubjectId,
+                    assessment.AssessmentOrder,
+                    assessment.Title,
+                    assessment.AssessmentType,
+                    assessment.DurationMinutes,
+                    assessment.MaxScore,
+                    assessment.WeightPercentage,
+                    assessment.IsActive
+                }
+            });
+        }
+
+        [HttpDelete("in-class-assessments/{id}")]
+        public async Task<IActionResult> DeleteInClassAssessment(int id)
+        {
+            var assessment = await _db.InClassAssessments.FindAsync(id);
+            if (assessment == null)
+                return NotFound(new { success = false, code = "NOT_FOUND", message = "Không tìm thấy bài kiểm tra trên lớp." });
+
+            // D4: Xóa bài trên lớp chỉ khi chưa có ca Published, InProgress hoặc Closed
+            var hasActiveSessions = await _db.ExamRoomSessions
+                .AnyAsync(s => s.InClassAssessmentId == id && (s.Status == "Published" || s.Status == "InProgress" || s.Status == "Closed"));
+            if (hasActiveSessions)
+            {
+                return StatusCode(409, new
+                {
+                    success = false,
+                    code = "ASSESSMENT_LOCKED",
+                    message = "Không thể xóa bài kiểm tra khi đã có ca thi phát hành hoặc đã diễn ra."
+                });
+            }
+
+            // Xóa các tiêu chí rubric kèm theo
+            var rubrics = await _db.RubricCriteria.Where(r => r.InClassAssessmentId == id).ToListAsync();
+            if (rubrics.Any())
+            {
+                _db.RubricCriteria.RemoveRange(rubrics);
+            }
+
+            _db.InClassAssessments.Remove(assessment);
+            await _db.SaveChangesAsync();
+
+            return Ok(new { success = true, message = "Đã xóa bài kiểm tra trên lớp thành công." });
         }
 
         [HttpPost("upload-document")]
@@ -1908,6 +2145,32 @@ namespace backend_api.Controllers
     {
         public string? LecturerEmail { get; set; }
         public string? LecturerName { get; set; }
+    }
+
+    public class UpdateLcmsProfileDto
+    {
+        public int? TotalCredits { get; set; }
+        public int? PracticeCredits { get; set; }
+        public string? Department { get; set; }
+        public string? Faculty { get; set; }
+        public string? ExamFormat { get; set; }
+        public int? TotalHours { get; set; }
+        public int? TheoryHours { get; set; }
+        public int? DiscussionHours { get; set; }
+        public int? PracticeHours { get; set; }
+        public int? PeriodicExamHours { get; set; }
+        public int? SelfStudyHours { get; set; }
+        public string? FinalExamType { get; set; }
+        public double? HomeFailBanThresholdPercent { get; set; }
+    }
+
+    public class CreateInClassAssessmentDto
+    {
+        public string Title { get; set; } = string.Empty;
+        public string? AssessmentType { get; set; } = "Theory"; // Theory, CodingPractice, Hybrid
+        public int DurationMinutes { get; set; } = 45;
+        public double WeightPercentage { get; set; } = 30.0;
+        public bool? IsActive { get; set; } = true;
     }
 }
 

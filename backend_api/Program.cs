@@ -10,13 +10,16 @@ var builder = WebApplication.CreateBuilder(args);
 // Add Database Context (SQLite)
 var dbPath = Path.Combine(AppContext.BaseDirectory, "ictu_exam.db");
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlite($"Data Source={dbPath}"));
+    options.UseSqlite($"Data Source={dbPath};Default Timeout=30"));
 
 // Add AI Service Client
 builder.Services.AddHttpClient<IAiServiceClient, AiServiceClient>();
 
 // Add SignalR
 builder.Services.AddSignalR();
+
+// Add MemoryCache for Rubric drafts (LCMS Section 8)
+builder.Services.AddMemoryCache();
 
 // Add CORS
 builder.Services.AddCors(options =>
@@ -58,8 +61,12 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     db.Database.EnsureCreated();
 
-    // Vá M7: Bật WAL mode để tránh lỗi "database is locked" khi GV+SV truy cập đồng thời
-    try { db.Database.ExecuteSqlRaw("PRAGMA journal_mode=WAL;"); }
+    // Vá M7: Bật WAL mode và busy_timeout để tránh lỗi "database is locked" khi GV+SV truy cập đồng thời
+    try { 
+        db.Database.ExecuteSqlRaw("PRAGMA journal_mode=WAL;");
+        db.Database.ExecuteSqlRaw("PRAGMA busy_timeout=30000;");
+        db.Database.ExecuteSqlRaw("PRAGMA synchronous=NORMAL;");
+    }
     catch { /* WAL không hỗ trợ trên một số nền tảng — fallback journal_mode mặc định */ }
 
     // Auto-create Users table if DB existed before
@@ -279,6 +286,207 @@ using (var scope = app.Services.CreateScope())
                 using var alterCmd = conn.CreateCommand();
                 alterCmd.CommandText = "ALTER TABLE \"Users\" ADD COLUMN \"Title\" TEXT DEFAULT 'Giảng viên';";
                 alterCmd.ExecuteNonQuery();
+            }
+
+            // Safe migration for Subjects table (LCMS columns - LCMS_BA_SPEC_FOR_DEVS.md Section 3.1)
+            var subjectCols = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = "PRAGMA table_info(\"Subjects\");";
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    subjectCols.Add(reader.GetString(1));
+                }
+            }
+
+            void AddSubjectCol(string colName, string def)
+            {
+                if (!subjectCols.Contains(colName))
+                {
+                    using var alterCmd = conn.CreateCommand();
+                    alterCmd.CommandText = $"ALTER TABLE \"Subjects\" ADD COLUMN \"{colName}\" {def};";
+                    alterCmd.ExecuteNonQuery();
+                }
+            }
+
+            AddSubjectCol("TotalCredits", "INTEGER DEFAULT 3");
+            AddSubjectCol("PracticeCredits", "INTEGER DEFAULT 1");
+            AddSubjectCol("Department", "TEXT DEFAULT 'Bộ môn Hệ thống thông tin'");
+            AddSubjectCol("Faculty", "TEXT DEFAULT 'Khoa Công nghệ thông tin'");
+            AddSubjectCol("ExamFormat", "TEXT DEFAULT 'Thực hành'");
+            AddSubjectCol("TotalHours", "INTEGER DEFAULT 150");
+            AddSubjectCol("TheoryHours", "INTEGER DEFAULT 30");
+            AddSubjectCol("DiscussionHours", "INTEGER DEFAULT 0");
+            AddSubjectCol("PracticeHours", "INTEGER DEFAULT 27");
+            AddSubjectCol("PeriodicExamHours", "INTEGER DEFAULT 3");
+            AddSubjectCol("SelfStudyHours", "INTEGER DEFAULT 90");
+            AddSubjectCol("FinalExamType", "TEXT DEFAULT 'Thực hành'");
+            AddSubjectCol("HomeFailBanThresholdPercent", "REAL DEFAULT 30.0");
+
+            // Safe migration for Documents table (LCMS storage - LCMS_BA_SPEC_FOR_DEVS.md Section 3.2)
+            var docCols = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = "PRAGMA table_info(\"Documents\");";
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    docCols.Add(reader.GetString(1));
+                }
+            }
+
+            void AddDocCol(string colName, string def)
+            {
+                if (!docCols.Contains(colName))
+                {
+                    using var alterCmd = conn.CreateCommand();
+                    alterCmd.CommandText = $"ALTER TABLE \"Documents\" ADD COLUMN \"{colName}\" {def};";
+                    alterCmd.ExecuteNonQuery();
+                }
+            }
+
+            AddDocCol("FilePath", "TEXT NULL");
+            AddDocCol("FileType", "TEXT DEFAULT 'txt'");
+            AddDocCol("FileSize", "INTEGER DEFAULT 0");
+            AddDocCol("ExtractedContentText", "TEXT NULL");
+            AddDocCol("ExtractStatus", "TEXT DEFAULT 'Pending'");
+
+            // Safe migration for Questions table (Rubric & Assessment FKs - Section 3.11)
+            if (!existingCols.Contains("RubricCriterionId"))
+            {
+                using var alterCmd = conn.CreateCommand();
+                alterCmd.CommandText = "ALTER TABLE \"Questions\" ADD COLUMN \"RubricCriterionId\" INTEGER NULL;";
+                alterCmd.ExecuteNonQuery();
+            }
+            if (!existingCols.Contains("InClassAssessmentId"))
+            {
+                using var alterCmd = conn.CreateCommand();
+                alterCmd.CommandText = "ALTER TABLE \"Questions\" ADD COLUMN \"InClassAssessmentId\" INTEGER NULL;";
+                alterCmd.ExecuteNonQuery();
+            }
+            if (!existingCols.Contains("HomeAssignmentId"))
+            {
+                using var alterCmd = conn.CreateCommand();
+                alterCmd.CommandText = "ALTER TABLE \"Questions\" ADD COLUMN \"HomeAssignmentId\" INTEGER NULL;";
+                alterCmd.ExecuteNonQuery();
+            }
+
+            // Create new LCMS tables (LCMS_BA_SPEC_FOR_DEVS.md Sections 3.3 - 3.10)
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = @"
+                    CREATE TABLE IF NOT EXISTS ""InClassAssessments"" (
+                        ""Id"" INTEGER NOT NULL CONSTRAINT ""PK_InClassAssessments"" PRIMARY KEY AUTOINCREMENT,
+                        ""SubjectId"" INTEGER NOT NULL,
+                        ""AssessmentOrder"" INTEGER NOT NULL,
+                        ""Title"" TEXT NOT NULL,
+                        ""AssessmentType"" TEXT NOT NULL DEFAULT 'Theory',
+                        ""DurationMinutes"" INTEGER NOT NULL DEFAULT 45,
+                        ""MaxScore"" REAL NOT NULL DEFAULT 10.0,
+                        ""WeightPercentage"" REAL NOT NULL DEFAULT 30.0,
+                        ""IsActive"" INTEGER NOT NULL DEFAULT 1,
+                        CONSTRAINT ""FK_InClassAssessments_Subjects_SubjectId"" FOREIGN KEY (""SubjectId"") REFERENCES ""Subjects"" (""Id"") ON DELETE CASCADE
+                    );
+                    CREATE UNIQUE INDEX IF NOT EXISTS ""IX_InClassAssessments_Subject_Order"" ON ""InClassAssessments"" (""SubjectId"", ""AssessmentOrder"");
+
+                    CREATE TABLE IF NOT EXISTS ""HomeAssignments"" (
+                        ""Id"" INTEGER NOT NULL CONSTRAINT ""PK_HomeAssignments"" PRIMARY KEY AUTOINCREMENT,
+                        ""SubjectId"" INTEGER NOT NULL,
+                        ""CourseClassId"" INTEGER NOT NULL,
+                        ""Title"" TEXT NOT NULL,
+                        ""Description"" TEXT NULL,
+                        ""Format"" TEXT NOT NULL DEFAULT 'Quiz',
+                        ""DeadlineUtc"" TEXT NOT NULL,
+                        ""PassThreshold"" REAL NOT NULL DEFAULT 60.0,
+                        ""MaxRetakeCount"" INTEGER NOT NULL DEFAULT 2,
+                        ""IsActive"" INTEGER NOT NULL DEFAULT 1,
+                        CONSTRAINT ""FK_HomeAssignments_Subjects_SubjectId"" FOREIGN KEY (""SubjectId"") REFERENCES ""Subjects"" (""Id"") ON DELETE CASCADE,
+                        CONSTRAINT ""FK_HomeAssignments_CourseClasses_CourseClassId"" FOREIGN KEY (""CourseClassId"") REFERENCES ""CourseClasses"" (""Id"") ON DELETE CASCADE
+                    );
+
+                    CREATE TABLE IF NOT EXISTS ""HomeSubmissions"" (
+                        ""Id"" INTEGER NOT NULL CONSTRAINT ""PK_HomeSubmissions"" PRIMARY KEY AUTOINCREMENT,
+                        ""HomeAssignmentId"" INTEGER NOT NULL,
+                        ""StudentCode"" TEXT NOT NULL,
+                        ""AttemptNumber"" INTEGER NOT NULL DEFAULT 1,
+                        ""Result"" TEXT NOT NULL DEFAULT 'Fail',
+                        ""RawPercent"" REAL NOT NULL DEFAULT 0.0,
+                        ""FailReason"" TEXT NULL,
+                        ""Status"" TEXT NOT NULL DEFAULT 'Submitted',
+                        ""SubmittedAtUtc"" TEXT NOT NULL,
+                        ""LecturerNote"" TEXT NULL,
+                        CONSTRAINT ""FK_HomeSubmissions_HomeAssignments_HomeAssignmentId"" FOREIGN KEY (""HomeAssignmentId"") REFERENCES ""HomeAssignments"" (""Id"") ON DELETE CASCADE
+                    );
+                    CREATE UNIQUE INDEX IF NOT EXISTS ""IX_HomeSubmissions_Assignment_Student_Attempt"" ON ""HomeSubmissions"" (""HomeAssignmentId"", ""StudentCode"", ""AttemptNumber"");
+
+                    CREATE TABLE IF NOT EXISTS ""ExamRoomSessions"" (
+                        ""Id"" INTEGER NOT NULL CONSTRAINT ""PK_ExamRoomSessions"" PRIMARY KEY AUTOINCREMENT,
+                        ""InClassAssessmentId"" INTEGER NOT NULL,
+                        ""CourseClassId"" INTEGER NOT NULL,
+                        ""SessionOtp"" TEXT NOT NULL,
+                        ""OtpExpiresAtUtc"" TEXT NOT NULL,
+                        ""AllowedIpSubnet"" TEXT NOT NULL DEFAULT 'ANY',
+                        ""Status"" TEXT NOT NULL DEFAULT 'Draft',
+                        ""PublishedAtUtc"" TEXT NULL,
+                        ""ClosedAtUtc"" TEXT NULL,
+                        CONSTRAINT ""FK_ExamRoomSessions_InClassAssessments_InClassAssessmentId"" FOREIGN KEY (""InClassAssessmentId"") REFERENCES ""InClassAssessments"" (""Id"") ON DELETE CASCADE,
+                        CONSTRAINT ""FK_ExamRoomSessions_CourseClasses_CourseClassId"" FOREIGN KEY (""CourseClassId"") REFERENCES ""CourseClasses"" (""Id"") ON DELETE CASCADE
+                    );
+
+                    CREATE TABLE IF NOT EXISTS ""ExamRoomJoins"" (
+                        ""Id"" INTEGER NOT NULL CONSTRAINT ""PK_ExamRoomJoins"" PRIMARY KEY AUTOINCREMENT,
+                        ""ExamRoomSessionId"" INTEGER NOT NULL,
+                        ""StudentCode"" TEXT NOT NULL,
+                        ""JoinedAtUtc"" TEXT NOT NULL,
+                        ""ClientIp"" TEXT NOT NULL,
+                        ""FailedOtpCount"" INTEGER NOT NULL DEFAULT 0,
+                        ""LockedUntilUtc"" TEXT NULL,
+                        CONSTRAINT ""FK_ExamRoomJoins_ExamRoomSessions_ExamRoomSessionId"" FOREIGN KEY (""ExamRoomSessionId"") REFERENCES ""ExamRoomSessions"" (""Id"") ON DELETE CASCADE
+                    );
+                    CREATE UNIQUE INDEX IF NOT EXISTS ""IX_ExamRoomJoins_Session_Student"" ON ""ExamRoomJoins"" (""ExamRoomSessionId"", ""StudentCode"");
+
+                    CREATE TABLE IF NOT EXISTS ""CodeSubmissions"" (
+                        ""Id"" INTEGER NOT NULL CONSTRAINT ""PK_CodeSubmissions"" PRIMARY KEY AUTOINCREMENT,
+                        ""ExamRoomSessionId"" INTEGER NOT NULL,
+                        ""StudentCode"" TEXT NOT NULL,
+                        ""StoredPath"" TEXT NOT NULL,
+                        ""OriginalFileName"" TEXT NOT NULL,
+                        ""FileSize"" INTEGER NOT NULL DEFAULT 0,
+                        ""Language"" TEXT NOT NULL DEFAULT 'CSharp',
+                        ""Status"" TEXT NOT NULL DEFAULT 'PendingGrading',
+                        ""AiSuggestedScore"" REAL NULL,
+                        ""AiFeedback"" TEXT NULL,
+                        ""Score"" REAL NULL,
+                        ""FeedbackReport"" TEXT NULL,
+                        ""GradedAtUtc"" TEXT NULL,
+                        CONSTRAINT ""FK_CodeSubmissions_ExamRoomSessions_ExamRoomSessionId"" FOREIGN KEY (""ExamRoomSessionId"") REFERENCES ""ExamRoomSessions"" (""Id"") ON DELETE CASCADE
+                    );
+
+                    CREATE TABLE IF NOT EXISTS ""RubricCriteria"" (
+                        ""Id"" INTEGER NOT NULL CONSTRAINT ""PK_RubricCriteria"" PRIMARY KEY AUTOINCREMENT,
+                        ""InClassAssessmentId"" INTEGER NULL,
+                        ""HomeAssignmentId"" INTEGER NULL,
+                        ""Title"" TEXT NOT NULL,
+                        ""Points"" REAL NOT NULL,
+                        ""SortOrder"" INTEGER NOT NULL DEFAULT 0,
+                        CONSTRAINT ""FK_RubricCriteria_InClassAssessments"" FOREIGN KEY (""InClassAssessmentId"") REFERENCES ""InClassAssessments"" (""Id"") ON DELETE CASCADE,
+                        CONSTRAINT ""FK_RubricCriteria_HomeAssignments"" FOREIGN KEY (""HomeAssignmentId"") REFERENCES ""HomeAssignments"" (""Id"") ON DELETE CASCADE
+                    );
+
+                    CREATE TABLE IF NOT EXISTS ""EligibilityOverrides"" (
+                        ""Id"" INTEGER NOT NULL CONSTRAINT ""PK_EligibilityOverrides"" PRIMARY KEY AUTOINCREMENT,
+                        ""CourseClassId"" INTEGER NOT NULL,
+                        ""StudentCode"" TEXT NOT NULL,
+                        ""Decision"" TEXT NOT NULL DEFAULT 'Allow',
+                        ""Reason"" TEXT NOT NULL,
+                        ""DecidedByEmail"" TEXT NOT NULL,
+                        ""DecidedAtUtc"" TEXT NOT NULL,
+                        CONSTRAINT ""FK_EligibilityOverrides_CourseClasses"" FOREIGN KEY (""CourseClassId"") REFERENCES ""CourseClasses"" (""Id"") ON DELETE CASCADE
+                    );
+                    CREATE UNIQUE INDEX IF NOT EXISTS ""IX_EligibilityOverrides_Class_Student"" ON ""EligibilityOverrides"" (""CourseClassId"", ""StudentCode"");
+                ";
+                cmd.ExecuteNonQuery();
             }
 
             // Create CourseClasses table if not exists
