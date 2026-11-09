@@ -37,6 +37,25 @@ namespace student_desktop_app
             }
         }
 
+        public async Task<bool> LoginStudentAsync(string studentCode, string studentName)
+        {
+            try
+            {
+                var payload = new
+                {
+                    studentCode = studentCode,
+                    fullName = studentName
+                };
+                var res = await _http.PostAsJsonAsync("/api/student/login", payload);
+                return res.IsSuccessStatusCode;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"LoginStudent error: {ex.Message}");
+                return false;
+            }
+        }
+
         public async Task<StartExamResponse?> StartExamAsync(int examId, string studentCode, string studentName, string accessCode)
         {
             try
