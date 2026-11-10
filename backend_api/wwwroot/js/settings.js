@@ -1,23 +1,8 @@
 // ==============================================================
-// 4. SYSTEM SETTINGS & THEME ENGINE
+// 4. SYSTEM SETTINGS & THEME ENGINE (OFFICIAL ICTU)
 // ==============================================================
     function applyTheme(theme) {
-      theme = theme || 'ictu';
-      sessionStorage.setItem('ictu_theme', theme);
-
-      // Highlight the active theme card
-      document.querySelectorAll('input[name="settingTheme"]').forEach(r => {
-        r.checked = (r.value === theme);
-        const card = r.closest('label');
-        if (card) {
-          if (r.value === theme) {
-            card.className = "p-3 bg-white rounded-lg border-2 border-ictu ring-2 ring-ictu/20 flex flex-col items-center cursor-pointer transition shadow-xs";
-          } else {
-            card.className = "p-3 bg-white rounded-lg border border-slate-200 hover:border-slate-400 flex flex-col items-center cursor-pointer transition hover:shadow-xs";
-          }
-        }
-      });
-
+      sessionStorage.setItem('ictu_theme', 'ictu');
       const sidebar = document.getElementById('mainSidebar');
       let styleEl = document.getElementById('dynamicThemeStyles');
       if (!styleEl) {
@@ -25,49 +10,18 @@
         styleEl.id = 'dynamicThemeStyles';
         document.head.appendChild(styleEl);
       }
-
-      if (theme === 'dark-navy') {
-        styleEl.innerHTML = `
-          #mainSidebar { background-color: #091322 !important; border-right-color: #0284c7 !important; }
-          .bg-ictu-dark { background-color: #091322 !important; }
-          .bg-ictu { background-color: #0284c7 !important; }
-          .hover\\:bg-ictu-dark:hover { background-color: #0369a1 !important; }
-          .text-ictu { color: #0284c7 !important; }
-          .border-ictu { border-color: #0284c7 !important; }
-          .bg-ictu-light { background-color: #e0f2fe !important; }
-        `;
-        if (sidebar) {
-          sidebar.style.backgroundColor = '#091322';
-          sidebar.style.borderRightColor = '#0284c7';
-        }
-      } else if (theme === 'minimal') {
-        styleEl.innerHTML = `
-          #mainSidebar { background-color: #18181b !important; border-right-color: #10b981 !important; }
-          .bg-ictu-dark { background-color: #18181b !important; }
-          .bg-ictu { background-color: #0f766e !important; }
-          .hover\\:bg-ictu-dark:hover { background-color: #115e59 !important; }
-          .text-ictu { color: #0f766e !important; }
-          .border-ictu { border-color: #10b981 !important; }
-          .bg-ictu-light { background-color: #ccfbf1 !important; }
-        `;
-        if (sidebar) {
-          sidebar.style.backgroundColor = '#18181b';
-          sidebar.style.borderRightColor = '#10b981';
-        }
-      } else { // default 'ictu'
-        styleEl.innerHTML = `
-          #mainSidebar { background-color: #003873 !important; border-right-color: #F37021 !important; }
-          .bg-ictu-dark { background-color: #003873 !important; }
-          .bg-ictu { background-color: #0055A5 !important; }
-          .hover\\:bg-ictu-dark:hover { background-color: #003873 !important; }
-          .text-ictu { color: #0055A5 !important; }
-          .border-ictu { border-color: #0055A5 !important; }
-          .bg-ictu-light { background-color: #EEF6FC !important; }
-        `;
-        if (sidebar) {
-          sidebar.style.backgroundColor = '#003873';
-          sidebar.style.borderRightColor = '#F37021';
-        }
+      styleEl.innerHTML = `
+        #mainSidebar { background-color: #003873 !important; border-right-color: #F37021 !important; }
+        .bg-ictu-dark { background-color: #003873 !important; }
+        .bg-ictu { background-color: #0055A5 !important; }
+        .hover\\:bg-ictu-dark:hover { background-color: #003873 !important; }
+        .text-ictu { color: #0055A5 !important; }
+        .border-ictu { border-color: #0055A5 !important; }
+        .bg-ictu-light { background-color: #EEF6FC !important; }
+      `;
+      if (sidebar) {
+        sidebar.style.backgroundColor = '#003873';
+        sidebar.style.borderRightColor = '#F37021';
       }
     }
 

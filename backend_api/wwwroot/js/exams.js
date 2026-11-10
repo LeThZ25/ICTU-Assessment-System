@@ -226,11 +226,8 @@
                   <button onclick="openQuickExamPreview(${e.id})" class="px-3 py-1.5 bg-ictu-accent hover:bg-orange-600 text-white text-xs font-bold rounded-lg transition shadow-xs flex items-center" title="Kiểm tra nội dung câu hỏi trước khi cho sinh viên thi">
                     <i class="fa-solid fa-circle-play mr-1"></i> Thử Đề
                   </button>
-                  <button onclick="handleGenerateVariants(${e.id})" class="px-2.5 py-1.5 bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 text-xs font-semibold rounded-lg transition" title="Sinh 4 mã đề hoán vị ngẫu nhiên (101-104)">
-                    <i class="fa-solid fa-shuffle mr-1"></i> 4 Mã Đề
-                  </button>
-                  <button onclick="toggleExamActive(${e.id})" class="px-2.5 py-1.5 ${e.isActive ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-100 text-slate-600'} border text-xs font-semibold rounded-lg transition" title="Bật/Tắt trạng thái làm bài">
-                    <i class="fa-solid fa-power-off"></i>
+                  <button onclick="toggleExamActive(${e.id})" class="px-2.5 py-1.5 ${e.isActive ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-100 text-slate-600'} border text-xs font-semibold rounded-lg transition" title="${e.isActive ? 'Khóa ca thi' : 'Mở ca thi'}">
+                    <i class="fa-solid fa-power-off mr-1"></i> ${e.isActive ? 'Đang Mở' : 'Đã Khóa'}
                   </button>
                   <button onclick="extendExamTime(${e.id}, 10)" class="px-2.5 py-1.5 bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 text-xs font-semibold rounded-lg transition" title="Cộng thêm 10 phút">
                     +10p

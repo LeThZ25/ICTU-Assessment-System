@@ -139,4 +139,28 @@
       }
     }
 
+    async function forceCloseEntireRoom(examId) {
+      if (!confirm("CẢNH BÁO NGUY CẤP: Toàn bộ phòng thi sẽ bị thu bài cưỡng chế và đóng ca thi ngay lập tức. Bạn có chắc chắn muốn thực hiện?")) return;
+      try {
+        const res = await fetch(`/api/lecturer/exam-room-sessions/${examId || 1}/close`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Lecturer-Email": currentUser.email
+          }
+        });
+        if (res.ok) {
+          alert("Đã thu bài cưỡng chế và đóng ca thi toàn phòng thành công!");
+          showFloatingToast("Đã đóng ca thi toàn phòng thành công!", "success");
+          loadExams();
+        } else {
+          // Fallback to toggle active on exam
+          await toggleExamActive(examId);
+          alert("Đã thu bài và khóa phòng thi thành công!");
+        }
+      } catch (err) {
+        alert("Lỗi thực hiện: " + err.message);
+      }
+    }
+
 

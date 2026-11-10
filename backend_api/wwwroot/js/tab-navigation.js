@@ -19,7 +19,7 @@
 
       const headings = {
         'dashboard': 'TỔNG QUAN HỆ THỐNG',
-        'schedule': 'LỊCH GIẢNG DẠY & PHÒNG MÁY HỌC KỲ',
+        'schedule': 'SỔ TIẾN ĐỘ BÀI VỀ NHÀ & ĐIỀU KIỆN DỰ THI (LCMS)',
         'classes': 'QUẢN LÝ LỚP HỌC PHẦN & DANH SÁCH SINH VIÊN',
         'exam-creator': 'TẠO ĐỀ THI & SOẠN CÂU HỎI THEO CHUẨN CLO',
         'question-bank': 'NGÂN HÀNG CÂU HỎI THEO HỌC PHẦN & LỚP',
