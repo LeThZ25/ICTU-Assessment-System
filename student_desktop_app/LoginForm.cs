@@ -222,7 +222,7 @@ namespace student_desktop_app
             pnlCodeWrapper.Controls.Add(lblCodePlaceholder);
             pnlCodeWrapper.Controls.Add(txtStudentCode);
 
-            // 2. Nhãn Mật khẩu (trái: icon khóa xanh + Mật khẩu | phải: Mật khẩu mặc định: 123456)
+            // 2. Nhãn Mật khẩu (icon khóa xanh + Mật khẩu)
             var pnlPassHeader = new Panel
             {
                 Location = new Point(2, 78),
@@ -245,19 +245,6 @@ namespace student_desktop_app
                 using var fLabel = new Font("Segoe UI", 9F, FontStyle.Bold);
                 using var textBrush = new SolidBrush(Color.FromArgb(212, 212, 216));
                 e.Graphics.DrawString("Mật khẩu", fLabel, textBrush, new PointF(19, 1));
-
-                // Bên phải: Mật khẩu mặc định: 123456
-                using var fRightReg = new Font("Segoe UI", 8.5F, FontStyle.Regular);
-                using var fRightBold = new Font("Segoe UI", 8.5F, FontStyle.Bold);
-                using var mutedBrush = new SolidBrush(Color.FromArgb(161, 161, 170));
-                string prefix = "Mật khẩu mặc định: ";
-                string code = "123456";
-                SizeF codeSize = e.Graphics.MeasureString(code, fRightBold);
-                SizeF prefixSize = e.Graphics.MeasureString(prefix, fRightReg);
-                float rightX = pnlPassHeader.Width - codeSize.Width + 2;
-                float prefixX = rightX - prefixSize.Width + 4;
-                e.Graphics.DrawString(prefix, fRightReg, mutedBrush, new PointF(prefixX, 2));
-                e.Graphics.DrawString(code, fRightBold, iconBrush, new PointF(rightX, 2));
             };
 
             // Khung gộp chung ô nhập mật khẩu và biểu tượng con mắt vào cùng 1 ô bo góc liền mạch

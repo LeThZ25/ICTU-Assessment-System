@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hệ Thống Quản Lý Học Tập &amp; Khảo Thí Thông Minh</title>
+  <title>IAS - ICTU Assessment System</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -250,20 +250,13 @@
         </button>
 
         <button onclick="switchLmsSection('regular-test')" id="nav-regular-test" class="lms-nav-item">
-          <i class="fa-solid fa-flag nav-icon"></i>
-          <span>Kiểm tra thường xuyên</span>
+          <i class="fa-solid fa-house-laptop nav-icon"></i>
+          <span>Kiểm tra ở nhà</span>
         </button>
 
-        <button onclick="switchLmsSection('quiz-15')" id="nav-quiz-15" class="lms-nav-item">
+        <button onclick="switchLmsSection('classroom-test')" id="nav-classroom-test" class="lms-nav-item">
           <i class="fa-solid fa-clipboard-check nav-icon"></i>
-          <span>Kiểm tra 15 phút</span>
-          <span id="badgeQuiz15" class="lms-badge-lock">KHÓA</span>
-        </button>
-
-        <button onclick="switchLmsSection('final-exam')" id="nav-final-exam" class="lms-nav-item">
-          <i class="fa-solid fa-award nav-icon"></i>
-          <span>Thi kết thúc học phần</span>
-          <span id="badgeFinalExam" class="lms-badge-lock">KHÓA</span>
+          <span>Kiểm tra trên lớp</span>
         </button>
 
         <button onclick="switchLmsSection('qa-lecturer')" id="nav-qa-lecturer" class="lms-nav-item">
@@ -323,7 +316,7 @@
         </button>
         <div>
           <h1 id="headerExamTitle" class="text-[15px] font-medium text-slate-800 uppercase tracking-normal">THỜI KHÓA BIỂU</h1>
-          <p id="headerStudentInfo" class="text-[11px] text-slate-500 hidden">Hệ thống Quản lý Học tập &amp; Khảo thí Thông minh</p>
+          <p id="headerStudentInfo" class="text-[11px] text-slate-500 hidden">IAS - ICTU Assessment System</p>
         </div>
       </div>
 
@@ -462,11 +455,8 @@
           <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-3">
             <div>
               <h3 id="assessmentListHeading" class="text-base font-bold text-slate-800">Danh Sách Bài Kiểm Tra</h3>
-              <p id="assessmentListSub" class="text-xs text-slate-500 mt-0.5">Chọn ca kiểm tra và nhập mã phòng thi (mặc định: ICTU2026) để mở khóa bài làm</p>
+              <p id="assessmentListSub" class="text-xs text-slate-500 mt-0.5">Chọn bài kiểm tra bên dưới để kiểm tra thông tin và bắt đầu làm bài</p>
             </div>
-            <span class="px-3 py-1 bg-amber-50 text-amber-800 border border-amber-200 rounded-lg text-xs font-semibold">
-              <i class="fa-solid fa-key mr-1"></i> Mã mở khóa mẫu: <b>ICTU2026</b>
-            </span>
           </div>
 
           <div id="categoryExamsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
@@ -478,46 +468,51 @@
       <!-- ================================================================= -->
       <section id="sec-final-exam" class="lms-section hidden p-6">
 
-        <!-- STEP 1: LOGIN & START EXAM -->
+        <!-- STEP 1: XÁC NHẬN THÔNG TIN TRƯỚC KHI VÀO PHÒNG THI (CHỈ HIỂN THỊ TEXT ĐỂ SV KIỂM TRA) -->
         <div id="stepLogin" class="bg-white p-7 rounded-xl shadow-xs border border-slate-200 max-w-lg mx-auto w-full my-2">
           <div class="text-center mb-5 pb-4 border-b border-slate-100">
             <img src="/images/ictu_logo.png" alt="ICTU Logo" class="w-14 h-14 object-contain mx-auto mb-2.5">
-            <h3 class="text-lg font-bold text-slate-800 uppercase tracking-tight">Xác Thực Vào Phòng Thi An Toàn</h3>
-            <p class="text-xs text-slate-500 mt-1">Sử dụng tài khoản sinh viên và Mã phòng thi do Cán bộ coi thi cung cấp</p>
+            <h3 class="text-lg font-bold text-slate-800 uppercase tracking-tight">Xác Nhận Thông Tin Vào Phòng Thi</h3>
+            <p class="text-xs text-slate-500 mt-1">Kiểm tra lại thông tin sinh viên và bài kiểm tra trước khi bắt đầu làm bài</p>
           </div>
 
           <form onsubmit="handleStartExam(event)" class="space-y-3.5">
+            <input type="hidden" id="inpExamId" value="1">
+
             <div>
-              <label class="block text-xs font-semibold text-slate-700 mb-1">Email Sinh Viên / Mã Sinh Viên (MSV)</label>
-              <input type="text" id="inpStudentCode" required value="" placeholder="Nhập Mã sinh viên hoặc Email sinh viên" oninput="detectDomain(this.value)" class="w-full px-3.5 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:border-ictu font-medium">
-              <span id="detectedDomainBadge" class="hidden text-[11px] text-slate-400 font-medium mt-1">• Nhập mã SV hoặc email sinh viên</span>
-            </div>
-            <div>
-              <label class="block text-xs font-semibold text-slate-700 mb-1">Họ Và Tên Thí Sinh</label>
-              <input type="text" id="inpStudentName" required value="" placeholder="Nhập họ và tên thí sinh" class="w-full px-3.5 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:border-ictu">
-            </div>
-            <div>
-              <label class="block text-xs font-semibold text-slate-700 mb-1">Ca Thi / Bài Kiểm Tra Học Phần</label>
-              <select id="inpExamId" class="w-full px-3.5 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:border-ictu font-medium">
-                <option value="1">Đánh giá Kiểm tra Chuẩn đầu ra CSDL - Lớp CS301.01</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-xs font-semibold text-slate-700 mb-1">Mã Mở Khóa Phòng Thi (Access Code)</label>
-              <input type="text" id="inpAccessCode" required value="" placeholder="Nhập mã mở khóa phòng thi" class="w-full px-3.5 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:border-ictu font-mono font-bold text-ictu bg-slate-50">
+              <label class="block text-xs font-semibold text-slate-500 mb-1">Mã Sinh Viên (MSV)</label>
+              <div id="lblPreExamStudentCode" class="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-sm font-mono font-bold text-ictu">
+                DTC235210069
+              </div>
             </div>
 
-            <button type="submit" id="btnStart" class="w-full bg-ictu hover:bg-ictu-dark text-white font-semibold py-2.5 rounded-lg transition text-sm flex items-center justify-center shadow-xs">
-              <i class="fa-solid fa-lock-open mr-2"></i> Mở Khóa &amp; Vào Phòng Thi An Toàn
-            </button>
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 mb-1">Họ Và Tên Thí Sinh</label>
+              <div id="lblPreExamStudentName" class="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-800">
+                Phạm Hồng Ngọc Kiên
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 mb-1">Ca Thi / Bài Kiểm Tra Học Phần</label>
+              <div id="lblPreExamTitle" class="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-sm font-medium text-slate-800 leading-relaxed">
+                Đánh giá Kiểm tra Chuẩn đầu ra CSDL - Lớp CS301.01
+              </div>
+            </div>
+
+            <div class="pt-1">
+              <button type="submit" id="btnStart" class="w-full bg-ictu hover:bg-ictu-dark text-white font-semibold py-2.5 rounded-lg transition text-sm flex items-center justify-center shadow-xs cursor-pointer">
+                <i class="fa-solid fa-circle-play mr-2"></i> Vào Phòng Thi &amp; Bắt Đầu Làm Bài
+              </button>
+            </div>
           </form>
         </div>
 
-        <!-- STEP 2: EXAM WORKSPACE (LOCKED KIOSK MODE) -->
+        <!-- STEP 2: EXAM WORKSPACE (KIOSK OR CLASSROOM MONITORING MODE) -->
         <div id="stepExam" class="hidden space-y-4">
           <div class="bg-white border border-slate-200 border-l-4 border-l-ictu p-3 rounded-lg flex flex-wrap items-center justify-between gap-2 text-xs shadow-2xs">
             <div class="flex items-center space-x-3">
-              <span class="flex items-center font-semibold text-slate-700">
+              <span id="activeExamModeBannerText" class="flex items-center font-semibold text-slate-700">
                 <i class="fa-solid fa-shield-halved mr-2 text-ictu"></i> Chế độ Kiosk Chống Gian Lận đang khóa màn hình
               </span>
               <span class="hidden sm:inline text-slate-300">|</span>
@@ -554,10 +549,18 @@
                 <div id="codeContainer" class="hidden space-y-2 pt-2">
                   <div class="flex items-center justify-between text-xs text-slate-600 font-mono bg-slate-100 px-3.5 py-2 rounded-t-lg border border-slate-300 border-b-0">
                     <span id="codeLangBadge" class="font-bold text-ictu"><i class="fa-solid fa-code mr-1.5"></i> Ngôn ngữ: SQL</span>
-                    <button type="button" onclick="resetStarterCode()" class="text-slate-500 hover:text-ictu text-[11px] underline">↺ Đặt lại mã mẫu</button>
+                    <div class="flex items-center space-x-3">
+                      <button type="button" onclick="sendCurrentCodeToLecturerTempServer(false)" class="text-emerald-700 hover:text-emerald-800 font-sans font-bold text-[11px] flex items-center cursor-pointer">
+                        <i class="fa-solid fa-cloud-arrow-up mr-1"></i> Gửi file code lên Server tạm thời GV
+                      </button>
+                      <button type="button" onclick="resetStarterCode()" class="text-slate-500 hover:text-ictu text-[11px] underline cursor-pointer">↺ Đặt lại mã mẫu</button>
+                    </div>
                   </div>
                   <textarea id="codeInput" rows="11" placeholder="Nhập mã nguồn / câu truy vấn của bạn tại đây..." spellcheck="false" class="w-full p-3.5 font-mono text-xs bg-slate-900 text-emerald-400 rounded-b-lg border border-slate-700 focus:outline-none focus:border-ictu"></textarea>
-                  <p class="text-[11px] text-slate-500 italic"><i class="fa-solid fa-circle-info mr-1 text-ictu"></i> Bài thi lập trình được chấm tự động theo bộ kiểm thử chuẩn đầu ra của học phần.</p>
+                  <div class="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
+                    <span class="italic"><i class="fa-solid fa-circle-info mr-1 text-ictu"></i> Ở chế độ Monitoring trên lớp: File code sinh viên gửi được lưu vào Server tạm thời trên máy Giảng viên và tự đóng Server khi hết file nộp.</span>
+                    <span id="lblTempCodeServerStatus" class="font-semibold text-emerald-600"></span>
+                  </div>
                 </div>
               </div>
 
@@ -641,7 +644,7 @@
           <div id="resQuestionBreakdown" class="text-left space-y-2 max-h-60 overflow-y-auto"></div>
 
           <div class="flex flex-wrap gap-3 pt-2">
-            <button onclick="finishExamAndGoTo('timetable')" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold py-2.5 rounded-lg text-xs transition">
+            <button onclick="finishExamAndGoTo('timetable')" class="flex-1 bg-slate-600 hover:bg-slate-700 text-white font-semibold py-2.5 rounded-lg text-xs transition border border-slate-500">
               <i class="fa-solid fa-calendar-days mr-1.5"></i> Về Thời Khóa Biểu
             </button>
             <button onclick="finishExamAndGoTo('scores')" class="flex-1 bg-ictu hover:bg-ictu-dark text-white font-semibold py-2.5 rounded-lg text-xs transition">
@@ -874,7 +877,6 @@
             <label class="block text-xs font-semibold text-zinc-300">
               <i class="fa-solid fa-lock text-[#4f8ff7] mr-1.5"></i>Mật khẩu
             </label>
-            <span class="text-[11px] text-zinc-400">Mật khẩu mặc định: <b class="text-[#4f8ff7]">123456</b></span>
           </div>
           <div class="relative">
             <input type="password" id="modalCustomPassword" value="" placeholder="Nhập mật khẩu" required
@@ -1179,8 +1181,9 @@
         'timetable': 'nav-timetable',
         'classes': 'nav-classes',
         'regular-test': 'nav-regular-test',
-        'quiz-15': 'nav-quiz-15',
-        'final-exam': 'nav-final-exam',
+        'classroom-test': 'nav-classroom-test',
+        'quiz-15': 'nav-classroom-test',
+        'final-exam': 'nav-classroom-test',
         'qa-lecturer': 'nav-qa-lecturer',
         'scores': 'nav-scores',
         'settings': 'nav-settings',
@@ -1215,15 +1218,17 @@
         titleEl.innerText = "LỚP HỌC PHẦN";
         document.getElementById('sec-classes').classList.remove('hidden');
       } else if (sectionKey === 'regular-test') {
-        titleEl.innerText = "KIỂM TRA THƯỜNG XUYÊN";
+        titleEl.innerText = "KIỂM TRA Ở NHÀ";
         renderCategoryAssessments('regular');
         document.getElementById('sec-assessments-list').classList.remove('hidden');
-      } else if (sectionKey === 'quiz-15') {
-        titleEl.innerText = "KIỂM TRA 15 PHÚT";
+      } else if (sectionKey === 'classroom-test' || sectionKey === 'quiz-15') {
+        titleEl.innerText = "KIỂM TRA TRÊN LỚP";
         renderCategoryAssessments('quiz15');
         document.getElementById('sec-assessments-list').classList.remove('hidden');
       } else if (sectionKey === 'final-exam') {
-        titleEl.innerText = isExamInProgress ? document.getElementById('headerExamTitle').innerText : "THI KẾT THÚC HỌC PHẦN";
+        titleEl.innerText = isExamInProgress
+          ? document.getElementById('headerExamTitle').innerText
+          : (currentSelectedExamCategory === 'regular' ? "KIỂM TRA Ở NHÀ" : "KIỂM TRA TRÊN LỚP");
         document.getElementById('sec-final-exam').classList.remove('hidden');
       } else if (sectionKey === 'qa-lecturer') {
         titleEl.innerText = "HỎI ĐÁP VỚI TRỢ LÝ AI";
@@ -1734,7 +1739,7 @@
           learningPath: [
             { step: 1, title: "Ôn tập Chuẩn hóa 2NF, 3NF & BCNF", status: "Hoàn thành", description: "Đã nắm vững cách xác định khóa chính và loại bỏ phụ thuộc hàm bộ phận/bắc cầu." },
             { step: 2, title: "Thực hành Truy vấn SQL & Tối ưu Index", status: "Đang học", description: "Luyện tập viết câu lệnh JOIN nhiều bảng, GROUP BY ... HAVING và phân tích Execution Plan." },
-            { step: 3, title: "Làm bài Kiểm tra 15 phút & Thi kết thúc học phần", status: "Sẵn sàng", description: "Vào phòng thi an toàn Kiosk với mã mở khóa phòng thi ICTU2026." }
+            { step: 3, title: "Làm bài Kiểm tra ở nhà & Kiểm tra trên lớp", status: "Sẵn sàng", description: "Chọn bài kiểm tra trong danh sách để kiểm tra thông tin ca thi và bắt đầu làm bài." }
           ]
         }
       };
@@ -1881,6 +1886,11 @@
         nameEl.title = currentStudentName;
       }
       document.getElementById('sidebarStudentCode').innerText = currentStudentCode;
+
+      const preCodeEl = document.getElementById('lblPreExamStudentCode');
+      if (preCodeEl) preCodeEl.innerText = currentStudentCode;
+      const preNameEl = document.getElementById('lblPreExamStudentName');
+      if (preNameEl) preNameEl.innerText = currentStudentName;
     }
 
     function renderClassCards(classes) {
@@ -1913,8 +1923,8 @@
               <button onclick="switchLmsSection('timetable')" class="text-xs text-ictu font-semibold hover:underline">
                 <i class="fa-regular fa-calendar mr-1"></i> Xem lịch học
               </button>
-              <button onclick="switchLmsSection('final-exam')" class="px-3 py-1.5 bg-ictu hover:bg-ictu-dark text-white text-xs font-semibold rounded-lg transition">
-                Vào phòng thi học phần →
+              <button onclick="switchLmsSection('classroom-test')" class="px-3 py-1.5 bg-ictu hover:bg-ictu-dark text-white text-xs font-semibold rounded-lg transition">
+                Vào Kiểm tra trên lớp →
               </button>
             </div>
           </div>
@@ -1929,11 +1939,11 @@
       const allExams = (cachedDashboardData && cachedDashboardData.activeExams) ? cachedDashboardData.activeExams : [];
 
       if (category === 'regular') {
-        heading.innerText = "Danh Sách Bài Kiểm Tra Thường Xuyên";
-        sub.innerText = "Đánh giá quá trình học tập theo từng chương và rèn luyện chuẩn đầu ra CLO";
+        heading.innerText = "Danh Sách Bài Kiểm Tra Ở Nhà";
+        sub.innerText = "Làm ở nhà: Bắt buộc sử dụng Chế độ Kiosk để sinh viên tự nhập tay đáp án và vấn đáp trực tiếp với Trợ lý AI";
       } else {
-        heading.innerText = "Danh Sách Bài Kiểm Tra 15 Phút (Đang Khóa Mã Truy Cập)";
-        sub.innerText = "Nhập mã mở khóa phòng thi do giảng viên cung cấp (ICTU2026) để bắt đầu làm bài";
+        heading.innerText = "Danh Sách Bài Kiểm Tra Trên Lớp";
+        sub.innerText = "Ở trên lớp: Chọn bài kiểm tra bên dưới để xem thông tin ca thi, học phần và bắt đầu làm bài";
       }
 
       const filtered = allExams.filter(e => e.category === category);
@@ -1944,32 +1954,92 @@
         return;
       }
 
-      container.innerHTML = listToShow.map(ex => `
+      container.innerHTML = listToShow.map(ex => {
+        const effCat = category || ex.category || 'quiz15';
+        const isHomework = effCat === 'regular';
+        const modeTag = isHomework
+          ? `<span class="px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-bold rounded"><i class="fa-solid fa-house-laptop mr-1"></i>Ở nhà: Bắt buộc Kiosk + Vấn đáp AI</span>`
+          : `<span class="px-2 py-0.5 bg-sky-50 text-sky-700 border border-sky-200 text-[10px] font-bold rounded"><i class="fa-solid fa-chalkboard-user mr-1"></i>Trên lớp: GV chọn Kiosk / Monitoring</span>`;
+        return `
         <div class="p-5 rounded-xl border border-slate-200 bg-slate-50/40 flex flex-col justify-between space-y-4">
           <div class="space-y-2">
-            <div class="flex items-center justify-between">
-              <span class="px-2.5 py-0.5 bg-rose-50 text-rose-600 border border-rose-200 text-[11px] font-bold rounded flex items-center">
-                <i class="fa-solid fa-lock mr-1"></i> KHÓA MÃ PHÒNG THI
-              </span>
+            <div class="flex items-center justify-between flex-wrap gap-1.5">
+              ${modeTag}
               <span class="text-xs font-semibold text-slate-600"><i class="fa-regular fa-clock mr-1"></i>${ex.durationMinutes} phút • ${ex.totalQuestions} câu</span>
             </div>
             <h4 class="text-sm font-bold text-slate-800">${ex.title}</h4>
             <p class="text-xs text-slate-500">Học phần: <b>${ex.subjectName}</b> • Phạm vi: ${ex.courseClassName || 'Toàn khóa'}</p>
           </div>
-          <div class="pt-3 border-t border-slate-200/70 flex items-center justify-between">
-            <span class="text-[11px] text-slate-500 font-mono">Mã mở khóa: <b>ICTU2026</b></span>
-            <button onclick="openExamWithId(${ex.id})" class="px-4 py-2 bg-ictu hover:bg-ictu-dark text-white text-xs font-semibold rounded-lg transition shadow-2xs">
-              <i class="fa-solid fa-unlock-keyhole mr-1.5"></i> Mở khóa &amp; Làm bài
+          <div class="pt-3 border-t border-slate-200/70 flex items-center justify-end">
+            <button onclick="openExamWithId(${ex.id}, '${effCat}')" class="px-4 py-2 bg-ictu hover:bg-ictu-dark text-white text-xs font-semibold rounded-lg transition shadow-2xs cursor-pointer">
+              <i class="fa-solid fa-arrow-right-to-bracket mr-1.5"></i> Vào làm bài
             </button>
           </div>
         </div>
-      `).join("");
+      `;
+      }).join("");
     }
 
-    function openExamWithId(examId) {
+    let currentSelectedExamCategory = "classroom";
+    let lecturerConfiguredClassroomMode = (new URLSearchParams(window.location.search).get('examMode') === 'monitoring') ? 'monitoring' : 'kiosk';
+
+    function getEffectiveExamExecutionMode() {
+      if (currentSelectedExamCategory === 'regular' || currentSelectedExamCategory === 'homework') {
+        return 'kiosk'; // Ở nhà làm bài tập về nhà bắt buộc dùng Kiosk
+      }
+      return lecturerConfiguredClassroomMode || 'kiosk';
+    }
+
+    function syncExamModeBySelectedExam(explicitCategory = null) {
+      const sel = document.getElementById('inpExamId');
+      const val = sel ? parseInt(sel.value) : 0;
+      const allExams = (cachedDashboardData && cachedDashboardData.activeExams && cachedDashboardData.activeExams.length > 0)
+        ? cachedDashboardData.activeExams
+        : (window.loadedActiveExamsList || []);
+      const found = allExams.find(e => e.id === val) || allExams[0];
+
+      if (explicitCategory) {
+        currentSelectedExamCategory = explicitCategory;
+      } else if (found && found.category) {
+        currentSelectedExamCategory = found.category;
+      }
+
+      const preCodeEl = document.getElementById('lblPreExamStudentCode');
+      if (preCodeEl) preCodeEl.innerText = currentStudentCode;
+      const preNameEl = document.getElementById('lblPreExamStudentName');
+      if (preNameEl) preNameEl.innerText = currentStudentName;
+      const preTitleEl = document.getElementById('lblPreExamTitle');
+      if (preTitleEl && found) {
+        const subj = found.subjectName ? `Học phần: ${found.subjectName}` : (found.courseClassCode ? `Lớp: ${found.courseClassCode}` : '');
+        const dur = found.durationMinutes ? ` • ${found.durationMinutes} phút` : '';
+        preTitleEl.innerText = `${found.title}${subj ? ` (${subj}${dur})` : dur}`;
+      }
+
+      // Chế độ thi trên lớp (kiosk hoặc monitoring) hoàn toàn do Giảng viên thiết lập sẵn trên bài thi từ phía hệ thống GV.
+      // Ứng dụng của sinh viên chỉ nhận cấu hình của bài thi và thực thi, sinh viên không có quyền tự ý thay đổi.
+      if (currentSelectedExamCategory === 'regular' || currentSelectedExamCategory === 'homework') {
+        lecturerConfiguredClassroomMode = 'kiosk';
+      } else if (found && found.examMode) {
+        lecturerConfiguredClassroomMode = found.examMode;
+      }
+    }
+
+    function openExamWithId(examId, category = 'classroom') {
+      currentSelectedExamCategory = category || 'classroom';
       switchLmsSection('final-exam');
       const sel = document.getElementById('inpExamId');
       if (sel) sel.value = String(examId);
+      syncExamModeBySelectedExam(currentSelectedExamCategory);
+
+      const targetMode = getEffectiveExamExecutionMode();
+      const isHomework = (currentSelectedExamCategory === 'regular' || currentSelectedExamCategory === 'homework');
+      if (window.chrome && window.chrome.webview) {
+        window.chrome.webview.postMessage(JSON.stringify({
+          action: 'switchExamExecutionMode',
+          targetMode: targetMode,
+          isHomework: isHomework
+        }));
+      }
     }
 
     function renderHistoryTable(history) {
@@ -1979,7 +2049,7 @@
         tbody.innerHTML = `
           <tr>
             <td colspan="6" class="py-8 text-center text-xs text-slate-400">
-              Bạn chưa có bài thi nào đã nộp trong học kỳ này. Hãy vào mục <b>Thi kết thúc học phần</b> hoặc <b>Kiểm tra 15 phút</b> để thực hiện bài thi!
+              Bạn chưa có bài kiểm tra nào đã nộp trong học kỳ này. Hãy vào mục <b>Kiểm tra ở nhà</b> hoặc <b>Kiểm tra trên lớp</b> để thực hiện bài làm!
             </td>
           </tr>
         `;
@@ -2765,11 +2835,13 @@
           res = await fetch(`/api/student/active-exams`);
           if (res.ok) exams = await res.json();
         }
+        window.loadedActiveExamsList = Array.isArray(exams) ? exams : [];
         const select = document.getElementById('inpExamId');
-        if (exams && exams.length > 0 && select) {
-          select.innerHTML = exams.map(e => `
-            <option value="${e.id}">${e.title} ${e.courseClassCode ? `(Lớp: ${e.courseClassCode})` : ''} - ${e.durationMinutes} phút</option>
-          `).join("");
+        if (exams && exams.length > 0) {
+          if (select && (!select.value || select.value === '1')) {
+            select.value = String(exams[0].id);
+          }
+          syncExamModeBySelectedExam();
         }
       } catch (err) {
         console.error("Load exams error:", err);
@@ -2856,9 +2928,6 @@
     }
 
     function quickFillStudent(email, name) {
-      document.getElementById('inpStudentCode').value = email;
-      document.getElementById('inpStudentName').value = name;
-      detectDomain(email);
       const code = email.includes('@') ? email.split('@')[0].toUpperCase() : email.toUpperCase();
       currentStudentCode = code;
       currentStudentName = name;
@@ -2868,35 +2937,14 @@
       loadStudentDashboard();
     }
 
-    function detectDomain(val) {
-      const b = document.getElementById('detectedDomainBadge');
-      if (!b) return;
-      const v = (val || '').toLowerCase().trim();
-      if (!v) {
-        b.className = "hidden text-[11px] text-slate-400 font-medium mt-1";
-      } else if (v.includes('@')) {
-        b.innerText = "✓ Đã xác thực tài khoản email sinh viên";
-        b.className = "text-[11px] text-emerald-600 font-semibold mt-1 block";
-      } else if (v.length >= 5) {
-        b.innerText = "✓ Đã nhận diện Mã sinh viên chính quy";
-        b.className = "text-[11px] text-sky-600 font-semibold mt-1 block";
-      } else {
-        b.innerText = "• Nhập mã SV hoặc email sinh viên";
-        b.className = "text-[11px] text-slate-400 font-medium mt-1 block";
-      }
-    }
-
     async function handleStartExam(e) {
       e.preventDefault();
-      let rawInput = document.getElementById('inpStudentCode').value.trim();
-      currentStudentCode = rawInput.includes('@') ? rawInput.split('@')[0].toUpperCase() : rawInput.toUpperCase();
-      currentStudentName = document.getElementById('inpStudentName').value.trim();
-      currentExamId = parseInt(document.getElementById('inpExamId').value);
-      const accessCode = document.getElementById('inpAccessCode').value.trim();
+      currentExamId = parseInt(document.getElementById('inpExamId')?.value || '1') || 1;
+      const accessCode = "ICTU2026";
       const btn = document.getElementById('btnStart');
 
       btn.disabled = true;
-      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Đang tải đề thi & kích hoạt khóa Kiosk...`;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Đang tải đề thi & khởi tạo phòng thi...`;
 
       try {
         let res = await fetch("/api/student/start-exam", {
@@ -2931,8 +2979,24 @@
           timerSeconds = (data.durationMinutes || 20) * 60;
           isExamInProgress = true;
           violationCount = 0;
-          setExamSecurityMode(true);
+
+          const effectiveMode = getEffectiveExamExecutionMode();
+          const isHomework = currentSelectedExamCategory === 'regular' || currentSelectedExamCategory === 'homework';
+
+          // Nếu là Kiosk hoặc Bài tập về nhà -> bật khóa cứng Kiosk. Nếu ở trên lớp chế độ Monitoring -> bật giám sát Monitoring
+          setExamSecurityMode(effectiveMode === 'kiosk' || isHomework);
           document.getElementById('antiCheatWarnCount').innerText = "0 Lần Cảnh Báo";
+
+          const bannerEl = document.getElementById('activeExamModeBannerText');
+          if (bannerEl) {
+            if (!isHomework && effectiveMode === 'monitoring') {
+              bannerEl.innerHTML = `<i class="fa-solid fa-eye mr-2 text-sky-600"></i> Chế độ Monitoring trên lớp: Đang giám sát cửa sổ &amp; tiến trình làm bài`;
+            } else if (isHomework) {
+              bannerEl.innerHTML = `<i class="fa-solid fa-shield-halved mr-2 text-indigo-600"></i> Chế độ Kiosk Bài tập về nhà: Bắt buộc nhập tay đáp án &amp; vấn đáp với AI`;
+            } else {
+              bannerEl.innerHTML = `<i class="fa-solid fa-shield-halved mr-2 text-ictu"></i> Chế độ Kiosk Chống Gian Lận đang khóa màn hình`;
+            }
+          }
 
           restoreDraftFromLocal(currentSessionId);
 
@@ -2950,7 +3014,9 @@
               action: 'examStarted',
               sessionId: currentSessionId,
               studentCode: currentStudentCode,
-              studentName: currentStudentName
+              studentName: currentStudentName,
+              examCategory: currentSelectedExamCategory,
+              examMode: effectiveMode
             }));
           }
 
@@ -2959,13 +3025,13 @@
           renderQuestion(0);
           setupAntiCheat();
         } else {
-          alert("Không thể vào phòng thi: " + (data.message || data.detail || "Sai mã phòng thi"));
+          alert("Không thể vào phòng thi: " + (data.message || data.detail || "Không thể khởi tạo ca thi"));
         }
       } catch (err) {
         alert("Lỗi kết nối phòng thi: " + err.message);
       } finally {
         btn.disabled = false;
-        btn.innerHTML = `<i class="fa-solid fa-lock-open mr-2"></i> Mở Khóa & Vào Phòng Thi An Toàn`;
+        btn.innerHTML = `<i class="fa-solid fa-circle-play mr-2"></i> Vào Phòng Thi & Bắt Đầu Làm Bài`;
       }
     }
 
@@ -3193,6 +3259,56 @@
       if (currentIndex < questionsList.length - 1) renderQuestion(currentIndex + 1);
     }
 
+    async function sendCurrentCodeToLecturerTempServer(isFinalSubmission = false) {
+      saveCurrentAnswer();
+      const q = questionsList[currentIndex];
+      const codeVal = (document.getElementById('codeInput')?.value || (q && studentAnswers[q.id]?.codeAnswer) || "").trim();
+      if (!codeVal) {
+        if (!isFinalSubmission) {
+          if (window.chrome && window.chrome.webview) {
+            window.chrome.webview.postMessage(JSON.stringify({ action: 'openNativeCodeFilePicker' }));
+          } else {
+            alert("Vui lòng nhập mã nguồn trước khi gửi file code lên Server tạm thời của Giảng viên!");
+          }
+        }
+        return;
+      }
+
+      const ext = ((q && q.programmingLanguage) || "sql").toLowerCase();
+      const fileName = `${currentStudentCode}_Cau${currentIndex + 1}.${ext}`;
+      const statusEl = document.getElementById('lblTempCodeServerStatus');
+
+      if (window.chrome && window.chrome.webview) {
+        window.chrome.webview.postMessage(JSON.stringify({
+          action: 'submitCodeToLecturerServer',
+          fileName: fileName,
+          codeContent: codeVal,
+          isFinalSubmission: isFinalSubmission
+        }));
+      } else {
+        try {
+          await fetch("http://127.0.0.1:5055/upload-code", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              sessionId: currentSessionId,
+              studentCode: currentStudentCode,
+              studentName: currentStudentName,
+              fileName: fileName,
+              codeContent: codeVal,
+              isFinalSubmission: isFinalSubmission
+            })
+          });
+        } catch (e) {}
+      }
+
+      if (statusEl) {
+        statusEl.innerText = isFinalSubmission
+          ? `✓ Đã lưu ${fileName} & Đóng Server tạm thời của GV`
+          : `✓ Đã gửi ${fileName} lên Server tạm thời của GV`;
+      }
+    }
+
     async function submitExam(autoSubmit = false) {
       saveCurrentAnswer();
       if (!autoSubmit && !confirm("Bạn có chắc chắn muốn nộp bài thi kết thúc học phần?")) return;
@@ -3204,6 +3320,26 @@
         essayAnswer: studentAnswers[q.id]?.essayAnswer || null,
         codeAnswer: studentAnswers[q.id]?.codeAnswer || null
       }));
+
+      // Khi làm bài trên lớp ở chế độ Monitoring: gửi toàn bộ các bài code lên Server tạm thời của Giảng viên,
+      // và đánh dấu file cuối cùng (isFinalSubmission = true) để đóng Server ngay khi không còn file code nào nộp lên nữa
+      if (getEffectiveExamExecutionMode() === 'monitoring') {
+        const codeQuestions = questionsList.filter(q => studentAnswers[q.id]?.codeAnswer && studentAnswers[q.id].codeAnswer.trim().length > 0);
+        for (let i = 0; i < codeQuestions.length; i++) {
+          const cq = codeQuestions[i];
+          const ext = (cq.programmingLanguage || "sql").toLowerCase();
+          const fName = `${currentStudentCode}_CauHoi_${cq.id}.${ext}`;
+          const isLastFile = (i === codeQuestions.length - 1);
+          if (window.chrome && window.chrome.webview) {
+            window.chrome.webview.postMessage(JSON.stringify({
+              action: 'submitCodeToLecturerServer',
+              fileName: fName,
+              codeContent: studentAnswers[cq.id].codeAnswer,
+              isFinalSubmission: isLastFile
+            }));
+          }
+        }
+      }
 
       try {
         const res = await fetch("/api/student/submit-exam", {
@@ -3419,21 +3555,157 @@
       ];
     }
 
-    function detectAiTopicCategoryAndTitle(questionText) {
-      const q = (questionText || "").trim();
-      const lower = q.toLowerCase();
-      let category = "Học thuật chung";
-      if (lower.includes("acid") || lower.includes("2nf") || lower.includes("3nf") || lower.includes("csdl") || lower.includes("cơ sở dữ liệu") || lower.includes("transaction") || lower.includes("khóa")) {
-        category = "Cơ sở dữ liệu";
-      } else if (lower.includes("sql") || lower.includes("join") || lower.includes("select") || lower.includes("index") || lower.includes("truy vấn")) {
-        category = "SQL & Tối ưu";
-      } else if (lower.includes("clo") || lower.includes("chuẩn đầu ra") || lower.includes("ôn tập") || lower.includes("kiểm tra")) {
-        category = "Ôn tập CLO";
-      } else if (lower.includes("di động") || lower.includes("mobile") || lower.includes("android") || lower.includes("flutter") || lower.includes("mvvm")) {
-        category = "Lập trình Di động";
+    function isGreetingOrConversationalNoise(text) {
+      const clean = String(text || "")
+        .toLowerCase()
+        .replace(/[.,!?~'"`()\[\]{}:;\-_\/\\]+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (!clean) return true;
+      const noiseSet = new Set([
+        "alo", "a lô", "alô", "hi", "hello", "hey", "chào", "xin chào", "chào bạn",
+        "chào ai", "chào ad", "chào thầy", "chào cô", "ơi", "bạn ơi", "ad ơi", "ai ơi",
+        "ok", "oke", "okay", "dạ", "vâng", "ừ", "uh", "uhm", "test", "123", "cảm ơn",
+        "thanks", "thank you", "cho em hỏi", "cho mình hỏi", "cho tớ hỏi", "hỏi chút",
+        "em hỏi chút", "mình hỏi chút", "giúp mình với", "giúp em với"
+      ]);
+      if (noiseSet.has(clean)) return true;
+      const words = clean.split(" ");
+      if (words.length <= 3 && words.every(w => noiseSet.has(w))) return true;
+      return false;
+    }
+
+    function extractCleanTopicPhrase(rawText) {
+      let s = String(rawText || "").replace(/\s+/g, " ").trim();
+      s = s.replace(/^(alo|a lô|hi|hello|chào bạn|xin chào|chào ai|chào thầy|chào cô|bạn ơi|ai ơi|cho em hỏi|cho mình hỏi|cho tớ hỏi|giải thích giúp mình|giải thích cho em|hãy giải thích|cho hỏi|làm sao để|tại sao|như thế nào về|về việc)[\s,:.-]*/i, "").trim();
+      s = s.replace(/[\s,?]+(là gì|như thế nào|ra sao|không ạ|với ạ|nhé|ạ|vậy|hả bạn)\??$/i, "").trim();
+      s = s.replace(/[?!.]+$/g, "").trim();
+      if (!s) return "";
+      s = s.charAt(0).toUpperCase() + s.slice(1);
+      return s.length > 54 ? s.substring(0, 54) + "..." : s;
+    }
+
+    // Đọc ngược lại toàn bộ lịch sử đoạn chat (từ tin nhắn mới nhất về đầu cuộc trò chuyện)
+    // để hiểu nội dung thực sự của cuộc hội thoại trước khi đặt tên cho "Học thuật chung"
+    function analyzeChatHistoryBackwardsForTopic(messages, fallbackText = "") {
+      const list = Array.isArray(messages) ? messages : [];
+      const reversed = [];
+      for (let i = list.length - 1; i >= 0; i--) {
+        const m = list[i];
+        if (!m || !m.text) continue;
+        // Bỏ qua câu chào mặc định ban đầu của hệ thống khi mới bấm tạo phiên mới
+        if (m.role === "ai" && ((m.meta && m.meta.includes("Chuyên đề mới")) || m.text.includes("Đây là phiên trò chuyện chuyên môn mới"))) {
+          continue;
+        }
+        // Bỏ qua câu fallback mặc định không mang nội dung chuyên đề
+        if (m.role === "ai" && (m.text.includes("Hãy đối chiếu lại với các yêu cầu cốt lõi") || m.text.includes("Đã ghi nhận câu hỏi học thuật của bạn"))) {
+          continue;
+        }
+        reversed.push(m);
       }
-      const cleanTitle = q.length > 56 ? q.substring(0, 56) + "..." : q;
-      return { category, title: cleanTitle };
+
+      if (fallbackText && !reversed.some(m => m.text === fallbackText)) {
+        reversed.unshift({ role: "student", text: fallbackText });
+      }
+
+      // Ưu tiên lọc các tin nhắn có nội dung thực chất khi đọc ngược từ dưới lên
+      const substantiveStudentMsgs = reversed.filter(m => m.role === "student" && !isGreetingOrConversationalNoise(m.text));
+      const substantiveAiMsgs = reversed.filter(m => m.role === "ai" && !isGreetingOrConversationalNoise(m.text));
+      const combinedReverseCorpus = [
+        ...substantiveStudentMsgs.map(m => m.text),
+        ...substantiveAiMsgs.map(m => m.text)
+      ].join(" \n ").toLowerCase();
+
+      // Nếu cả đoạn chat mới chỉ có câu chào như "alo", "hi"... chưa có nội dung học thuật cụ thể
+      if (substantiveStudentMsgs.length === 0 && !combinedReverseCorpus.trim()) {
+        return {
+          category: "Học thuật chung",
+          title: "Khởi tạo trao đổi & Tư vấn học tập"
+        };
+      }
+
+      // Phân tích ngữ nghĩa ngược dòng lịch sử để hiểu chủ đề đoạn chat
+      let category = "Học thuật chung";
+      let understoodTopic = "";
+
+      if (combinedReverseCorpus.includes("acid") || combinedReverseCorpus.includes("2nf") || combinedReverseCorpus.includes("3nf") || combinedReverseCorpus.includes("bcnf") || combinedReverseCorpus.includes("csdl") || combinedReverseCorpus.includes("cơ sở dữ liệu") || combinedReverseCorpus.includes("transaction") || combinedReverseCorpus.includes("khóa ngoại") || combinedReverseCorpus.includes("khóa chính")) {
+        category = "Cơ sở dữ liệu";
+        if (combinedReverseCorpus.includes("2nf") || combinedReverseCorpus.includes("3nf") || combinedReverseCorpus.includes("chuẩn hóa")) {
+          understoodTopic = "Chuẩn hóa lược đồ CSDL & Phụ thuộc hàm";
+        } else if (combinedReverseCorpus.includes("acid") || combinedReverseCorpus.includes("transaction") || combinedReverseCorpus.includes("deadlock")) {
+          understoodTopic = "Giao dịch ACID & Kiểm soát đồng thời CSDL";
+        } else {
+          understoodTopic = "Thiết kế mô hình & Ràng buộc Cơ sở dữ liệu";
+        }
+      } else if (combinedReverseCorpus.includes("sql") || combinedReverseCorpus.includes("join") || combinedReverseCorpus.includes("select") || combinedReverseCorpus.includes("index") || combinedReverseCorpus.includes("truy vấn") || combinedReverseCorpus.includes("group by")) {
+        category = "SQL & Tối ưu";
+        if (combinedReverseCorpus.includes("index") || combinedReverseCorpus.includes("chỉ mục") || combinedReverseCorpus.includes("tối ưu")) {
+          understoodTopic = "Tối ưu hiệu năng truy vấn & Chỉ mục SQL Index";
+        } else {
+          understoodTopic = "Kỹ thuật viết truy vấn SQL & Kết nối bảng";
+        }
+      } else if (combinedReverseCorpus.includes("clo") || combinedReverseCorpus.includes("chuẩn đầu ra") || combinedReverseCorpus.includes("ôn tập")) {
+        category = "Ôn tập CLO";
+        understoodTopic = "Tổng hợp trọng tâm & Ôn tập Chuẩn đầu ra CLO";
+      } else if (combinedReverseCorpus.includes("di động") || combinedReverseCorpus.includes("mobile") || combinedReverseCorpus.includes("android") || combinedReverseCorpus.includes("flutter") || combinedReverseCorpus.includes("mvvm")) {
+        category = "Lập trình Di động";
+        understoodTopic = "Kiến trúc ứng dụng & Phát triển Di động";
+      } else {
+        // Chuyên mục "Học thuật chung": AI đọc ngược lịch sử và tổng hợp chủ đề nội dung cuộc trò chuyện
+        category = "Học thuật chung";
+        if (combinedReverseCorpus.includes("oop") || combinedReverseCorpus.includes("hướng đối tượng") || combinedReverseCorpus.includes("kế thừa") || combinedReverseCorpus.includes("đa hình") || combinedReverseCorpus.includes("đóng gói")) {
+          understoodTopic = "Nguyên lý Lập trình Hướng đối tượng (OOP)";
+        } else if (combinedReverseCorpus.includes("thuật toán") || combinedReverseCorpus.includes("cấu trúc dữ liệu") || combinedReverseCorpus.includes("đệ quy") || combinedReverseCorpus.includes("cây nhị phân") || combinedReverseCorpus.includes("đồ thị") || combinedReverseCorpus.includes("big o")) {
+          understoodTopic = "Cấu trúc dữ liệu & Phân tích Giải thuật";
+        } else if (combinedReverseCorpus.includes("mạng") || combinedReverseCorpus.includes("tcp") || combinedReverseCorpus.includes("udp") || combinedReverseCorpus.includes("ip") || combinedReverseCorpus.includes("osi") || combinedReverseCorpus.includes("http") || combinedReverseCorpus.includes("dns")) {
+          understoodTopic = "Kiến trúc Mạng máy tính & Giao thức truyền thông";
+        } else if (combinedReverseCorpus.includes("hệ điều hành") || combinedReverseCorpus.includes("tiến trình") || combinedReverseCorpus.includes("luồng") || combinedReverseCorpus.includes("thread") || combinedReverseCorpus.includes("bộ nhớ ảo") || combinedReverseCorpus.includes("cpu")) {
+          understoodTopic = "Nguyên lý Hệ điều hành & Quản lý tiến trình";
+        } else if (combinedReverseCorpus.includes("python") || combinedReverseCorpus.includes("java") || combinedReverseCorpus.includes("c++") || combinedReverseCorpus.includes("c#") || combinedReverseCorpus.includes("javascript") || combinedReverseCorpus.includes("code") || combinedReverseCorpus.includes("lập trình") || combinedReverseCorpus.includes("con trỏ") || combinedReverseCorpus.includes("mảng") || combinedReverseCorpus.includes("hàm")) {
+          understoodTopic = "Kỹ thuật Lập trình & Xử lý mã nguồn";
+        } else if (combinedReverseCorpus.includes("web") || combinedReverseCorpus.includes("html") || combinedReverseCorpus.includes("css") || combinedReverseCorpus.includes("api") || combinedReverseCorpus.includes("react") || combinedReverseCorpus.includes("backend") || combinedReverseCorpus.includes("frontend")) {
+          understoodTopic = "Phát triển Ứng dụng Web & Giao tiếp API";
+        } else if (combinedReverseCorpus.includes("ai") || combinedReverseCorpus.includes("trí tuệ nhân tạo") || combinedReverseCorpus.includes("machine learning") || combinedReverseCorpus.includes("học máy") || combinedReverseCorpus.includes("deep learning")) {
+          understoodTopic = "Trí tuệ nhân tạo (AI) & Mô hình Học máy";
+        } else if (combinedReverseCorpus.includes("bảo mật") || combinedReverseCorpus.includes("an toàn thông tin") || combinedReverseCorpus.includes("mã hóa") || combinedReverseCorpus.includes("xss") || combinedReverseCorpus.includes("injection")) {
+          understoodTopic = "An toàn & Bảo mật Hệ thống thông tin";
+        } else if (combinedReverseCorpus.includes("nghỉ học") || combinedReverseCorpus.includes("chuyên cần") || combinedReverseCorpus.includes("cấm thi") || combinedReverseCorpus.includes("điều kiện dự thi") || combinedReverseCorpus.includes("tín chỉ") || combinedReverseCorpus.includes("điểm") || combinedReverseCorpus.includes("gpa") || combinedReverseCorpus.includes("quy chế") || combinedReverseCorpus.includes("lịch thi") || combinedReverseCorpus.includes("thời khóa biểu")) {
+          understoodTopic = "Quy chế Học vụ, Chuyên cần & Kế hoạch học tập";
+        } else if (combinedReverseCorpus.includes("đồ án") || combinedReverseCorpus.includes("báo cáo") || combinedReverseCorpus.includes("thực tập") || combinedReverseCorpus.includes("luận văn") || combinedReverseCorpus.includes("nghiên cứu")) {
+          understoodTopic = "Hướng dẫn Đồ án môn học & Nghiên cứu khoa học";
+        }
+      }
+
+      // Nếu câu hỏi cụ thể của sinh viên mang nội dung riêng biệt, kết hợp trích xuất ý chính từ tin nhắn gần nhất khi đọc ngược
+      if (substantiveStudentMsgs.length > 0) {
+        const latestSubstantive = extractCleanTopicPhrase(substantiveStudentMsgs[0].text);
+        if (!understoodTopic && latestSubstantive) {
+          understoodTopic = latestSubstantive;
+        } else if (category === "Học thuật chung" && latestSubstantive && latestSubstantive.length >= 10) {
+          understoodTopic = latestSubstantive;
+        }
+      }
+
+      if (!understoodTopic && substantiveAiMsgs.length > 0) {
+        const firstSentence = substantiveAiMsgs[0].text.split(/[.\n!?]/)[0] || "";
+        const extractedFromAi = extractCleanTopicPhrase(firstSentence);
+        if (extractedFromAi && extractedFromAi.length >= 6) {
+          understoodTopic = extractedFromAi;
+        }
+      }
+
+      if (!understoodTopic) {
+        understoodTopic = "Khởi tạo trao đổi & Tư vấn học tập";
+      }
+
+      return { category, title: understoodTopic };
+    }
+
+    function detectAiTopicCategoryAndTitle(questionText, sessionMessages = null) {
+      if (Array.isArray(sessionMessages) && sessionMessages.length > 0) {
+        return analyzeChatHistoryBackwardsForTopic(sessionMessages, questionText);
+      }
+      return analyzeChatHistoryBackwardsForTopic([{ role: "student", text: questionText || "" }]);
     }
 
     function getAiHistoryStorageKey() {
@@ -3463,6 +3735,23 @@
       } catch (e) {
         aiChatSessions = getDefaultAiChatSessions();
       }
+
+      // Đọc ngược lịch sử các đoạn chat "Học thuật chung" để cập nhật lại tiêu đề nếu trước đó bị lưu là câu chào ("alo", "hi"...)
+      let updatedAny = false;
+      aiChatSessions.forEach(s => {
+        if (s && (s.category === "Học thuật chung" || isGreetingOrConversationalNoise(s.title))) {
+          const analyzed = analyzeChatHistoryBackwardsForTopic(s.messages || []);
+          if (analyzed && (s.title !== analyzed.title || s.category !== analyzed.category)) {
+            s.category = analyzed.category;
+            s.title = analyzed.title;
+            updatedAny = true;
+          }
+        }
+      });
+      if (updatedAny) {
+        saveAiChatSessionsToLocal();
+      }
+
       currentAiSessionId = aiChatSessions[0].id;
       renderCurrentAiChatSession();
       renderAiHistoryDropdownList();
@@ -3676,19 +3965,18 @@
       const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
       sess.updatedAt = `Hôm nay • ${timeStr}`;
 
-      // Tự động đặt tên chuyên đề tập trung khi sinh viên gửi câu hỏi đầu tiên trong cuộc trò chuyện
-      const hasStudentMsgBefore = (sess.messages || []).some(m => m.role === 'student');
-      if (!hasStudentMsgBefore || sess.isNewUntouched) {
-        const detected = detectAiTopicCategoryAndTitle(msg);
-        sess.category = detected.category;
-        sess.title = detected.title;
-        delete sess.isNewUntouched;
-      }
-
       sess.messages.push({
         role: "student",
         text: msg
       });
+
+      // Đọc ngược toàn bộ lịch sử đoạn chat (kể cả tin nhắn mới vừa gửi) để hiểu chủ đề và đặt tên cho Học thuật chung
+      if (sess.isNewUntouched || sess.category === "Học thuật chung" || sess.category === "Chuyên đề mới" || isGreetingOrConversationalNoise(sess.title)) {
+        const detected = analyzeChatHistoryBackwardsForTopic(sess.messages);
+        sess.category = detected.category;
+        sess.title = detected.title;
+        delete sess.isNewUntouched;
+      }
       saveAiChatSessionsToLocal();
 
       const badge = document.getElementById('activeAiTopicBadge');
@@ -3725,6 +4013,16 @@
         meta: `Chuyên đề ${sess.category}`,
         text: finalReplyText || "Đã ghi nhận câu hỏi học thuật của bạn."
       });
+
+      // Sau khi AI phản hồi xong, tiếp tục đọc ngược lại toàn bộ lịch sử (cả câu trả lời của AI và câu hỏi của SV)
+      // để hiểu trọn vẹn nội dung đoạn chat và đặt tên chính xác cho "Học thuật chung"
+      if (sess.category === "Học thuật chung" || isGreetingOrConversationalNoise(sess.title)) {
+        const reAnalyzed = analyzeChatHistoryBackwardsForTopic(sess.messages);
+        sess.category = reAnalyzed.category;
+        sess.title = reAnalyzed.title;
+        if (badge) badge.innerText = `${sess.category}: ${sess.title}`;
+      }
+
       saveAiChatSessionsToLocal();
       renderAiHistoryDropdownList();
     }

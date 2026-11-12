@@ -87,7 +87,7 @@ namespace student_desktop_app
             this.TopMost = false;
             this.KeyPreview = true;
             this.BackColor = Color.FromArgb(0, 51, 102);
-            this.Text = "Hệ Thống Quản Lý Học Tập & Khảo Thí Thông Minh";
+            this.Text = "IAS - ICTU Assessment System";
 
             this.Shown += (s, e) => { _isFormFullyLoaded = true; };
 
@@ -135,7 +135,7 @@ namespace student_desktop_app
             }
             else
             {
-                this.Text = "Hệ Thống Quản Lý Học Tập & Khảo Thí Thông Minh";
+                this.Text = "IAS - ICTU Assessment System";
                 _processScanTimer?.Stop();
                 this.TopMost = false;
                 this.FormBorderStyle = FormBorderStyle.Sizable;
@@ -380,6 +380,21 @@ namespace student_desktop_app
                             _activeStudentCode = scElem.GetString() ?? _activeStudentCode;
                         if (doc.RootElement.TryGetProperty("studentName", out var snElem))
                             _activeStudentName = snElem.GetString() ?? _activeStudentName;
+
+                        string examCategory = doc.RootElement.TryGetProperty("examCategory", out var catEl) ? (catEl.GetString() ?? "") : "";
+                        string examMode = doc.RootElement.TryGetProperty("examMode", out var modeEl) ? (modeEl.GetString() ?? "kiosk") : "kiosk";
+                        bool isHomework = string.Equals(examCategory, "regular", StringComparison.OrdinalIgnoreCase) ||
+                                          string.Equals(examCategory, "homework", StringComparison.OrdinalIgnoreCase);
+
+                        // Ở trên lớp: nếu GV đã thiết lập chế độ Monitoring trước khi mở bài thi -> không khóa cứng Kiosk
+                        if (!isHomework && string.Equals(examMode, "monitoring", StringComparison.OrdinalIgnoreCase))
+                        {
+                            _violationCount = 0;
+                            SetExamSecurityMode(false);
+                            return;
+                        }
+
+                        // Bài tập về nhà hoặc Kiểm tra trên lớp chế độ Kiosk -> Khóa màn hình Kiosk
                         _violationCount = 0;
                         SetExamSecurityMode(true);
                     }
@@ -387,6 +402,19 @@ namespace student_desktop_app
                     {
                         _activeSessionId = 0;
                         SetExamSecurityMode(false);
+                    }
+                    else if (action == "switchExamExecutionMode")
+                    {
+                        // Chỉ được kích hoạt sau khi Giảng viên xác thực mã PIN trước khi mở bài thi
+                        if (_activeSessionId != 0 || _isExamSecurityActive) return;
+
+                        string targetMode = doc.RootElement.TryGetProperty("targetMode", out var tmEl) ? (tmEl.GetString() ?? "") : "";
+                        bool isHomework = doc.RootElement.TryGetProperty("isHomework", out var hwEl) && hwEl.GetBoolean();
+
+                        if (!isHomework && string.Equals(targetMode, "monitoring", StringComparison.OrdinalIgnoreCase))
+                        {
+                            SwitchToMonitoringForm();
+                        }
                     }
                     else if (action == "updatePassword")
                     {
@@ -421,6 +449,27 @@ namespace student_desktop_app
                 File.WriteAllText(filePath, JsonSerializer.Serialize(map));
             }
             catch { }
+        }
+
+        public void SwitchToMonitoringForm()
+        {
+            CleanupTimersAndHook();
+
+            string monitorUrl = _targetUrl;
+            if (monitorUrl.Contains("examMode=kiosk", StringComparison.OrdinalIgnoreCase))
+            {
+                monitorUrl = monitorUrl.Replace("examMode=kiosk", "examMode=monitoring", StringComparison.OrdinalIgnoreCase);
+            }
+            else if (!monitorUrl.Contains("examMode=", StringComparison.OrdinalIgnoreCase))
+            {
+                string sep = monitorUrl.Contains("?") ? "&" : "?";
+                monitorUrl = $"{monitorUrl}{sep}examMode=monitoring";
+            }
+
+            this.Hide();
+            var monitoringForm = new ExamMonitoringForm(monitorUrl, _activeStudentCode, _activeStudentName, _activeSessionId);
+            monitoringForm.FormClosed += (s, args) => this.Close();
+            monitoringForm.Show();
         }
 
         private void SetupKeyboardHook()
