@@ -18,6 +18,7 @@ namespace backend_api.Data
         public DbSet<UserAccount> Users => Set<UserAccount>();
         public DbSet<ExamSession> ExamSessions => Set<ExamSession>();
         public DbSet<ExamAnswer> ExamAnswers => Set<ExamAnswer>();
+        public DbSet<ExamSessionAudit> ExamSessionAudits => Set<ExamSessionAudit>();
         public DbSet<CheatingLog> CheatingLogs => Set<CheatingLog>();
 
         // LCMS DbSets theo đặc tả BA (LCMS_BA_SPEC_FOR_DEVS.md)
@@ -28,11 +29,34 @@ namespace backend_api.Data
         public DbSet<ExamRoomJoin> ExamRoomJoins => Set<ExamRoomJoin>();
         public DbSet<CodeSubmission> CodeSubmissions => Set<CodeSubmission>();
         public DbSet<RubricCriterion> RubricCriteria => Set<RubricCriterion>();
+        public DbSet<RubricDraft> RubricDrafts => Set<RubricDraft>();
         public DbSet<EligibilityOverride> EligibilityOverrides => Set<EligibilityOverride>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            // Indexes for the lecturer dashboard, student enrollment and LCMS grading paths.
+            // Legacy SQLite files receive the same indexes during startup (SqlitePerformanceIndexes).
+            modelBuilder.Entity<CourseClass>().Property(c => c.LecturerEmail).UseCollation("NOCASE");
+            modelBuilder.Entity<CourseClass>().HasIndex(c => new { c.LecturerEmail, c.SubjectId });
+            modelBuilder.Entity<ClassEnrollment>().HasIndex(e => new { e.StudentCode, e.CourseClassId });
+            modelBuilder.Entity<Exam>().HasIndex(e => new { e.CourseClassId, e.IsActive });
+            modelBuilder.Entity<ExamSession>().HasIndex(s => new { s.ExamId, s.Status });
+            modelBuilder.Entity<ExamSession>().HasIndex(s => new { s.StudentCode, s.ExamId });
+            modelBuilder.Entity<ExamAnswer>().HasIndex(a => new { a.ExamSessionId, a.QuestionId });
+            modelBuilder.Entity<ExamSessionAudit>().HasIndex(a => new { a.ExamSessionId, a.ChangedAtUtc });
+            modelBuilder.Entity<ExamSession>().Property(s => s.GradingStatus).HasDefaultValue("AutoGraded");
+            modelBuilder.Entity<ExamAnswer>().Property(a => a.GradingStatus).HasDefaultValue("AutoGraded");
+            modelBuilder.Entity<Question>().HasIndex(q => new { q.SubjectId, q.CourseClassId });
+            modelBuilder.Entity<ExamRoomSession>().HasIndex(s => new { s.CourseClassId, s.Status });
+            modelBuilder.Entity<CodeSubmission>().HasIndex(s => new { s.ExamRoomSessionId, s.StudentCode, s.Status });
+            modelBuilder.Entity<HomeAssignment>().HasIndex(a => new { a.CourseClassId, a.IsActive });
+            modelBuilder.Entity<HomeSubmission>().Property(s => s.StudentCode).UseCollation("NOCASE");
+            modelBuilder.Entity<HomeSubmission>().HasIndex(s => new { s.HomeAssignmentId, s.StudentCode, s.AttemptNumber })
+                .IsUnique().HasDatabaseName("IX_HomeSubmissions_Assignment_Student_Attempt_NoCase");
+            modelBuilder.Entity<RubricCriterion>().HasIndex(r => new { r.InClassAssessmentId, r.SortOrder });
+            modelBuilder.Entity<RubricCriterion>().HasIndex(r => new { r.HomeAssignmentId, r.SortOrder });
 
             // Seed sample subjects với đầy đủ trường LCMS (D1)
             modelBuilder.Entity<Subject>().HasData(

@@ -25,10 +25,10 @@
           tr.className = "pulse-alert font-medium";
           setTimeout(() => tr.classList.remove('pulse-alert'), 4000);
           tr.innerHTML = `
-            <td class="py-2.5 px-3 text-slate-500">${data.timestamp || new Date().toLocaleTimeString()}</td>
-            <td class="py-2.5 px-3 font-mono font-bold text-ictu">${data.studentCode}</td>
-            <td class="py-2.5 px-3">${data.studentName || 'Sinh viên'}</td>
-            <td class="py-2.5 px-3 text-rose-600 font-semibold"><i class="fa-solid fa-triangle-exclamation mr-1"></i> ${data.violationType}</td>
+            <td class="py-2.5 px-3 text-slate-500">${escapeNotificationHtml(data.timestamp || new Date().toLocaleTimeString())}</td>
+            <td class="py-2.5 px-3 font-mono font-bold text-ictu">${escapeNotificationHtml(data.studentCode)}</td>
+            <td class="py-2.5 px-3">${escapeNotificationHtml(data.studentName || 'Sinh viên')}</td>
+            <td class="py-2.5 px-3 text-rose-600 font-semibold"><i class="fa-solid fa-triangle-exclamation mr-1"></i> ${escapeNotificationHtml(data.violationType)}</td>
             <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700">CẢNH BÁO</span></td>
           `;
           tableBody.insertBefore(tr, tableBody.firstChild);
@@ -46,15 +46,17 @@
       });
 
       connection.on("OnStudentSubmitted", function(data) {
+        const scoreLabel = data.gradingStatus === 'PendingReview' || data.score == null
+          ? 'Chờ chấm' : `${data.score}/10`;
         addExamNotification({
           type: 'submission',
           badgeText: 'Nộp bài thi',
           badgeClass: 'bg-emerald-100 text-emerald-800',
           title: `Thí sinh ${data.studentName || data.studentCode} nộp bài`,
-          message: `Thí sinh ${data.studentName || ''} (${data.studentCode}) vừa hoàn thành nộp bài thi. Điểm số: ${data.score}/10.`,
+          message: `Thí sinh ${data.studentName || ''} (${data.studentCode}) vừa hoàn thành nộp bài thi. Kết quả: ${scoreLabel}.`,
           timestamp: Date.now()
         });
-        showFloatingToast(`Thí sinh ${data.studentName || data.studentCode} vừa nộp bài! Điểm: ${data.score}/10`, 'success');
+        showFloatingToast(`Thí sinh ${data.studentName || data.studentCode} vừa nộp bài! Kết quả: ${scoreLabel}`, 'success');
         loadExams();
       });
 
@@ -93,18 +95,18 @@
 
         tbody.innerHTML = logs.map(l => `
           <tr class="hover:bg-slate-50">
-            <td class="py-2.5 px-3 font-mono text-slate-500">${l.timestamp || (l.exactTime ? new Date(l.exactTime).toLocaleTimeString('vi-VN') : '--:--')}</td>
-            <td class="py-2.5 px-3 font-semibold text-rose-700">${l.violationType}</td>
+            <td class="py-2.5 px-3 font-mono text-slate-500">${escapeNotificationHtml(l.timestamp || (l.exactTime ? new Date(l.exactTime).toLocaleTimeString('vi-VN') : '--:--'))}</td>
+            <td class="py-2.5 px-3 font-semibold text-rose-700">${escapeNotificationHtml(l.violationType)}</td>
             <td class="py-2.5 px-3">
               <span class="px-2 py-0.5 rounded text-[10px] font-bold ${l.severity === 'Critical' ? 'bg-rose-600 text-white' : 'bg-rose-100 text-rose-700'}">
-                ${l.severity || 'Cảnh báo'}
+                ${escapeNotificationHtml(l.severity || 'Cảnh báo')}
               </span>
             </td>
-            <td class="py-2.5 px-3 text-slate-600">${l.details || l.description || 'Ghi nhận từ ứng dụng khảo thí'}</td>
+            <td class="py-2.5 px-3 text-slate-600">${escapeNotificationHtml(l.details || l.description || 'Ghi nhận từ ứng dụng khảo thí')}</td>
           </tr>
         `).join("");
       } catch (err) {
-        tbody.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-rose-500">Lỗi: ${err.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-rose-500">Lỗi: ${escapeNotificationHtml(err.message)}</td></tr>`;
       }
     }
 
@@ -139,24 +141,21 @@
       }
     }
 
-    async function forceCloseEntireRoom(examId) {
-      if (!confirm("CẢNH BÁO NGUY CẤP: Toàn bộ phòng thi sẽ bị thu bài cưỡng chế và đóng ca thi ngay lập tức. Bạn có chắc chắn muốn thực hiện?")) return;
+    async function forceCloseEntireRoom() {
+      const sessionId = Number(document.getElementById('monitorRoomSessionSelect')?.value);
+      if (!sessionId) {
+        alert('Chọn ca thi LCMS cần đóng.');
+        return;
+      }
+      if (!confirm('Đóng ca thi LCMS này? Ca thi sẽ ngừng nhận lượt tham gia mới. Các bài đã nộp vẫn được lưu.')) return;
       try {
-        const res = await fetch(`/api/lecturer/exam-room-sessions/${examId || 1}/close`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Lecturer-Email": currentUser.email
-          }
-        });
+        const res = await fetch(`/api/lecturer/exam-room-sessions/${sessionId}/close`, { method: 'POST' });
+        const data = await res.json();
         if (res.ok) {
-          alert("Đã thu bài cưỡng chế và đóng ca thi toàn phòng thành công!");
-          showFloatingToast("Đã đóng ca thi toàn phòng thành công!", "success");
-          loadExams();
+          alert(data.message || 'Đã đóng ca thi.');
+          await loadLcmsRoomSessions();
         } else {
-          // Fallback to toggle active on exam
-          await toggleExamActive(examId);
-          alert("Đã thu bài và khóa phòng thi thành công!");
+          alert(data.message || 'Không đóng được ca thi.');
         }
       } catch (err) {
         alert("Lỗi thực hiện: " + err.message);

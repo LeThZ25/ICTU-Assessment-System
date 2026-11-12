@@ -50,60 +50,35 @@
 
     async function handleEnforcedGateSubmit(e) {
       e.preventDefault();
-      const input = document.getElementById('gateEmailInput').value.trim();
-      await loginAsLecturer(input);
+      const email = document.getElementById('gateEmailInput')?.value.trim();
+      await loginAsLecturer(email);
     }
 
     function handleGoogleOneClickLogin() {
-      loginAsLecturer('gv_nguyenvana@ictu.edu.vn', 'TS. Nguyễn Văn A', 'Trưởng Bộ Môn Khoa Học Máy Tính');
+      window.location.assign('/api/auth/sso/google');
     }
 
     async function loginAsLecturer(email, fullName, title) {
-      const errBox = document.getElementById('loginGateError');
-      if (errBox) errBox.classList.add('hidden');
-
-      email = (email || '').trim().toLowerCase();
-
-      // Client-side instant filter: enforce @ictu.edu.vn
-      if (!email.includes('@ictu.edu.vn')) {
-        showGateError("Tên Miền Bị Từ Chối", "Hệ thống chỉ chấp nhận tài khoản Google do nhà trường cấp có định dạng @ictu.edu.vn. Các tài khoản cá nhân như @gmail.com, @yahoo.com... không được phép đăng nhập.");
-        return;
-      }
-
-      // Filter: reject student accounts (DTC...)
-      const prefix = email.replace('@ictu.edu.vn', '');
-      if (prefix.startsWith('dtc') || /\d{4,}/.test(prefix)) {
-        showGateError("Truy Cập Bị Từ Chối (DTC)", `Email '${email}' là tài khoản học sinh / sinh viên (DTC). Cổng này chỉ dành riêng cho Cán bộ & Giảng viên để quản lý đề thi và phòng máy. Vui lòng sử dụng Ứng Dụng Kiosk Dành Cho Sinh Viên.`);
-        return;
-      }
-
+      document.getElementById('loginGateError')?.classList.add('hidden');
       try {
-        const res = await fetch("/api/auth/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: email, requireLecturer: true, fullName: fullName })
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, requireLecturer: true })
         });
-        const data = await res.json();
-        if (!res.ok || !data.success) {
-          showGateError("Từ Chối Xác Thực", data.message || "Máy chủ từ chối yêu cầu đăng nhập.");
-          return;
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+          throw new Error(result.message || 'Không thể đăng nhập tài khoản trải nghiệm.');
         }
-
-        // Ephemeral Session: saved in sessionStorage only (clears upon closing tab/browser)
-        const userSession = data.user || {
-          email: email,
-          fullName: fullName || "Giảng viên ICTU",
-          role: "Lecturer",
-          title: title || "Giảng viên"
-        };
-        sessionStorage.setItem('ictu_lecturer_session', JSON.stringify(userSession));
-        localStorage.removeItem('ictu_user'); // wipe out any legacy permanent storage
-
-        applyUserSession(userSession);
-        closeLoginGate();
+        if (!await checkAuthentication()) {
+          throw new Error('Không thể xác nhận phiên đăng nhập. Vui lòng thử lại.');
+        }
         closeLoginModal();
-      } catch (err) {
-        showGateError("Lỗi Kết Nối", "Không thể kết nối đến máy chủ xác thực: " + err.message);
+        return true;
+      } catch (error) {
+        showGateError('Đăng nhập trải nghiệm thất bại', error.message);
+        return false;
       }
     }
 
@@ -121,8 +96,15 @@
       if (modal) modal.classList.add('hidden');
     }
 
-    function handleLogout() {
+    async function handleLogout() {
       if (confirm("Thầy/Cô có chắc chắn muốn đăng xuất khỏi Cổng Khảo Thí ICTU? Phiên làm việc sẽ được thu hồi an toàn.")) {
+        try {
+          const response = await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+          if (!response.ok) throw new Error('Không thể thu hồi phiên đăng nhập.');
+        } catch (error) {
+          showGateError('Đăng xuất thất bại', error.message);
+          return;
+        }
         sessionStorage.removeItem('ictu_lecturer_session');
         localStorage.removeItem('ictu_user');
         currentUser = {
@@ -164,19 +146,27 @@
       loadSchedule();
     }
 
-    function checkAuthentication() {
+    async function checkAuthentication() {
       localStorage.removeItem('ictu_user'); // Guarantee zero permanent cookie / local storage
-      const raw = sessionStorage.getItem('ictu_lecturer_session');
-      if (raw) {
-        try {
-          const user = JSON.parse(raw);
-          if (user && user.email && user.role === 'Lecturer') {
-            applyUserSession(user);
+      if (new URLSearchParams(window.location.search).has('authError')) {
+        showGateError('Đăng nhập không thành công', 'Tài khoản chưa được cấp quyền hoặc xác thực Google thất bại. Liên hệ quản trị viên để kiểm tra quyền truy cập.');
+        history.replaceState(null, '', window.location.pathname);
+      }
+      try {
+        const res = await fetch('/api/auth/session', { credentials: 'same-origin' });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.user?.role === 'Lecturer') {
+            sessionStorage.setItem('ictu_lecturer_session', JSON.stringify(data.user));
+            applyUserSession(data.user);
             closeLoginGate();
             return true;
           }
-        } catch (e) {}
+        }
+      } catch (error) {
+        console.warn('Không thể kiểm tra phiên đăng nhập:', error);
       }
+      sessionStorage.removeItem('ictu_lecturer_session');
       openLoginGate();
       return false;
     }

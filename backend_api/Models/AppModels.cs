@@ -91,6 +91,8 @@ namespace backend_api.Models
         public int DurationMinutes { get; set; } = 30;
         public string AccessCode { get; set; } = "ICTU2026";
         public bool IsActive { get; set; } = true;
+        // Explicit assessment classification; existing exams remain non-final.
+        public bool IsFinalExam { get; set; } = false;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         public List<ExamQuestion> ExamQuestions { get; set; } = new();
@@ -159,6 +161,7 @@ namespace backend_api.Models
         public DateTime? EndTime { get; set; }
         public double Score { get; set; }
         public double? OriginalScore { get; set; } // Điểm số ban đầu do AI tính toán
+        public string GradingStatus { get; set; } = "AutoGraded"; // AutoGraded, PendingReview, Final
         public string Status { get; set; } = "InExam"; // InExam, Submitted, Disqualified
         public string? AiFeedback { get; set; }
         public string? LecturerFeedback { get; set; } // Lời phê / Nhận xét phúc khảo chính thức của giảng viên
@@ -179,9 +182,21 @@ namespace backend_api.Models
         public string? EssayAnswer { get; set; }
         public string? CodeAnswer { get; set; }
         public double Score { get; set; }
+        public string GradingStatus { get; set; } = "AutoGraded";
         public double? LecturerScore { get; set; } // Điểm giảng viên chấm phúc khảo câu này
         public string? LecturerComment { get; set; } // Lời nhận xét riêng của giảng viên cho câu này
         public string? AiFeedback { get; set; }
+    }
+
+    public class ExamSessionAudit
+    {
+        public int Id { get; set; }
+        public int ExamSessionId { get; set; }
+        public string Action { get; set; } = string.Empty;
+        public string ActorEmail { get; set; } = string.Empty;
+        public DateTime ChangedAtUtc { get; set; } = DateTime.UtcNow;
+        public string BeforeJson { get; set; } = string.Empty;
+        public string AfterJson { get; set; } = string.Empty;
     }
 
     public class CheatingLog
@@ -254,8 +269,9 @@ namespace backend_api.Models
         public HomeAssignment? HomeAssignment { get; set; }
         public string StudentCode { get; set; } = string.Empty;
         public int AttemptNumber { get; set; } = 1;
-        public string Result { get; set; } = "Fail"; // Pass, Fail
+        public string Result { get; set; } = "Pending"; // Pending, Pass, Fail
         public double RawPercent { get; set; } = 0.0;
+        public string? AnswerText { get; set; }
         public string? FailReason { get; set; } // BelowThreshold, DeadlineMissed
         public string Status { get; set; } = "Submitted"; // Submitted, RetakeRequested, RetakeApproved
         public DateTime SubmittedAtUtc { get; set; } = DateTime.UtcNow;
@@ -290,6 +306,7 @@ namespace backend_api.Models
         public string ClientIp { get; set; } = string.Empty;
         public int FailedOtpCount { get; set; } = 0;
         public DateTime? LockedUntilUtc { get; set; }
+        public bool IsAuthorized { get; set; } = false;
     }
 
     public class CodeSubmission
@@ -320,6 +337,19 @@ namespace backend_api.Models
         public string Title { get; set; } = string.Empty;
         public double Points { get; set; } = 0.0;
         public int SortOrder { get; set; } = 0;
+    }
+
+    public class RubricDraft
+    {
+        public string Id { get; set; } = string.Empty;
+        public string OwnerEmail { get; set; } = string.Empty;
+        public int SubjectId { get; set; }
+        public int? InClassAssessmentId { get; set; }
+        public int? HomeAssignmentId { get; set; }
+        public string CriteriaJson { get; set; } = "[]";
+        public string QuestionsJson { get; set; } = "[]";
+        public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+        public DateTime? ConsumedAtUtc { get; set; }
     }
 
     public class EligibilityOverride

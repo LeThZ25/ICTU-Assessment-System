@@ -209,7 +209,10 @@
       const fileInput = document.getElementById('docFileInput');
       const btn = document.getElementById('btnUploadDoc');
       const box = document.getElementById('uploadStatusBox');
-      if (!fileInput.files || fileInput.files.length === 0) return;
+      if (!subjectId || !fileInput.files || fileInput.files.length === 0) {
+        alert('Chọn học phần và tệp tài liệu trước khi tải lên.');
+        return;
+      }
 
       btn.disabled = true;
       btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Đang trích xuất...`;
@@ -221,19 +224,19 @@
       formData.append("file", fileInput.files[0]);
 
       try {
-        const res = await fetch("/api/lecturer/upload-document", { method: "POST", body: formData });
+        const res = await fetch("/api/lecturer/upload-subject-document", { method: "POST", body: formData });
         const data = await res.json();
-        if (data.success) {
-          box.className = "mt-4 p-4 rounded-lg text-xs bg-emerald-50 text-emerald-800 block border border-emerald-200";
-          box.innerHTML = `
-            <strong><i class="fa-solid fa-check-circle mr-1"></i> Đã trích xuất dữ liệu thành công!</strong><br>
-            Tệp: <b>${data.document.filename}</b> | Số phân đoạn: <b>${data.document.chunksCount}</b> | Số từ: <b>${data.document.wordCount}</b>
-          `;
+        if (!res.ok || !data.success) throw new Error(data.message || 'Không thể tải tài liệu.');
+        if (data.document) {
+          const extracted = data.document.extractStatus === 'Extracted';
+          box.className = `mt-4 p-4 rounded-lg text-xs block border ${extracted ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-amber-50 text-amber-800 border-amber-200'}`;
+          box.textContent = `${data.message || 'Đã lưu tài liệu.'} Tệp: ${data.document.filename}. Trạng thái: ${extracted ? 'Đã trích xuất' : 'Trích xuất thất bại'}.`;
           fileInput.value = "";
+          if (typeof loadRubricDocuments === 'function') await loadRubricDocuments();
         }
       } catch (err) {
         box.className = "mt-4 p-4 rounded-lg text-xs bg-rose-50 text-rose-800 block border border-rose-200";
-        box.innerHTML = `<i class="fa-solid fa-circle-exclamation mr-1"></i> Lỗi: ${err.message}`;
+        box.textContent = `Lỗi: ${err.message}`;
       } finally {
         btn.disabled = false;
         btn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up mr-2"></i> Tải Lên & Trích Xuất Dữ Liệu`;

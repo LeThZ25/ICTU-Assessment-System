@@ -28,9 +28,8 @@ namespace backend_api.Controllers
             if (dto == null || dto.SessionId <= 0)
                 return BadRequest(new { success = false, code = "VALIDATION", message = "Mã ca thi không hợp lệ." });
 
-            var sCode = Request.Headers["X-Student-Code"].FirstOrDefault()?.Trim().ToUpper();
-            if (string.IsNullOrWhiteSpace(sCode))
-                sCode = dto.StudentCode?.Trim().ToUpper();
+            var sCode = AuthenticatedStudentCode;
+            if (!string.IsNullOrWhiteSpace(dto.StudentCode) && !IsCurrentStudent(dto.StudentCode)) return Forbid();
 
             if (string.IsNullOrWhiteSpace(sCode))
                 return BadRequest(new { success = false, code = "VALIDATION", message = "Thiếu mã sinh viên." });
@@ -49,7 +48,7 @@ namespace backend_api.Controllers
             // Bước 2: Sinh viên có enrollment của CourseClassId
             var isEnrolled = await _db.ClassEnrollments.AnyAsync(e =>
                 e.CourseClassId == session.CourseClassId &&
-                e.StudentCode.ToUpper() == sCode);
+                e.StudentCode.Trim().ToUpper() == sCode);
 
             if (!isEnrolled)
             {
@@ -57,7 +56,7 @@ namespace backend_api.Controllers
             }
 
             var join = await _db.ExamRoomJoins
-                .FirstOrDefaultAsync(j => j.ExamRoomSessionId == dto.SessionId && j.StudentCode == sCode);
+                .FirstOrDefaultAsync(j => j.ExamRoomSessionId == dto.SessionId && j.StudentCode.Trim().ToUpper() == sCode);
 
             var now = DateTime.UtcNow;
 
@@ -88,7 +87,8 @@ namespace backend_api.Controllers
                         StudentCode = sCode,
                         JoinedAtUtc = now,
                         ClientIp = string.Empty,
-                        FailedOtpCount = 1
+                        FailedOtpCount = 1,
+                        IsAuthorized = false
                     };
                     _db.ExamRoomJoins.Add(join);
                 }
@@ -131,14 +131,19 @@ namespace backend_api.Controllers
                     StudentCode = sCode,
                     JoinedAtUtc = now,
                     ClientIp = clientIpStr,
-                    FailedOtpCount = 0
+                    FailedOtpCount = 0,
+                    IsAuthorized = true
                 };
                 _db.ExamRoomJoins.Add(join);
             }
             else
             {
+                join.StudentCode = sCode;
                 join.JoinedAtUtc = now;
                 join.ClientIp = clientIpStr;
+                join.IsAuthorized = true;
+                join.FailedOtpCount = 0;
+                join.LockedUntilUtc = null;
             }
 
             if (session.Status == "Published")
@@ -173,7 +178,8 @@ namespace backend_api.Controllers
             IFormFile file,
             [FromForm] int? sessionId,
             [FromQuery] int? qSessionId,
-            [FromServices] Microsoft.AspNetCore.Hosting.IWebHostEnvironment env)
+            [FromServices] Microsoft.AspNetCore.Hosting.IWebHostEnvironment env,
+            [FromServices] IConfiguration config)
         {
             var targetSessionId = sessionId ?? qSessionId ?? 0;
             if (targetSessionId <= 0)
@@ -198,14 +204,14 @@ namespace backend_api.Controllers
                 return BadRequest(new { success = false, code = "VALIDATION", message = "Định dạng tệp không được hỗ trợ. Chỉ nhận .cs, .py, .java, .sql, .cpp, .h, .zip." });
             }
 
-            var sCode = Request.Headers["X-Student-Code"].FirstOrDefault()?.Trim().ToUpper();
+            var sCode = AuthenticatedStudentCode;
             if (string.IsNullOrWhiteSpace(sCode))
                 return StatusCode(403, new { success = false, code = "NOT_JOINED", message = "Thiếu định danh thí sinh (X-Student-Code)." });
 
-            // Sinh viên phải có trong ExamRoomJoins
+            // Chỉ OTP và kiểm tra mạng thành công mới cấp quyền nộp bài.
             var hasJoined = await _db.ExamRoomJoins.AnyAsync(j =>
                 j.ExamRoomSessionId == targetSessionId &&
-                j.StudentCode == sCode);
+                j.StudentCode.Trim().ToUpper() == sCode && j.IsAuthorized);
 
             if (!hasJoined)
             {
@@ -218,9 +224,19 @@ namespace backend_api.Controllers
                 return StatusCode(409, new { success = false, code = "SESSION_NOT_OPEN", message = "Ca thi không ở trạng thái đang diễn ra." });
             }
 
+            // Enrollment might have been revoked after the student joined the room.
+            if (!await _db.ClassEnrollments.AnyAsync(e =>
+                    e.CourseClassId == session.CourseClassId && e.StudentCode.Trim().ToUpper() == sCode))
+                return StatusCode(403, new { success = false, code = "NOT_ENROLLED", message = "Sinh viên không còn thuộc lớp của ca thi." });
+
+            // A successful join does not authorize uploads from another network later.
+            var clientIp = LcmsNetworkHelper.GetEffectiveClientIp(HttpContext, config);
+            if (clientIp == null || !LcmsNetworkHelper.IsIpInSubnet(clientIp, session.AllowedIpSubnet))
+                return StatusCode(403, new { success = false, code = "IP_NOT_ALLOWED", message = "Địa chỉ IP hiện tại không thuộc dải mạng phòng thi được phép." });
+
             // D20: Một sinh viên một ca chỉ nộp 1 bài, trừ khi Reopened
             var existingSub = await _db.CodeSubmissions
-                .FirstOrDefaultAsync(s => s.ExamRoomSessionId == targetSessionId && s.StudentCode == sCode && s.Status != "Reopened");
+                .FirstOrDefaultAsync(s => s.ExamRoomSessionId == targetSessionId && s.StudentCode.Trim().ToUpper() == sCode && s.Status != "Reopened");
 
             if (existingSub != null)
             {
@@ -245,22 +261,39 @@ namespace backend_api.Controllers
                 {
                     using var stream = file.OpenReadStream();
                     using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
+                    if (archive.Entries.Count > 80)
+                        return StatusCode(413, new { success = false, code = "ZIP_TOO_MANY_FILES", message = "Tệp ZIP vượt giới hạn 80 mục." });
+
                     long totalUncompressedSize = 0;
+                    var sourceFileCount = 0;
+                    var sourcePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
                     foreach (var entry in archive.Entries)
                     {
-                        var entryName = entry.FullName;
-                        if (entryName.Contains("..") || entryName.Contains(":") || entryName.StartsWith("/") || entryName.StartsWith("\\"))
+                        var entryName = entry.FullName.Replace('\\', '/');
+                        if (entryName.StartsWith('/') || entryName.Contains(':') ||
+                            entryName.Split('/').Any(segment => segment is ".." or "."))
                         {
                             return BadRequest(new { success = false, code = "ZIP_PATH_TRAVERSAL", message = "Tệp zip chứa đường dẫn không an toàn (Path Traversal)." });
                         }
+                        if (entry.Length > 8388608 - totalUncompressedSize)
+                            return StatusCode(413, new { success = false, code = "ZIP_TOO_LARGE", message = "Tổng dung lượng giải nén của tệp zip vượt quá 8MB." });
                         totalUncompressedSize += entry.Length;
+                        if (!string.IsNullOrEmpty(entry.Name) && allowedExts.Contains(Path.GetExtension(entryName)) &&
+                            !entryName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (!sourcePaths.Add(entryName))
+                                return BadRequest(new { success = false, code = "ZIP_DUPLICATE_SOURCE", message = "Tệp ZIP chứa nhiều tệp mã nguồn trùng đường dẫn." });
+                            sourceFileCount++;
+                        }
                     }
 
                     if (totalUncompressedSize > 8388608) // 8MB
                     {
                         return StatusCode(413, new { success = false, code = "ZIP_TOO_LARGE", message = "Tổng dung lượng giải nén của tệp zip vượt quá 8MB." });
                     }
+                    if (sourceFileCount == 0)
+                        return BadRequest(new { success = false, code = "ZIP_NO_SOURCE", message = "Tệp ZIP cần chứa ít nhất một tệp mã nguồn .cs, .py, .java, .sql, .cpp hoặc .h." });
                 }
                 catch (InvalidDataException)
                 {
@@ -275,72 +308,140 @@ namespace backend_api.Controllers
             var guid = Guid.NewGuid().ToString("N");
             var storedPath = Path.Combine(storageDir, $"{guid}{ext}");
 
-            using (var fileStream = new FileStream(storedPath, FileMode.Create))
+            // Serialize the final duplicate check and insert across concurrent HTTP requests.
+            // SQLite takes a write reservation for this transaction, so two simultaneous
+            // submissions cannot both pass the check before either one is persisted.
+            await using var transaction = await _db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
+            if (await _db.CodeSubmissions.AnyAsync(s =>
+                s.ExamRoomSessionId == targetSessionId &&
+                s.StudentCode.Trim().ToUpper() == sCode && s.Status != "Reopened"))
             {
-                await file.CopyToAsync(fileStream);
+                return StatusCode(409, new { success = false, code = "ALREADY_SUBMITTED", message = "Bạn đã nộp bài thi cho ca này rồi. Không thể nộp lần hai." });
             }
 
-            var sub = new CodeSubmission
+            try
             {
-                ExamRoomSessionId = targetSessionId,
-                StudentCode = sCode,
-                StoredPath = storedPath,
-                OriginalFileName = Path.GetFileName(file.FileName),
-                FileSize = file.Length,
-                Language = lang,
-                Status = "PendingGrading"
-            };
-
-            _db.CodeSubmissions.Add(sub);
-            await _db.SaveChangesAsync();
-
-            return Ok(new
-            {
-                success = true,
-                message = "Đã nộp bài mã nguồn thành công. Bài thi đang ở trạng thái Chờ chấm.",
-                submission = new
+                await using (var fileStream = new FileStream(storedPath, FileMode.CreateNew))
                 {
-                    sub.Id,
-                    sub.ExamRoomSessionId,
-                    sub.StudentCode,
-                    sub.OriginalFileName,
-                    sub.FileSize,
-                    sub.Language,
-                    sub.Status
+                    await file.CopyToAsync(fileStream);
                 }
-            });
+
+                var sub = new CodeSubmission
+                {
+                    ExamRoomSessionId = targetSessionId,
+                    StudentCode = sCode,
+                    StoredPath = storedPath,
+                    OriginalFileName = Path.GetFileName(file.FileName),
+                    FileSize = file.Length,
+                    Language = lang,
+                    Status = "PendingGrading"
+                };
+
+                _db.CodeSubmissions.Add(sub);
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Đã nộp bài mã nguồn thành công. Bài thi đang ở trạng thái Chờ chấm.",
+                    submission = new
+                    {
+                        sub.Id,
+                        sub.ExamRoomSessionId,
+                        sub.StudentCode,
+                        sub.OriginalFileName,
+                        sub.FileSize,
+                        sub.Language,
+                        sub.Status
+                    }
+                });
+            }
+            catch
+            {
+                // Avoid leaving a disconnected source file when DB persistence fails.
+                try
+                {
+                    if (System.IO.File.Exists(storedPath)) System.IO.File.Delete(storedPath);
+                }
+                catch (IOException) { /* Keep the original upload/database error. */ }
+                catch (UnauthorizedAccessException) { /* Keep the original upload/database error. */ }
+                throw;
+            }
         }
 
         // ---------------------------------------------------------------------
         // 3. NỘP BÀI Ở NHÀ (HomeSubmissions) - Section 9.3
         // ---------------------------------------------------------------------
 
+        [HttpGet("classes/{classId}/home-assignments")]
+        public async Task<IActionResult> GetMyHomeAssignments(int classId)
+        {
+            var studentCode = AuthenticatedStudentCode;
+            if (string.IsNullOrWhiteSpace(studentCode)) return Forbid();
+            if (!await _db.ClassEnrollments.AnyAsync(e => e.CourseClassId == classId &&
+                e.StudentCode.Trim().ToUpper() == studentCode)) return Forbid();
+
+            var assignments = await _db.HomeAssignments.AsNoTracking()
+                .Where(a => a.CourseClassId == classId)
+                .OrderByDescending(a => a.DeadlineUtc)
+                .Select(a => new
+                {
+                    a.Id, a.Title, a.Description, a.Format, a.DeadlineUtc,
+                    a.PassThreshold, a.MaxRetakeCount, a.IsActive,
+                    Submissions = a.Submissions
+                        .Where(s => s.StudentCode.Trim().ToUpper() == studentCode)
+                        .OrderByDescending(s => s.AttemptNumber).ThenByDescending(s => s.Id)
+                        .Select(s => new { s.Id, s.AttemptNumber, s.Result, s.RawPercent,
+                            s.Status, s.FailReason, s.LecturerNote, s.SubmittedAtUtc })
+                }).ToListAsync();
+            return Ok(assignments);
+        }
+
         [HttpPost("home-assignments/{id}/submit")]
         public async Task<IActionResult> SubmitHomeAssignment(
             int id, 
             [FromBody] SubmitHomeAssignmentDto dto)
         {
+            if (dto == null)
+                return BadRequest(new { success = false, code = "VALIDATION", message = "Dữ liệu bài nộp không hợp lệ." });
             var assignment = await _db.HomeAssignments.FindAsync(id);
             if (assignment == null)
                 return NotFound(new { success = false, code = "NOT_FOUND", message = "Không tìm thấy bài tập ở nhà." });
 
-            var sCode = Request.Headers["X-Student-Code"].FirstOrDefault()?.Trim().ToUpper();
-            if (string.IsNullOrWhiteSpace(sCode))
-                sCode = dto.StudentCode?.Trim().ToUpper();
+            var sCode = AuthenticatedStudentCode;
+            if (!string.IsNullOrWhiteSpace(dto.StudentCode) && !IsCurrentStudent(dto.StudentCode)) return Forbid();
 
             if (string.IsNullOrWhiteSpace(sCode))
-                return BadRequest(new { success = false, code = "VALIDATION", message = "Thiếu định danh thí sinh (X-Student-Code)." });
+                return Forbid();
 
-            if (dto == null || dto.CorrectPercent < 0 || dto.CorrectPercent > 100)
-                return BadRequest(new { success = false, code = "VALIDATION", message = "Tỷ lệ điểm đúng (correctPercent) phải từ 0 đến 100." });
+            if (!assignment.IsActive)
+                return StatusCode(409, new { success = false, code = "ASSIGNMENT_CLOSED", message = "Bài tập hiện không mở nhận bài." });
 
+            var isEnrolled = await _db.ClassEnrollments.AnyAsync(e =>
+                e.CourseClassId == assignment.CourseClassId && e.StudentCode.Trim().ToUpper() == sCode);
+            if (!isEnrolled)
+                return StatusCode(403, new { success = false, code = "NOT_ENROLLED", message = "Bạn không thuộc lớp học phần của bài tập này." });
+
+            if (dto.CorrectPercent.HasValue)
+                return BadRequest(new { success = false, code = "UNTRUSTED_SCORE", message = "Sinh viên không được tự cung cấp điểm bài làm." });
+            var answerText = dto.AnswerText?.Trim();
+            if (string.IsNullOrWhiteSpace(answerText) || answerText.Length > 20000)
+                return BadRequest(new { success = false, code = "VALIDATION", message = "Nội dung bài làm phải từ 1 đến 20.000 ký tự." });
+
+            // SQLite starts a serializable write transaction before the final attempt
+            // check, so another request cannot claim the same attempt number.
+            await using var transaction = await _db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
+            await _db.Entry(assignment).ReloadAsync();
+            if (!assignment.IsActive)
+                return StatusCode(409, new { success = false, code = "ASSIGNMENT_CLOSED", message = "Bài tập hiện không mở nhận bài." });
             var now = DateTime.UtcNow;
 
             // Kiểm tra quá hạn
             if (now > assignment.DeadlineUtc)
             {
                 var existingAny = await _db.HomeSubmissions
-                    .AnyAsync(s => s.HomeAssignmentId == id && s.StudentCode == sCode);
+                    .AnyAsync(s => s.HomeAssignmentId == id && s.StudentCode.Trim().ToUpper() == sCode);
 
                 if (!existingAny)
                 {
@@ -357,6 +458,7 @@ namespace backend_api.Controllers
                         SubmittedAtUtc = now
                     });
                     await _db.SaveChangesAsync();
+                    await transaction.CommitAsync();
                 }
 
                 return StatusCode(409, new { success = false, code = "DEADLINE_PASSED", message = "Bài tập đã quá hạn nộp bài." });
@@ -364,8 +466,8 @@ namespace backend_api.Controllers
 
             // Tìm lần nộp gần nhất
             var latestSub = await _db.HomeSubmissions
-                .Where(s => s.HomeAssignmentId == id && s.StudentCode == sCode)
-                .OrderByDescending(s => s.AttemptNumber)
+                .Where(s => s.HomeAssignmentId == id && s.StudentCode.Trim().ToUpper() == sCode)
+                .OrderByDescending(s => s.AttemptNumber).ThenByDescending(s => s.Id)
                 .FirstOrDefaultAsync();
 
             int attempt = 1;
@@ -375,33 +477,39 @@ namespace backend_api.Controllers
                 {
                     return StatusCode(409, new { success = false, code = "ALREADY_SUBMITTED", message = "Bạn đã nộp bài này rồi và chưa được duyệt làm lại." });
                 }
+                // Re-check the limit at submission time in case the lecturer changed it after approval.
+                if (latestSub.Result == "Pass" || latestSub.AttemptNumber >= 1 + Math.Max(0, assignment.MaxRetakeCount))
+                    return StatusCode(409, new { success = false, code = "RETAKE_EXHAUSTED", message = "Bài làm đã đạt hoặc đã hết lượt làm lại." });
                 attempt = latestSub.AttemptNumber + 1;
             }
-
-            // D7: Ngưỡng Đạt PassThreshold (mặc định 60). Đúng 59.99 -> Fail, 60.00 -> Pass
-            bool isPass = dto.CorrectPercent >= assignment.PassThreshold;
-            string result = isPass ? "Pass" : "Fail";
-            string? failReason = isPass ? null : "BelowThreshold";
 
             var newSub = new HomeSubmission
             {
                 HomeAssignmentId = id,
                 StudentCode = sCode,
                 AttemptNumber = attempt,
-                Result = result,
-                RawPercent = dto.CorrectPercent,
-                FailReason = failReason,
+                Result = "Pending",
+                RawPercent = 0,
+                AnswerText = answerText,
                 Status = "Submitted",
                 SubmittedAtUtc = now
             };
 
             _db.HomeSubmissions.Add(newSub);
-            await _db.SaveChangesAsync();
+            try
+            {
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
+            }
+            catch (DbUpdateException ex) when (ex.InnerException is Microsoft.Data.Sqlite.SqliteException { SqliteErrorCode: 19 })
+            {
+                return StatusCode(409, new { success = false, code = "ALREADY_SUBMITTED", message = "Lượt nộp này đã được ghi nhận." });
+            }
 
             return Ok(new
             {
                 success = true,
-                message = isPass ? "Chúc mừng! Bạn đã hoàn thành ĐẠT bài tập ở nhà." : "Bạn CHƯA ĐẠT yêu cầu bài tập ở nhà.",
+                message = "Đã nhận bài làm. Vui lòng chờ giảng viên chấm điểm.",
                 submission = new
                 {
                     newSub.Id,
@@ -423,17 +531,28 @@ namespace backend_api.Controllers
             if (assignment == null)
                 return NotFound(new { success = false, code = "NOT_FOUND", message = "Không tìm thấy bài tập ở nhà." });
 
-            var sCode = Request.Headers["X-Student-Code"].FirstOrDefault()?.Trim().ToUpper();
+            if (!assignment.IsActive || DateTime.UtcNow > assignment.DeadlineUtc)
+                return StatusCode(409, new { success = false, code = "ASSIGNMENT_CLOSED", message = "Bài tập đã đóng hoặc quá hạn xin làm lại." });
+
+            var sCode = AuthenticatedStudentCode;
             if (string.IsNullOrWhiteSpace(sCode))
                 return BadRequest(new { success = false, code = "VALIDATION", message = "Thiếu định danh thí sinh (X-Student-Code)." });
 
+            if (!await _db.ClassEnrollments.AnyAsync(e => e.CourseClassId == assignment.CourseClassId && e.StudentCode.Trim().ToUpper() == sCode))
+                return Forbid();
+
             var latestSub = await _db.HomeSubmissions
-                .Where(s => s.HomeAssignmentId == id && s.StudentCode == sCode)
-                .OrderByDescending(s => s.AttemptNumber)
+                .Where(s => s.HomeAssignmentId == id && s.StudentCode.Trim().ToUpper() == sCode)
+                .OrderByDescending(s => s.AttemptNumber).ThenByDescending(s => s.Id)
                 .FirstOrDefaultAsync();
 
             if (latestSub == null)
                 return NotFound(new { success = false, code = "NOT_FOUND", message = "Bạn chưa từng nộp bài tập này." });
+
+            if (latestSub.Result == "Pending")
+                return StatusCode(409, new { success = false, code = "AWAITING_GRADE", message = "Bài làm đang chờ giảng viên chấm điểm." });
+            if (latestSub.Status == "RetakeRequested" || latestSub.Status == "RetakeApproved")
+                return StatusCode(409, new { success = false, code = "RETAKE_IN_PROGRESS", message = "Yêu cầu làm lại đã được gửi hoặc duyệt." });
 
             // D9 & T31: Submitted Pass -> 409 ALREADY_PASSED
             if (latestSub.Result == "Pass")
@@ -442,13 +561,17 @@ namespace backend_api.Controllers
             }
 
             // D9: Tổng lượt làm = 1 + MaxRetakeCount. Hết lượt -> 409 RETAKE_EXHAUSTED
-            if (latestSub.AttemptNumber >= 1 + assignment.MaxRetakeCount)
+            if (latestSub.Result != "Fail" || latestSub.AttemptNumber >= 1 + Math.Max(0, assignment.MaxRetakeCount))
             {
                 return StatusCode(409, new { success = false, code = "RETAKE_EXHAUSTED", message = "Bạn đã dùng hết số lượt làm lại cho phép của bài tập này." });
             }
 
-            latestSub.Status = "RetakeRequested";
-            await _db.SaveChangesAsync();
+            var updated = await _db.HomeSubmissions
+                .Where(s => s.Id == latestSub.Id && s.Status == "Submitted" && s.Result == "Fail")
+                .ExecuteUpdateAsync(setters => setters.SetProperty(s => s.Status, "RetakeRequested"));
+            if (updated == 0)
+                return StatusCode(409, new { success = false, code = "RETAKE_IN_PROGRESS", message = "Trạng thái lượt nộp đã thay đổi." });
+            await _db.Entry(latestSub).ReloadAsync();
 
             return Ok(new
             {
@@ -471,7 +594,8 @@ namespace backend_api.Controllers
 
     public class SubmitHomeAssignmentDto
     {
-        public double CorrectPercent { get; set; }
+        public double? CorrectPercent { get; set; }
+        public string? AnswerText { get; set; }
         public string? StudentCode { get; set; }
     }
 }

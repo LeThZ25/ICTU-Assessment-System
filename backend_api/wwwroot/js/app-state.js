@@ -36,6 +36,13 @@
     // ==============================================================
     let examNotifications = [];
 
+    // Text received from exam events must never be interpreted as HTML.
+    function escapeNotificationHtml(value) {
+      return String(value ?? '').replace(/[&<>"']/g, ch => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      })[ch]);
+    }
+
     function loadNotifications() {
       try {
         const raw = sessionStorage.getItem('ictu_notifications');
@@ -138,15 +145,15 @@
           <div class="p-3 hover:bg-slate-50 transition space-y-1.5 group relative ${n.read ? 'opacity-70 bg-white' : 'bg-slate-50/60'}">
             <div class="flex items-start justify-between gap-2">
               <span class="px-2 py-0.5 rounded text-[10px] font-bold whitespace-nowrap flex-shrink-0 ${badgeClass}">
-                ${n.badgeText || 'Khảo thí'}
+                ${escapeNotificationHtml(n.badgeText || 'Khảo thí')}
               </span>
               <div class="flex items-center space-x-1.5 flex-shrink-0">
                 <span class="text-[10px] text-slate-400 font-medium whitespace-nowrap">${timeLabel}</span>
                 <button type="button" onclick="deleteNotification(${n.id})" class="text-slate-300 hover:text-rose-500 text-xs px-1 leading-none transition" title="Xóa thông báo này">&times;</button>
               </div>
             </div>
-            <p class="text-slate-800 font-semibold text-[11px] leading-snug break-words">${n.title || ''}</p>
-            <p class="text-slate-600 font-normal text-[11px] leading-relaxed break-words">${n.message}</p>
+            <p class="text-slate-800 font-semibold text-[11px] leading-snug break-words">${escapeNotificationHtml(n.title)}</p>
+            <p class="text-slate-600 font-normal text-[11px] leading-relaxed break-words">${escapeNotificationHtml(n.message)}</p>
           </div>
         `;
       }).join("");
@@ -208,7 +215,7 @@
       toast.innerHTML = `
         ${icon}
         <div class="flex-1 text-slate-800 leading-snug">
-          ${message}
+          ${escapeNotificationHtml(message)}
         </div>
         <button onclick="this.parentElement.remove()" class="text-slate-400 hover:text-slate-600 leading-none">&times;</button>
       `;

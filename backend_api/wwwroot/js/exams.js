@@ -42,12 +42,13 @@
       const title = document.getElementById('examTitle').value;
       const durationMinutes = parseInt(document.getElementById('examDuration').value);
       const accessCode = document.getElementById('examAccessCode').value;
+      const isFinalExam = document.getElementById('studioAssessmentCategory')?.value === 'final_exam';
 
       try {
         const res = await fetch("/api/lecturer/create-exam", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ subjectId, courseClassId, title, durationMinutes, accessCode })
+          body: JSON.stringify({ subjectId, courseClassId, title, durationMinutes, accessCode, isFinalExam })
         });
         const data = await res.json();
         if (data.success) {

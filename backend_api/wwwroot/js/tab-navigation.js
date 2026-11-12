@@ -37,6 +37,8 @@
       if (tabId === 'exam-creator') onManualSubjectChanged(document.getElementById('manSubjectSelect').value);
       if (tabId === 'question-bank') loadGroupedQuestionBank();
       if (tabId === 'exams') loadExams();
+      if (tabId === 'monitoring') loadLcmsRoomSessions();
+      if (tabId === 'documents') loadLcmsDocumentsTab();
       if (tabId === 'reports') loadReport(currentExamId || 1);
       if (tabId === 'settings') loadSystemSettings();
     }

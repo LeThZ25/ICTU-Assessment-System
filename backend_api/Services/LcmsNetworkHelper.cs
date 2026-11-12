@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using Microsoft.AspNetCore.Http;
@@ -19,30 +20,27 @@ namespace backend_api.Services
                 remoteIp = remoteIp.MapToIPv4();
             }
 
-            var trustedProxies = config.GetSection("ExamRoom:TrustedProxies").Get<string[]>() ?? Array.Empty<string>();
-            if (trustedProxies.Length > 0 && context.Request.Headers.TryGetValue("X-Forwarded-For", out var forwardedValues))
+            var trustedProxies = (config.GetSection("ExamRoom:TrustedProxies").Get<string[]>() ?? Array.Empty<string>())
+                .Select(value => value.Trim())
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            if (trustedProxies.Count > 0 && context.Request.Headers.TryGetValue("X-Forwarded-For", out var forwardedValues))
             {
-                var remoteIpStr = remoteIp.ToString();
-                bool isTrusted = false;
-                foreach (var tp in trustedProxies)
+                // Walk backwards from the TCP peer through trusted proxies. The
+                // first X-Forwarded-For entry is attacker-controlled if the
+                // client supplied its own header before the proxy appended to it.
+                var currentHop = remoteIp;
+                var forwardedIps = forwardedValues.ToString().Split(',', StringSplitOptions.RemoveEmptyEntries);
+                for (var index = forwardedIps.Length - 1; index >= 0; index--)
                 {
-                    if (string.Equals(tp.Trim(), remoteIpStr, StringComparison.OrdinalIgnoreCase))
-                    {
-                        isTrusted = true;
+                    if (!trustedProxies.Contains(currentHop.ToString()))
                         break;
-                    }
+
+                    if (!IPAddress.TryParse(forwardedIps[index].Trim(), out var previousHop))
+                        return remoteIp;
+                    currentHop = previousHop.IsIPv4MappedToIPv6 ? previousHop.MapToIPv4() : previousHop;
                 }
 
-                if (isTrusted && !string.IsNullOrWhiteSpace(forwardedValues))
-                {
-                    var firstIpStr = forwardedValues.ToString().Split(',')[0].Trim();
-                    if (IPAddress.TryParse(firstIpStr, out var parsedForwarded))
-                    {
-                        if (parsedForwarded.IsIPv4MappedToIPv6)
-                            parsedForwarded = parsedForwarded.MapToIPv4();
-                        return parsedForwarded;
-                    }
-                }
+                return currentHop;
             }
 
             return remoteIp;

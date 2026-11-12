@@ -254,6 +254,7 @@
       const durationMinutes = parseInt(document.getElementById('pkgExamDuration').value) || 30;
       const accessCode = document.getElementById('pkgExamCode').value.trim() || "ICTU2026";
       const autoVariants = document.getElementById('pkgAutoVariants').checked;
+      const isFinalExam = document.getElementById('pkgIsFinalExam')?.checked === true;
 
       const btn = document.getElementById('btnSubmitPkg');
       btn.disabled = true;
@@ -266,6 +267,7 @@
           title,
           durationMinutes,
           accessCode,
+          isFinalExam,
           questions: tempGeneratedQuestions
         };
 
@@ -781,6 +783,7 @@
       const title = document.getElementById('examTitle').value.trim();
       const durationMinutes = parseInt(document.getElementById('examDuration').value) || 30;
       const accessCode = document.getElementById('examAccessCode').value.trim() || "ICTU2026";
+      const isFinalExam = document.getElementById('studioAssessmentCategory')?.value === 'final_exam';
       const autoVariants = document.getElementById('examAutoVariantsCheck').checked;
 
       const btn = document.getElementById('btnStudioPublish');
@@ -798,6 +801,7 @@
             title,
             durationMinutes,
             accessCode,
+            isFinalExam,
             autoGenerateVariants: autoVariants
           })
         });

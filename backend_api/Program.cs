@@ -3,7 +3,12 @@ using backend_api.Data;
 using backend_api.Hubs;
 using backend_api.Services;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.Authentication;
+using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.DataProtection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,16 +25,92 @@ builder.Services.AddSignalR();
 
 // Add MemoryCache for Rubric drafts (LCMS Section 8)
 builder.Services.AddMemoryCache();
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.Cookie.Name = "ICTU.Auth.Session";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Strict;
+        options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+            ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
+        options.ExpireTimeSpan = TimeSpan.FromHours(4);
+        options.Events.OnRedirectToLogin = context => { context.Response.StatusCode = 401; return Task.CompletedTask; };
+        options.Events.OnRedirectToAccessDenied = context => { context.Response.StatusCode = 403; return Task.CompletedTask; };
+    })
+    .AddOpenIdConnect("Google", options =>
+    {
+        options.Authority = "https://accounts.google.com";
+        options.ClientId = builder.Configuration["Authentication:Google:ClientId"] ?? "not-configured";
+        options.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"] ?? "not-configured";
+        options.CallbackPath = "/signin-google";
+        options.ResponseType = "code";
+        options.UsePkce = true;
+        options.SaveTokens = false;
+        options.Scope.Add("email");
+        options.TokenValidationParameters.ValidateIssuer = true;
+        options.Events = new OpenIdConnectEvents
+        {
+            OnTokenValidated = async context =>
+            {
+                if (!string.Equals(context.Principal?.FindFirst("email_verified")?.Value, "true", StringComparison.OrdinalIgnoreCase))
+                {
+                    context.Fail("Google email has not been verified.");
+                    return;
+                }
+                await backend_api.Services.SsoIdentityMapper.ValidateAndMapAsync(context, "Google", "@ictu.edu.vn");
+            },
+            OnRemoteFailure = context =>
+            {
+                context.Response.Redirect("/index.html?authError=sso");
+                context.HandleResponse();
+                return Task.CompletedTask;
+            }
+        };
+    })
+    .AddOpenIdConnect("Microsoft", options =>
+    {
+        var tenantId = builder.Configuration["Authentication:Microsoft:TenantId"];
+        options.Authority = $"https://login.microsoftonline.com/{(Guid.TryParse(tenantId, out _) ? tenantId : "00000000-0000-0000-0000-000000000000")}/v2.0";
+        options.ClientId = builder.Configuration["Authentication:Microsoft:ClientId"] ?? "not-configured";
+        options.ClientSecret = builder.Configuration["Authentication:Microsoft:ClientSecret"] ?? "not-configured";
+        options.CallbackPath = "/signin-microsoft";
+        options.ResponseType = "code";
+        options.UsePkce = true;
+        options.SaveTokens = false;
+        options.TokenValidationParameters.ValidateIssuer = true;
+        options.Events = new OpenIdConnectEvents
+        {
+            OnTokenValidated = async context =>
+            {
+                if (!string.Equals(context.Principal?.FindFirst("tid")?.Value, tenantId, StringComparison.OrdinalIgnoreCase))
+                {
+                    context.Fail("Microsoft tenant does not match configuration.");
+                    return;
+                }
+                await backend_api.Services.SsoIdentityMapper.ValidateAndMapAsync(context, "Microsoft", "@ms.ictu.edu.vn");
+            },
+            OnRemoteFailure = context =>
+            {
+                context.Response.Redirect("/student_web.html?authError=sso");
+                context.HandleResponse();
+                return Task.CompletedTask;
+            }
+        };
+    });
+builder.Services.AddAuthorization();
+
+// The disposable HTTP smoke server uses a writable keyring under its isolated publish directory.
+if (builder.Configuration["ICTU_HTTP_SMOKE"] == "1")
+    builder.Services.AddDataProtection().PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(AppContext.BaseDirectory, "smoke-keys")));
 
 // Add CORS
 builder.Services.AddCors(options =>
 {
+    var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
     options.AddDefaultPolicy(policy =>
     {
-        policy.AllowAnyHeader()
-              .AllowAnyMethod()
-              .SetIsOriginAllowed(origin => true)
-              .AllowCredentials();
+        if (allowedOrigins.Length > 0)
+            policy.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod().AllowCredentials();
     });
 });
 
@@ -41,6 +122,8 @@ builder.Services.AddControllers()
     });
 
 var app = builder.Build();
+if (builder.Configuration["ICTU_HTTP_SMOKE"] == "1")
+    Console.WriteLine($"HTTP smoke Data Protection: {app.Services.GetRequiredService<IDataProtectionProvider>().GetType().FullName}");
 
 // Global Exception Handler -> Guarantees JSON response, NEVER raw HTML or text
 app.UseExceptionHandler(errorApp =>
@@ -50,8 +133,8 @@ app.UseExceptionHandler(errorApp =>
         context.Response.StatusCode = 500;
         context.Response.ContentType = "application/json";
         var feature = context.Features.Get<IExceptionHandlerPathFeature>();
-        var errMsg = feature?.Error?.Message ?? "Lỗi xử lý yêu cầu hệ thống.";
-        await context.Response.WriteAsJsonAsync(new { success = false, message = errMsg });
+        app.Logger.LogError(feature?.Error, "Unhandled API error at {Path}", context.Request.Path);
+        await context.Response.WriteAsJsonAsync(new { success = false, message = "Lỗi xử lý yêu cầu hệ thống." });
     });
 });
 
@@ -60,6 +143,55 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     db.Database.EnsureCreated();
+
+    // Existing SQLite installations were created without EF migrations.
+    // Add only missing grading columns, and keep pre-upgrade results as AutoGraded.
+    var schemaConnection = db.Database.GetDbConnection();
+    if (schemaConnection.State != System.Data.ConnectionState.Open)
+        schemaConnection.Open();
+    foreach (var table in new[] { "ExamSessions", "ExamAnswers" })
+    {
+        var columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        using (var check = schemaConnection.CreateCommand())
+        {
+            check.CommandText = $"PRAGMA table_info(\"{table}\");";
+            using var reader = check.ExecuteReader();
+            while (reader.Read()) columns.Add(reader.GetString(1));
+        }
+        if (!columns.Contains("GradingStatus"))
+        {
+            if (table == "ExamSessions")
+                db.Database.ExecuteSqlRaw("ALTER TABLE \"ExamSessions\" ADD COLUMN \"GradingStatus\" TEXT NOT NULL DEFAULT 'AutoGraded';");
+            else
+                db.Database.ExecuteSqlRaw("ALTER TABLE \"ExamAnswers\" ADD COLUMN \"GradingStatus\" TEXT NOT NULL DEFAULT 'AutoGraded';");
+        }
+    }
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS ""ExamSessionAudits"" (
+            ""Id"" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            ""ExamSessionId"" INTEGER NOT NULL,
+            ""Action"" TEXT NOT NULL,
+            ""ActorEmail"" TEXT NOT NULL,
+            ""ChangedAtUtc"" TEXT NOT NULL,
+            ""BeforeJson"" TEXT NOT NULL,
+            ""AfterJson"" TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS ""IX_ExamSessionAudits_ExamSessionId_ChangedAtUtc""
+            ON ""ExamSessionAudits"" (""ExamSessionId"", ""ChangedAtUtc"");
+    ");
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS ""RubricDrafts"" (
+            ""Id"" TEXT NOT NULL PRIMARY KEY,
+            ""OwnerEmail"" TEXT NOT NULL,
+            ""SubjectId"" INTEGER NOT NULL,
+            ""InClassAssessmentId"" INTEGER NULL,
+            ""HomeAssignmentId"" INTEGER NULL,
+            ""CriteriaJson"" TEXT NOT NULL,
+            ""QuestionsJson"" TEXT NOT NULL,
+            ""CreatedAtUtc"" TEXT NOT NULL,
+            ""ConsumedAtUtc"" TEXT NULL
+        );
+    ");
 
     // Vá M7: Bật WAL mode và busy_timeout để tránh lỗi "database is locked" khi GV+SV truy cập đồng thời
     try { 
@@ -269,6 +401,13 @@ using (var scope = app.Services.CreateScope())
                 alterCmd.ExecuteNonQuery();
             }
 
+            if (!examCols.Contains("IsFinalExam"))
+            {
+                using var alterCmd = conn.CreateCommand();
+                alterCmd.CommandText = "ALTER TABLE \"Exams\" ADD COLUMN \"IsFinalExam\" INTEGER NOT NULL DEFAULT 0;";
+                alterCmd.ExecuteNonQuery();
+            }
+
             // Safe migration for Users table (Title)
             var userCols = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             using (var cmd = conn.CreateCommand())
@@ -410,16 +549,15 @@ using (var scope = app.Services.CreateScope())
                         ""HomeAssignmentId"" INTEGER NOT NULL,
                         ""StudentCode"" TEXT NOT NULL,
                         ""AttemptNumber"" INTEGER NOT NULL DEFAULT 1,
-                        ""Result"" TEXT NOT NULL DEFAULT 'Fail',
+                        ""Result"" TEXT NOT NULL DEFAULT 'Pending',
                         ""RawPercent"" REAL NOT NULL DEFAULT 0.0,
+                        ""AnswerText"" TEXT NULL,
                         ""FailReason"" TEXT NULL,
                         ""Status"" TEXT NOT NULL DEFAULT 'Submitted',
                         ""SubmittedAtUtc"" TEXT NOT NULL,
                         ""LecturerNote"" TEXT NULL,
                         CONSTRAINT ""FK_HomeSubmissions_HomeAssignments_HomeAssignmentId"" FOREIGN KEY (""HomeAssignmentId"") REFERENCES ""HomeAssignments"" (""Id"") ON DELETE CASCADE
                     );
-                    CREATE UNIQUE INDEX IF NOT EXISTS ""IX_HomeSubmissions_Assignment_Student_Attempt"" ON ""HomeSubmissions"" (""HomeAssignmentId"", ""StudentCode"", ""AttemptNumber"");
-
                     CREATE TABLE IF NOT EXISTS ""ExamRoomSessions"" (
                         ""Id"" INTEGER NOT NULL CONSTRAINT ""PK_ExamRoomSessions"" PRIMARY KEY AUTOINCREMENT,
                         ""InClassAssessmentId"" INTEGER NOT NULL,
@@ -442,6 +580,7 @@ using (var scope = app.Services.CreateScope())
                         ""ClientIp"" TEXT NOT NULL,
                         ""FailedOtpCount"" INTEGER NOT NULL DEFAULT 0,
                         ""LockedUntilUtc"" TEXT NULL,
+                        ""IsAuthorized"" INTEGER NOT NULL DEFAULT 0,
                         CONSTRAINT ""FK_ExamRoomJoins_ExamRoomSessions_ExamRoomSessionId"" FOREIGN KEY (""ExamRoomSessionId"") REFERENCES ""ExamRoomSessions"" (""Id"") ON DELETE CASCADE
                     );
                     CREATE UNIQUE INDEX IF NOT EXISTS ""IX_ExamRoomJoins_Session_Student"" ON ""ExamRoomJoins"" (""ExamRoomSessionId"", ""StudentCode"");
@@ -489,6 +628,28 @@ using (var scope = app.Services.CreateScope())
                 cmd.ExecuteNonQuery();
             }
 
+            // Safe additive SQLite migrations for existing databases; never trust older OTP failures as joins.
+            foreach (var (table, column, definition) in new[]
+            {
+                ("HomeSubmissions", "AnswerText", "TEXT NULL"),
+                ("ExamRoomJoins", "IsAuthorized", "INTEGER NOT NULL DEFAULT 0")
+            })
+            {
+                var columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                using (var inspect = conn.CreateCommand())
+                {
+                    inspect.CommandText = $"PRAGMA table_info(\"{table}\");";
+                    using var reader = inspect.ExecuteReader();
+                    while (reader.Read()) columns.Add(reader.GetString(1));
+                }
+                if (!columns.Contains(column))
+                {
+                    using var alter = conn.CreateCommand();
+                    alter.CommandText = $"ALTER TABLE \"{table}\" ADD COLUMN \"{column}\" {definition};";
+                    alter.ExecuteNonQuery();
+                }
+            }
+
             // Create CourseClasses table if not exists
             using (var cmd = conn.CreateCommand())
             {
@@ -519,11 +680,19 @@ using (var scope = app.Services.CreateScope())
                 ";
                 cmd.ExecuteNonQuery();
             }
-        }
-        catch { }
 
-        // Seed default course classes if empty
-        if (!db.CourseClasses.Any())
+            // EnsureCreated only builds indexes for a new DB. Upgrade older SQLite DBs in place,
+            // after all additive column/table migrations have completed.
+            SqlitePerformanceIndexes.EnsureCreated(conn);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"SQLite startup migration failed: {ex}");
+            throw;
+        }
+
+        // Demo enrollments must never be provisioned in a production database.
+        if (app.Environment.IsDevelopment() && !db.CourseClasses.Any())
         {
             var c1 = new backend_api.Models.CourseClass
             {
@@ -592,14 +761,31 @@ using (var scope = app.Services.CreateScope())
             }
         }
 
-        // Seed default user accounts if empty
-        if (!db.Users.Any())
+        // Provision missing demo identities on developer workstations, including older databases.
+        if (app.Environment.IsDevelopment())
         {
-            db.Users.AddRange(
+            var demoAccounts = new[]
+            {
                 new backend_api.Models.UserAccount
                 {
                     Email = "gv_nguyenvana@ictu.edu.vn",
                     FullName = "TS. Nguyễn Văn A (Giảng viên)",
+                    Role = "Lecturer",
+                    AuthProvider = "Google",
+                    Department = "Khoa Công nghệ Thông tin - ICTU"
+                },
+                new backend_api.Models.UserAccount
+                {
+                    Email = "gv_lethib@ictu.edu.vn",
+                    FullName = "ThS. Lê Thị B",
+                    Role = "Lecturer",
+                    AuthProvider = "Google",
+                    Department = "Khoa Công nghệ Thông tin - ICTU"
+                },
+                new backend_api.Models.UserAccount
+                {
+                    Email = "gv_tranvanc@ictu.edu.vn",
+                    FullName = "TS. Trần Văn C",
                     Role = "Lecturer",
                     AuthProvider = "Google",
                     Department = "Khoa Công nghệ Thông tin - ICTU"
@@ -622,8 +808,15 @@ using (var scope = app.Services.CreateScope())
                     AuthProvider = "Microsoft",
                     Department = "Lớp K20-CNTT"
                 }
-            );
-            db.SaveChanges();
+            };
+            var existingEmails = db.Users.Select(u => u.Email.ToUpper()).ToHashSet();
+            var missingAccounts = demoAccounts
+                .Where(u => !existingEmails.Contains(u.Email.ToUpperInvariant())).ToList();
+            if (missingAccounts.Count > 0)
+            {
+                db.Users.AddRange(missingAccounts);
+                db.SaveChanges();
+            }
         }
     }
     catch (Exception ex)
@@ -637,6 +830,7 @@ app.UseDefaultFiles();
 app.UseStaticFiles();
 
 app.UseRouting();
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
@@ -649,4 +843,8 @@ Console.WriteLine($" Database: {Path.GetFullPath(dbPath)}");
 Console.WriteLine(" SignalR Hub: /examHub                           ");
 Console.WriteLine("=================================================");
 
-app.Run("http://0.0.0.0:5000");
+// Keep the local Development default while honoring explicit test/deployment bindings.
+if (app.Environment.IsDevelopment() &&
+    string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("ASPNETCORE_URLS")))
+    app.Run("http://127.0.0.1:5000");
+else app.Run();
