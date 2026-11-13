@@ -29,7 +29,7 @@ Requirements: Python 3.11+, a Gemini API key from <https://aistudio.google.com/a
 cd module3-ai-agent
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1           # Linux/macOS: source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements.txt        # runtime only; for development/tests: pip install -r requirements-dev.txt
 copy .env.example .env                 # Linux/macOS: cp .env.example .env
 # edit .env and set GEMINI_API_KEY=...   (never commit .env)
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8003
@@ -151,6 +151,7 @@ python -m agent export -c D:\BT03\agent.yaml          # re-export from saved pro
 ## 7. Tests and checks
 
 ```powershell
+pip install -r requirements-dev.txt  # runtime deps + pytest, pytest-asyncio, pytest-mock
 pytest -q                          # offline suite, Gemini is faked (no network)
 pytest -m integration              # optional: needs a real GEMINI_API_KEY
 ruff check --select E9,F app scripts tests agent

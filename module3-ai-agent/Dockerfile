@@ -15,7 +15,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends build-essential
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-COPY requirements.tx[t] module3-ai-agent/requirements.tx[t] ./
+# BuildKit only skips an unmatched wildcard when its PARENT directory exists, so the directory component is a
+# wildcard too (module3-ai-agen[t]); a literal module3-ai-agent/ fails with 'lstat /module3-ai-agent' when the
+# context is ./module3-ai-agent.  Exactly one of the two sources matches in either context.
+COPY requirements.tx[t] module3-ai-agen[t]/requirements.tx[t] ./
 RUN pip install -r requirements.txt
 
 # ---- runtime ---------------------------------------------------------
@@ -39,7 +42,7 @@ RUN groupadd --system --gid 10001 app \
     && chown -R app:app /app
 
 COPY --from=builder /opt/venv /opt/venv
-COPY --chown=app:app ap[p] module3-ai-agent/ap[p] ./app/
+COPY --chown=app:app ap[p] module3-ai-agen[t]/ap[p] ./app/
 
 USER app
 
