@@ -1,9 +1,9 @@
 # BÁO CÁO KIỂM THỬ HỆ THỐNG KHẢO THÍ ICTU (DYNAMIC DISCOVERY & FULL RESILIENCE)
 
-**Thời gian thực thi:** 2026-11-06 16:25:47  
+**Thời gian thực thi:** 2026-11-09 21:55:20  
 **Đơn vị:** Phòng Khảo thí & ĐBCLGD - Trường Đại học CNTT & TT (ICTU)  
 **Phạm vi:** Branch `backend-api` (`backend_api/` & `tests/`)  
-**Tỷ lệ đạt chuẩn:** **100.0%** (58/58 test cases)
+**Tỷ lệ đạt chuẩn:** **100.0%** (78/78 test cases)
 
 ---
 
@@ -23,14 +23,14 @@ flowchart TD
 
 ---
 
-## 2. Thống Kê Endpoints Được Phát Hiện Động (43 Endpoints)
+## 2. Thống Kê Endpoints Được Phát Hiện Động (66 Endpoints)
 
 | Phân Loại HTTP Verb | Số Lượng Endpoints | Tỷ Lệ Bao Phủ Tự Động |
 |:-------------------|:-------------------|:----------------------|
 | **GET Endpoints**  | 17 endpoints       | 100% Contract Checked |
 | **POST Endpoints** | 25 endpoints       | 100% Fuzzed & Tested  |
 | **DELETE Endpoints**| 1 endpoint        | 100% Validated        |
-| **TỔNG CỘNG**      | **43 endpoints** | **100% Dynamic Discovery** |
+| **TỔNG CỘNG**      | **66 endpoints** | **100% Dynamic Discovery** |
 
 ---
 
@@ -38,64 +38,84 @@ flowchart TD
 
 | Mã Test | Tên Kiểm Thử | Phân Nhóm | Kết Quả | Thời Gian | Ghi Chú Kỹ Thuật |
 |:---|:---|:---|:---:|:---:|:---|
-| `DYN-GET-01` | GET /api/auth/sample-accounts (GetSampleAccounts) | Dynamic GET Discovery | ✅ ĐẠT | 141.8ms | HTTP 200, Content: 347 bytes |
-| `DYN-GET-02` | GET /api/lecturer/subjects (Task) | Dynamic GET Discovery | ✅ ĐẠT | 221.7ms | HTTP 200, Content: 416 bytes |
-| `DYN-GET-03` | GET /api/lecturer/questions (Task) | Dynamic GET Discovery | ✅ ĐẠT | 302.4ms | HTTP 200, Content: 10566 bytes |
-| `DYN-GET-04` | GET /api/lecturer/question-bank-grouped (Task) | Dynamic GET Discovery | ✅ ĐẠT | 179.4ms | HTTP 200, Content: 7297 bytes |
-| `DYN-GET-05` | GET /api/lecturer/exams (Task) | Dynamic GET Discovery | ✅ ĐẠT | 74.0ms | HTTP 200, Content: 2149 bytes |
-| `DYN-GET-06` | GET /api/lecturer/exams/1/preview (Task) | Dynamic GET Discovery | ✅ ĐẠT | 141.2ms | HTTP 200, Content: 2054 bytes |
-| `DYN-GET-07` | GET /api/lecturer/classes (Task) | Dynamic GET Discovery | ✅ ĐẠT | 42.8ms | HTTP 200, Content: 2359 bytes |
-| `DYN-GET-08` | GET /api/lecturer/classes/1 (Task) | Dynamic GET Discovery | ✅ ĐẠT | 128.2ms | HTTP 200, Content: 1807 bytes |
-| `DYN-GET-09` | GET /api/lecturer/monitoring/1 (Task) | Dynamic GET Discovery | ✅ ĐẠT | 45.8ms | HTTP 200, Content: 2 bytes |
-| `DYN-GET-10` | GET /api/lecturer/report/1 (Task) | Dynamic GET Discovery | ✅ ĐẠT | 156.8ms | HTTP 200, Content: 952 bytes |
-| `DYN-GET-11` | GET /api/lecturer/schedule (Task) | Dynamic GET Discovery | ✅ ĐẠT | 82.7ms | HTTP 200, Content: 3032 bytes |
-| `DYN-GET-12` | GET /api/lecturer/submissions/1/detail (Task) | Dynamic GET Discovery | ✅ ĐẠT | 110.5ms | HTTP 404, Content: 66 bytes |
-| `DYN-GET-13` | GET /api/lecturer/export-scores/1 (Task) | Dynamic GET Discovery | ✅ ĐẠT | 143.2ms | HTTP 200, Content: 476 bytes |
-| `DYN-GET-14` | GET /api/lecturer/export-clo-report/1 (Task) | Dynamic GET Discovery | ✅ ĐẠT | 126.8ms | HTTP 200, Content: 705 bytes |
-| `DYN-GET-15` | GET /api/lecturer/violations/1/timeline (Task) | Dynamic GET Discovery | ✅ ĐẠT | 41.0ms | HTTP 200, Content: 2 bytes |
-| `DYN-GET-16` | GET /api/student/my-classes/DTC205122001 (Task) | Dynamic GET Discovery | ✅ ĐẠT | 61.6ms | HTTP 200, Content: 1407 bytes |
-| `DYN-GET-17` | GET /api/student/active-exams (Task) | Dynamic GET Discovery | ✅ ĐẠT | 37.8ms | HTTP 200, Content: 1243 bytes |
-| `DYN-GET-18` | GET /api/student/history/DTC205122001 (Task) | Dynamic GET Discovery | ✅ ĐẠT | 47.8ms | HTTP 200, Content: 2 bytes |
-| `DYN-POST-EMPTY-01` | Fuzzing rỗng: POST /api/anticheat/log-violation | Resilience Fuzzing | ✅ ĐẠT | 42.0ms | HTTP 400 (Không bị lỗi 500 nội bộ) |
-| `DYN-POST-EMPTY-02` | Fuzzing rỗng: POST /api/auth/login | Resilience Fuzzing | ✅ ĐẠT | 22.7ms | HTTP 400 (Không bị lỗi 500 nội bộ) |
-| `DYN-POST-EMPTY-03` | Fuzzing rỗng: POST /api/auth/sso-mock | Resilience Fuzzing | ✅ ĐẠT | 57.7ms | HTTP 200 (Không bị lỗi 500 nội bộ) |
-| `DYN-POST-EMPTY-04` | Fuzzing rỗng: POST /api/lecturer/generate-questions | Resilience Fuzzing | ✅ ĐẠT | 55.5ms | HTTP 404 (Không bị lỗi 500 nội bộ) |
-| `DYN-POST-EMPTY-05` | Fuzzing rỗng: POST /api/lecturer/approve-questions | Resilience Fuzzing | ✅ ĐẠT | 28.4ms | HTTP 200 (Không bị lỗi 500 nội bộ) |
-| `DYN-POST-EMPTY-06` | Fuzzing rỗng: POST /api/lecturer/create-exam-from-matrix | Resilience Fuzzing | ✅ ĐẠT | 37.0ms | HTTP 400 (Không bị lỗi 500 nội bộ) |
-| `DYN-POST-EMPTY-07` | Fuzzing rỗng: POST /api/lecturer/exams/1/generate-variants | Resilience Fuzzing | ✅ ĐẠT | 79.6ms | HTTP 200 (Không bị lỗi 500 nội bộ) |
-| `DYN-POST-EMPTY-08` | Fuzzing rỗng: POST /api/lecturer/create-question | Resilience Fuzzing | ✅ ĐẠT | 38.3ms | HTTP 400 (Không bị lỗi 500 nội bộ) |
-| `DYN-POST-EMPTY-09` | Fuzzing rỗng: POST /api/lecturer/copy-questions-to-class | Resilience Fuzzing | ✅ ĐẠT | 31.2ms | HTTP 400 (Không bị lỗi 500 nội bộ) |
-| `DYN-POST-EMPTY-10` | Fuzzing rỗng: POST /api/lecturer/create-exam | Resilience Fuzzing | ✅ ĐẠT | 14.4ms | HTTP 400 (Không bị lỗi 500 nội bộ) |
-| `DYN-POST-EMPTY-11` | Fuzzing rỗng: POST /api/lecturer/sync-training-portal | Resilience Fuzzing | ✅ ĐẠT | 43.8ms | HTTP 200 (Không bị lỗi 500 nội bộ) |
-| `DYN-POST-EMPTY-12` | Fuzzing rỗng: POST /api/lecturer/classes | Resilience Fuzzing | ✅ ĐẠT | 13.6ms | HTTP 400 (Không bị lỗi 500 nội bộ) |
-| `DYN-POST-EMPTY-13` | Fuzzing rỗng: POST /api/lecturer/classes/1/enroll | Resilience Fuzzing | ✅ ĐẠT | 48.3ms | HTTP 400 (Không bị lỗi 500 nội bộ) |
-| `DYN-POST-EMPTY-14` | Fuzzing rỗng: POST /api/lecturer/override-score | Resilience Fuzzing | ✅ ĐẠT | 58.5ms | HTTP 404 (Không bị lỗi 500 nội bộ) |
-| `DYN-POST-EMPTY-15` | Fuzzing rỗng: POST /api/lecturer/import-questions | Resilience Fuzzing | ✅ ĐẠT | 13.5ms | HTTP 400 (Không bị lỗi 500 nội bộ) |
-| `DYN-POST-EMPTY-16` | Fuzzing rỗng: POST /api/lecturer/exams/1/extend-time | Resilience Fuzzing | ✅ ĐẠT | 117.0ms | HTTP 200 (Không bị lỗi 500 nội bộ) |
-| `DYN-POST-EMPTY-17` | Fuzzing rỗng: POST /api/lecturer/exams/1/toggle-status | Resilience Fuzzing | ✅ ĐẠT | 14.7ms | HTTP 200 (Không bị lỗi 500 nội bộ) |
-| `DYN-POST-EMPTY-18` | Fuzzing rỗng: POST /api/lecturer/sessions/1/force-submit | Resilience Fuzzing | ✅ ĐẠT | 18.3ms | HTTP 404 (Không bị lỗi 500 nội bộ) |
-| `DYN-POST-EMPTY-19` | Fuzzing rỗng: POST /api/lecturer/sessions/1/reopen | Resilience Fuzzing | ✅ ĐẠT | 11.4ms | HTTP 404 (Không bị lỗi 500 nội bộ) |
-| `DYN-POST-EMPTY-20` | Fuzzing rỗng: POST /api/student/login | Resilience Fuzzing | ✅ ĐẠT | 105.0ms | HTTP 200 (Không bị lỗi 500 nội bộ) |
-| `DYN-POST-EMPTY-21` | Fuzzing rỗng: POST /api/student/start-exam | Resilience Fuzzing | ✅ ĐẠT | 64.8ms | HTTP 404 (Không bị lỗi 500 nội bộ) |
-| `DYN-POST-EMPTY-22` | Fuzzing rỗng: POST /api/student/submit-exam | Resilience Fuzzing | ✅ ĐẠT | 77.8ms | HTTP 404 (Không bị lỗi 500 nội bộ) |
-| `DYN-POST-EMPTY-23` | Fuzzing rỗng: POST /api/student/oral-chat | Resilience Fuzzing | ✅ ĐẠT | 35.3ms | HTTP 400 (Không bị lỗi 500 nội bộ) |
-| `SEC-01` | Chống tấn công SQL Injection tại cổng đăng nhập | Security Probing | ✅ ĐẠT | 24.8ms | HTTP 200, Zero unhandled DB exceptions |
-| `SEC-02` | Chống tấn công XSS Injection vào Ngân hàng câu hỏi | Security Probing | ✅ ĐẠT | 26.3ms | HTTP 400 |
-| `SEC-03` | Chặn tài khoản sinh viên (DTC) truy cập Cổng Giảng viên | Security Probing | ✅ ĐẠT | 2.2ms | HTTP 400 (Từ chối truy cập) |
-| `SEC-04` | Chặn tài khoản ngoài trường (@gmail.com) truy cập Cổng Giảng viên | Security Probing | ✅ ĐẠT | 27.7ms | HTTP 400 (Từ chối truy cập) |
-| `SEC-05` | Phòng thủ AntiCheat: Trả về HTTP 404 khi SessionId không tồn tại (Không 500 FK) | Security Probing | ✅ ĐẠT | 17.6ms | HTTP 404 (Handled Not Found) |
-| `E2E-01` | Xác thực SSO Giảng viên ICTU (@ictu.edu.vn) | Business Workflow | ✅ ĐẠT | 13.9ms | Giảng viên: TS. Nguyễn Văn A (Giảng viên) |
-| `E2E-02` | Đồng bộ dữ liệu Lớp & Sinh viên từ Cổng Đào Tạo | Business Workflow | ✅ ĐẠT | 16.3ms | Đã đồng bộ 0 bản ghi |
-| `E2E-03` | Sinh Đề Thi Đa Thể Loại theo Ma Trận (MCQ + Essay + Code/SQL) | Business Workflow | ✅ ĐẠT | 2133.3ms | Đã sinh 6 câu (MCQ: True, Essay: True, Code: True) |
-| `E2E-04` | Đóng gói trực tiếp danh sách câu hỏi thành Đề Thi Mới | Business Workflow | ✅ ĐẠT | 130.1ms | ExamId: 83, Số câu: None |
-| `E2E-05` | Tự động sinh 4 mã đề hoán vị ngẫu nhiên (Idempotent 101-104) | Business Workflow | ✅ ĐẠT | 176.3ms | Mã đề đã tạo: 101, 102, 103, 104 (Idempotent: True) |
-| `E2E-06` | Kiểm tra nhanh bài thi (Quick Test-Drive Preview) | Business Workflow | ✅ ĐẠT | 27.9ms | Đã nạp 6 câu hỏi để chạy thử |
-| `E2E-07` | Tái sử dụng câu hỏi giữa các lớp học phần | Business Workflow | ✅ ĐẠT | 79.2ms | Đã sao chép 2 câu |
-| `E2E-08` | Kiosk chống gian lận & Ghi nhận vi phạm rời màn hình | Business Workflow | ✅ ĐẠT | 165.0ms | Session #37, Vi phạm đã ghi nhận |
-| `E2E-09` | Sinh viên nộp bài hoàn chỉnh (MCQ + Tự luận + Code) | Business Workflow | ✅ ĐẠT | 88.1ms | Điểm đạt: 3.3/10 |
-| `SEC-06` | Chặn sinh viên nộp bài 2 lần (Submit State Machine Guard) | Security Probing | ✅ ĐẠT | 18.3ms | HTTP 400 (Từ chối nộp lại bài) |
-| `E2E-10` | Giảng viên phúc khảo bài thi & Điều chỉnh điểm số | Business Workflow | ✅ ĐẠT | 41.4ms | Điểm mới: 8.5/10 |
-| `E2E-11` | Xuất bảng điểm Excel & Báo cáo phổ điểm Chuẩn đầu ra (CLO) | Business Workflow | ✅ ĐẠT | 40.1ms | Excel: 561 bytes, CLO: 659 bytes |
+| `DYN-GET-01` | GET /api/auth/sample-accounts (GetSampleAccounts) | Dynamic GET Discovery | ✅ ĐẠT | 32.0ms | HTTP 200, Content: 347 bytes |
+| `DYN-GET-02` | GET /subjects (Task) | Dynamic GET Discovery | ✅ ĐẠT | 1.3ms | HTTP 404, Content: 0 bytes |
+| `DYN-GET-03` | GET /subjects/1/in-class-assessments (Task) | Dynamic GET Discovery | ✅ ĐẠT | 11.6ms | HTTP 404, Content: 0 bytes |
+| `DYN-GET-04` | GET /questions (Task) | Dynamic GET Discovery | ✅ ĐẠT | 16.1ms | HTTP 404, Content: 0 bytes |
+| `DYN-GET-05` | GET /question-bank-grouped (Task) | Dynamic GET Discovery | ✅ ĐẠT | 1.0ms | HTTP 404, Content: 0 bytes |
+| `DYN-GET-06` | GET /exams (Task) | Dynamic GET Discovery | ✅ ĐẠT | 14.8ms | HTTP 404, Content: 0 bytes |
+| `DYN-GET-07` | GET /exams/1/preview (Task) | Dynamic GET Discovery | ✅ ĐẠT | 1.3ms | HTTP 404, Content: 0 bytes |
+| `DYN-GET-08` | GET /classes (Task) | Dynamic GET Discovery | ✅ ĐẠT | 14.5ms | HTTP 404, Content: 0 bytes |
+| `DYN-GET-09` | GET /classes/1 (Task) | Dynamic GET Discovery | ✅ ĐẠT | 16.5ms | HTTP 404, Content: 0 bytes |
+| `DYN-GET-10` | GET /monitoring/1 (Task) | Dynamic GET Discovery | ✅ ĐẠT | 16.0ms | HTTP 404, Content: 0 bytes |
+| `DYN-GET-11` | GET /report/1 (Task) | Dynamic GET Discovery | ✅ ĐẠT | 15.1ms | HTTP 404, Content: 0 bytes |
+| `DYN-GET-12` | GET /schedule (Task) | Dynamic GET Discovery | ✅ ĐẠT | 15.8ms | HTTP 404, Content: 0 bytes |
+| `DYN-GET-13` | GET /submissions/1/detail (Task) | Dynamic GET Discovery | ✅ ĐẠT | 15.8ms | HTTP 404, Content: 0 bytes |
+| `DYN-GET-14` | GET /export-scores/1 (Task) | Dynamic GET Discovery | ✅ ĐẠT | 16.9ms | HTTP 404, Content: 0 bytes |
+| `DYN-GET-15` | GET /export-clo-report/1 (Task) | Dynamic GET Discovery | ✅ ĐẠT | 14.6ms | HTTP 404, Content: 0 bytes |
+| `DYN-GET-16` | GET /violations/1/timeline (Task) | Dynamic GET Discovery | ✅ ĐẠT | 15.7ms | HTTP 404, Content: 0 bytes |
+| `DYN-GET-17` | GET /exam-room-sessions/1 (Task) | Dynamic GET Discovery | ✅ ĐẠT | 0.9ms | HTTP 404, Content: 0 bytes |
+| `DYN-GET-18` | GET /code-submissions/1/file (Task) | Dynamic GET Discovery | ✅ ĐẠT | 14.2ms | HTTP 404, Content: 0 bytes |
+| `DYN-GET-19` | GET /classes/{classId}/home-assignments (Task) | Dynamic GET Discovery | ✅ ĐẠT | 16.1ms | HTTP 404, Content: 0 bytes |
+| `DYN-GET-20` | GET /classes/{classId}/exam-eligibility (Task) | Dynamic GET Discovery | ✅ ĐẠT | 1.1ms | HTTP 404, Content: 0 bytes |
+| `DYN-GET-21` | GET /my-classes/DTC205122001 (Task) | Dynamic GET Discovery | ✅ ĐẠT | 14.2ms | HTTP 404, Content: 0 bytes |
+| `DYN-GET-22` | GET /active-exams (Task) | Dynamic GET Discovery | ✅ ĐẠT | 15.9ms | HTTP 404, Content: 0 bytes |
+| `DYN-GET-23` | GET /history/DTC205122001 (Task) | Dynamic GET Discovery | ✅ ĐẠT | 0.9ms | HTTP 404, Content: 0 bytes |
+| `DYN-POST-EMPTY-01` | Fuzzing rỗng: POST /api/anticheat/log-violation | Resilience Fuzzing | ✅ ĐẠT | 16.0ms | HTTP 400 (Không bị lỗi 500 nội bộ) |
+| `DYN-POST-EMPTY-02` | Fuzzing rỗng: POST /api/auth/login | Resilience Fuzzing | ✅ ĐẠT | 24.2ms | HTTP 400 (Không bị lỗi 500 nội bộ) |
+| `DYN-POST-EMPTY-03` | Fuzzing rỗng: POST /api/auth/sso-mock | Resilience Fuzzing | ✅ ĐẠT | 45.7ms | HTTP 200 (Không bị lỗi 500 nội bộ) |
+| `DYN-POST-EMPTY-04` | Fuzzing rỗng: POST /subjects/1/in-class-assessments | Resilience Fuzzing | ✅ ĐẠT | 23.3ms | HTTP 404 (Không bị lỗi 500 nội bộ) |
+| `DYN-POST-EMPTY-05` | Fuzzing rỗng: POST /generate-questions | Resilience Fuzzing | ✅ ĐẠT | 15.8ms | HTTP 404 (Không bị lỗi 500 nội bộ) |
+| `DYN-POST-EMPTY-06` | Fuzzing rỗng: POST /approve-questions | Resilience Fuzzing | ✅ ĐẠT | 15.8ms | HTTP 404 (Không bị lỗi 500 nội bộ) |
+| `DYN-POST-EMPTY-07` | Fuzzing rỗng: POST /create-exam-from-matrix | Resilience Fuzzing | ✅ ĐẠT | 1.0ms | HTTP 404 (Không bị lỗi 500 nội bộ) |
+| `DYN-POST-EMPTY-08` | Fuzzing rỗng: POST /exams/1/generate-variants | Resilience Fuzzing | ✅ ĐẠT | 0.9ms | HTTP 404 (Không bị lỗi 500 nội bộ) |
+| `DYN-POST-EMPTY-09` | Fuzzing rỗng: POST /create-question | Resilience Fuzzing | ✅ ĐẠT | 0.6ms | HTTP 404 (Không bị lỗi 500 nội bộ) |
+| `DYN-POST-EMPTY-10` | Fuzzing rỗng: POST /copy-questions-to-class | Resilience Fuzzing | ✅ ĐẠT | 13.2ms | HTTP 404 (Không bị lỗi 500 nội bộ) |
+| `DYN-POST-EMPTY-11` | Fuzzing rỗng: POST /create-exam | Resilience Fuzzing | ✅ ĐẠT | 0.7ms | HTTP 404 (Không bị lỗi 500 nội bộ) |
+| `DYN-POST-EMPTY-12` | Fuzzing rỗng: POST /sync-training-portal | Resilience Fuzzing | ✅ ĐẠT | 15.6ms | HTTP 404 (Không bị lỗi 500 nội bộ) |
+| `DYN-POST-EMPTY-13` | Fuzzing rỗng: POST /classes | Resilience Fuzzing | ✅ ĐẠT | 15.0ms | HTTP 404 (Không bị lỗi 500 nội bộ) |
+| `DYN-POST-EMPTY-14` | Fuzzing rỗng: POST /classes/1/enroll | Resilience Fuzzing | ✅ ĐẠT | 17.0ms | HTTP 404 (Không bị lỗi 500 nội bộ) |
+| `DYN-POST-EMPTY-15` | Fuzzing rỗng: POST /override-score | Resilience Fuzzing | ✅ ĐẠT | 15.4ms | HTTP 404 (Không bị lỗi 500 nội bộ) |
+| `DYN-POST-EMPTY-16` | Fuzzing rỗng: POST /import-questions | Resilience Fuzzing | ✅ ĐẠT | 16.0ms | HTTP 404 (Không bị lỗi 500 nội bộ) |
+| `DYN-POST-EMPTY-17` | Fuzzing rỗng: POST /exams/1/extend-time | Resilience Fuzzing | ✅ ĐẠT | 15.9ms | HTTP 404 (Không bị lỗi 500 nội bộ) |
+| `DYN-POST-EMPTY-18` | Fuzzing rỗng: POST /exams/1/toggle-status | Resilience Fuzzing | ✅ ĐẠT | 16.2ms | HTTP 404 (Không bị lỗi 500 nội bộ) |
+| `DYN-POST-EMPTY-19` | Fuzzing rỗng: POST /sessions/1/force-submit | Resilience Fuzzing | ✅ ĐẠT | 0.8ms | HTTP 404 (Không bị lỗi 500 nội bộ) |
+| `DYN-POST-EMPTY-20` | Fuzzing rỗng: POST /sessions/1/reopen | Resilience Fuzzing | ✅ ĐẠT | 14.6ms | HTTP 404 (Không bị lỗi 500 nội bộ) |
+| `DYN-POST-EMPTY-21` | Fuzzing rỗng: POST /in-class-assessments/1/sessions | Resilience Fuzzing | ✅ ĐẠT | 16.1ms | HTTP 404 (Không bị lỗi 500 nội bộ) |
+| `DYN-POST-EMPTY-22` | Fuzzing rỗng: POST /exam-room-sessions/1/close | Resilience Fuzzing | ✅ ĐẠT | 15.7ms | HTTP 404 (Không bị lỗi 500 nội bộ) |
+| `DYN-POST-EMPTY-23` | Fuzzing rỗng: POST /code-submissions/1/grade-by-ai | Resilience Fuzzing | ✅ ĐẠT | 15.6ms | HTTP 404 (Không bị lỗi 500 nội bộ) |
+| `DYN-POST-EMPTY-24` | Fuzzing rỗng: POST /code-submissions/1/confirm | Resilience Fuzzing | ✅ ĐẠT | 0.8ms | HTTP 404 (Không bị lỗi 500 nội bộ) |
+| `DYN-POST-EMPTY-25` | Fuzzing rỗng: POST /code-submissions/1/reopen | Resilience Fuzzing | ✅ ĐẠT | 0.9ms | HTTP 404 (Không bị lỗi 500 nội bộ) |
+| `DYN-POST-EMPTY-26` | Fuzzing rỗng: POST /classes/{classId}/home-assignments | Resilience Fuzzing | ✅ ĐẠT | 14.1ms | HTTP 404 (Không bị lỗi 500 nội bộ) |
+| `DYN-POST-EMPTY-27` | Fuzzing rỗng: POST /home-submissions/1/approve-retake | Resilience Fuzzing | ✅ ĐẠT | 15.8ms | HTTP 404 (Không bị lỗi 500 nội bộ) |
+| `DYN-POST-EMPTY-28` | Fuzzing rỗng: POST /upload-subject-document | Resilience Fuzzing | ✅ ĐẠT | 15.2ms | HTTP 404 (Không bị lỗi 500 nội bộ) |
+| `DYN-POST-EMPTY-29` | Fuzzing rỗng: POST /generate-rubric-questions | Resilience Fuzzing | ✅ ĐẠT | 15.5ms | HTTP 404 (Không bị lỗi 500 nội bộ) |
+| `DYN-POST-EMPTY-30` | Fuzzing rỗng: POST /approve-rubric-draft | Resilience Fuzzing | ✅ ĐẠT | 0.7ms | HTTP 404 (Không bị lỗi 500 nội bộ) |
+| `DYN-POST-EMPTY-31` | Fuzzing rỗng: POST /login | Resilience Fuzzing | ✅ ĐẠT | 15.5ms | HTTP 404 (Không bị lỗi 500 nội bộ) |
+| `DYN-POST-EMPTY-32` | Fuzzing rỗng: POST /start-exam | Resilience Fuzzing | ✅ ĐẠT | 0.7ms | HTTP 404 (Không bị lỗi 500 nội bộ) |
+| `DYN-POST-EMPTY-33` | Fuzzing rỗng: POST /submit-exam | Resilience Fuzzing | ✅ ĐẠT | 14.6ms | HTTP 404 (Không bị lỗi 500 nội bộ) |
+| `DYN-POST-EMPTY-34` | Fuzzing rỗng: POST /oral-chat | Resilience Fuzzing | ✅ ĐẠT | 0.7ms | HTTP 404 (Không bị lỗi 500 nội bộ) |
+| `DYN-POST-EMPTY-35` | Fuzzing rỗng: POST /join-exam-room | Resilience Fuzzing | ✅ ĐẠT | 15.3ms | HTTP 404 (Không bị lỗi 500 nội bộ) |
+| `DYN-POST-EMPTY-36` | Fuzzing rỗng: POST /submit-code-file | Resilience Fuzzing | ✅ ĐẠT | 15.9ms | HTTP 404 (Không bị lỗi 500 nội bộ) |
+| `DYN-POST-EMPTY-37` | Fuzzing rỗng: POST /home-assignments/1/submit | Resilience Fuzzing | ✅ ĐẠT | 0.7ms | HTTP 404 (Không bị lỗi 500 nội bộ) |
+| `DYN-POST-EMPTY-38` | Fuzzing rỗng: POST /home-assignments/1/request-retake | Resilience Fuzzing | ✅ ĐẠT | 15.9ms | HTTP 404 (Không bị lỗi 500 nội bộ) |
+| `SEC-01` | Chống tấn công SQL Injection tại cổng đăng nhập | Security Probing | ✅ ĐẠT | 35.5ms | HTTP 200, Zero unhandled DB exceptions |
+| `SEC-02` | Chống tấn công XSS Injection vào Ngân hàng câu hỏi | Security Probing | ✅ ĐẠT | 7.8ms | HTTP 400 |
+| `SEC-03` | Chặn tài khoản sinh viên (DTC) truy cập Cổng Giảng viên | Security Probing | ✅ ĐẠT | 19.3ms | HTTP 400 (Từ chối truy cập) |
+| `SEC-04` | Chặn tài khoản ngoài trường (@gmail.com) truy cập Cổng Giảng viên | Security Probing | ✅ ĐẠT | 14.7ms | HTTP 400 (Từ chối truy cập) |
+| `SEC-05` | Phòng thủ AntiCheat: Trả về HTTP 404 khi SessionId không tồn tại (Không 500 FK) | Security Probing | ✅ ĐẠT | 16.6ms | HTTP 404 (Handled Not Found) |
+| `E2E-01` | Xác thực SSO Giảng viên ICTU (@ictu.edu.vn) | Business Workflow | ✅ ĐẠT | 16.4ms | Giảng viên: TS. Nguyễn Văn A (Giảng viên) |
+| `E2E-02` | Đồng bộ dữ liệu Lớp & Sinh viên từ Cổng Đào Tạo | Business Workflow | ✅ ĐẠT | 26.5ms | Đã đồng bộ 0 bản ghi |
+| `E2E-03` | Sinh Đề Thi Đa Thể Loại theo Ma Trận (MCQ + Essay + Code/SQL) | Business Workflow | ✅ ĐẠT | 2088.2ms | Đã sinh 6 câu (MCQ: True, Essay: True, Code: True) |
+| `E2E-04` | Đóng gói trực tiếp danh sách câu hỏi thành Đề Thi Mới | Business Workflow | ✅ ĐẠT | 95.8ms | ExamId: 83, Số câu: None |
+| `E2E-05` | Tự động sinh 4 mã đề hoán vị ngẫu nhiên (Idempotent 101-104) | Business Workflow | ✅ ĐẠT | 134.9ms | Mã đề đã tạo: 101, 102, 103, 104 (Idempotent: True) |
+| `E2E-06` | Kiểm tra nhanh bài thi (Quick Test-Drive Preview) | Business Workflow | ✅ ĐẠT | 63.8ms | Đã nạp 6 câu hỏi để chạy thử |
+| `E2E-07` | Tái sử dụng câu hỏi giữa các lớp học phần | Business Workflow | ✅ ĐẠT | 86.1ms | Đã sao chép 2 câu |
+| `E2E-08` | Kiosk chống gian lận & Ghi nhận vi phạm rời màn hình | Business Workflow | ✅ ĐẠT | 26.4ms | Session #38, Vi phạm đã ghi nhận |
+| `E2E-09` | Sinh viên nộp bài hoàn chỉnh (MCQ + Tự luận + Code) | Business Workflow | ✅ ĐẠT | 86.1ms | Điểm đạt: 3.3/10 |
+| `SEC-06` | Chặn sinh viên nộp bài 2 lần (Submit State Machine Guard) | Security Probing | ✅ ĐẠT | 28.0ms | HTTP 400 (Từ chối nộp lại bài) |
+| `E2E-10` | Giảng viên phúc khảo bài thi & Điều chỉnh điểm số | Business Workflow | ✅ ĐẠT | 47.4ms | Điểm mới: 8.5/10 |
+| `E2E-11` | Xuất bảng điểm Excel & Báo cáo phổ điểm Chuẩn đầu ra (CLO) | Business Workflow | ✅ ĐẠT | 161.5ms | Excel: 561 bytes, CLO: 659 bytes |
 
 ---
 

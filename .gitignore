@@ -35,11 +35,16 @@ env/
 venv/
 .venv/
 ai_service/uploads/
+backend_api/storage/
+.vscode/
 uploads/
+backend_api/storage/
+.vscode/
 
 # 5. OS and Temporary files
 .DS_Store
 Thumbs.db
 *.log
 *.tmp
+scripts/
 tests/test_remote_module3.py

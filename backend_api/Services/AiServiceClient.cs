@@ -214,7 +214,13 @@ namespace backend_api.Services
                     if (response.IsSuccessStatusCode)
                     {
                         var json = await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: cts.Token);
-                        double score = json.TryGetProperty("score", out var sElem) ? sElem.GetDouble() : 7.5;
+                        // Missing or malformed scores must not become an invented 7.5/10.
+                        if (json.ValueKind != JsonValueKind.Object ||
+                            !json.TryGetProperty("score", out var sElem) ||
+                            sElem.ValueKind != JsonValueKind.Number ||
+                            !sElem.TryGetDouble(out var score) ||
+                            !double.IsFinite(score))
+                            throw new JsonException("AI evaluation response does not contain a valid score.");
                         string feedback = json.TryGetProperty("feedback", out var fElem) ? fElem.GetString() ?? "AI đã ghi nhận bài làm." : "AI đã ghi nhận bài làm.";
 
                         return new AiGradeResult
@@ -251,7 +257,9 @@ namespace backend_api.Services
                 var response = await _http.PostAsJsonAsync($"{_fallbackUrl}/api/ai/grade-submission", payload);
                 if (response.IsSuccessStatusCode)
                 {
-                    return await response.Content.ReadFromJsonAsync<AiGradeResult>();
+                    var fallbackGrade = await response.Content.ReadFromJsonAsync<AiGradeResult>();
+                    if (fallbackGrade != null && fallbackGrade.Success && double.IsFinite(fallbackGrade.Score))
+                        return fallbackGrade;
                 }
             }
             catch (Exception ex)

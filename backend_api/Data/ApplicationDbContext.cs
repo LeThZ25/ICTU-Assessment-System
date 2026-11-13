@@ -18,27 +18,87 @@ namespace backend_api.Data
         public DbSet<UserAccount> Users => Set<UserAccount>();
         public DbSet<ExamSession> ExamSessions => Set<ExamSession>();
         public DbSet<ExamAnswer> ExamAnswers => Set<ExamAnswer>();
+        public DbSet<ExamSessionAudit> ExamSessionAudits => Set<ExamSessionAudit>();
         public DbSet<CheatingLog> CheatingLogs => Set<CheatingLog>();
+
+        // LCMS DbSets theo đặc tả BA (LCMS_BA_SPEC_FOR_DEVS.md)
+        public DbSet<InClassAssessment> InClassAssessments => Set<InClassAssessment>();
+        public DbSet<HomeAssignment> HomeAssignments => Set<HomeAssignment>();
+        public DbSet<HomeSubmission> HomeSubmissions => Set<HomeSubmission>();
+        public DbSet<ExamRoomSession> ExamRoomSessions => Set<ExamRoomSession>();
+        public DbSet<ExamRoomJoin> ExamRoomJoins => Set<ExamRoomJoin>();
+        public DbSet<CodeSubmission> CodeSubmissions => Set<CodeSubmission>();
+        public DbSet<RubricCriterion> RubricCriteria => Set<RubricCriterion>();
+        public DbSet<RubricDraft> RubricDrafts => Set<RubricDraft>();
+        public DbSet<EligibilityOverride> EligibilityOverrides => Set<EligibilityOverride>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
-            // Seed sample subjects
+            // Indexes for the lecturer dashboard, student enrollment and LCMS grading paths.
+            // Legacy SQLite files receive the same indexes during startup (SqlitePerformanceIndexes).
+            modelBuilder.Entity<CourseClass>().Property(c => c.LecturerEmail).UseCollation("NOCASE");
+            modelBuilder.Entity<CourseClass>().HasIndex(c => new { c.LecturerEmail, c.SubjectId });
+            modelBuilder.Entity<ClassEnrollment>().HasIndex(e => new { e.StudentCode, e.CourseClassId });
+            modelBuilder.Entity<Exam>().HasIndex(e => new { e.CourseClassId, e.IsActive });
+            modelBuilder.Entity<ExamSession>().HasIndex(s => new { s.ExamId, s.Status });
+            modelBuilder.Entity<ExamSession>().HasIndex(s => new { s.StudentCode, s.ExamId });
+            modelBuilder.Entity<ExamAnswer>().HasIndex(a => new { a.ExamSessionId, a.QuestionId });
+            modelBuilder.Entity<ExamSessionAudit>().HasIndex(a => new { a.ExamSessionId, a.ChangedAtUtc });
+            modelBuilder.Entity<ExamSession>().Property(s => s.GradingStatus).HasDefaultValue("AutoGraded");
+            modelBuilder.Entity<ExamAnswer>().Property(a => a.GradingStatus).HasDefaultValue("AutoGraded");
+            modelBuilder.Entity<Question>().HasIndex(q => new { q.SubjectId, q.CourseClassId });
+            modelBuilder.Entity<ExamRoomSession>().HasIndex(s => new { s.CourseClassId, s.Status });
+            modelBuilder.Entity<CodeSubmission>().HasIndex(s => new { s.ExamRoomSessionId, s.StudentCode, s.Status });
+            modelBuilder.Entity<HomeAssignment>().HasIndex(a => new { a.CourseClassId, a.IsActive });
+            modelBuilder.Entity<HomeSubmission>().Property(s => s.StudentCode).UseCollation("NOCASE");
+            modelBuilder.Entity<HomeSubmission>().HasIndex(s => new { s.HomeAssignmentId, s.StudentCode, s.AttemptNumber })
+                .IsUnique().HasDatabaseName("IX_HomeSubmissions_Assignment_Student_Attempt_NoCase");
+            modelBuilder.Entity<RubricCriterion>().HasIndex(r => new { r.InClassAssessmentId, r.SortOrder });
+            modelBuilder.Entity<RubricCriterion>().HasIndex(r => new { r.HomeAssignmentId, r.SortOrder });
+
+            // Seed sample subjects với đầy đủ trường LCMS (D1)
             modelBuilder.Entity<Subject>().HasData(
                 new Subject
                 {
                     Id = 1,
                     Code = "CS301",
                     Name = "Cơ sở dữ liệu & Hệ phân tán",
-                    Description = "Môn học nghiên cứu nguyên lý CSDL, chuẩn hóa quan hệ và kiến trúc phân tán."
+                    Description = "Môn học nghiên cứu nguyên lý CSDL, chuẩn hóa quan hệ và kiến trúc phân tán.",
+                    TotalCredits = 3,
+                    PracticeCredits = 1,
+                    Department = "Bộ môn Hệ thống thông tin",
+                    Faculty = "Khoa Công nghệ thông tin",
+                    ExamFormat = "Thực hành",
+                    TotalHours = 150,
+                    TheoryHours = 30,
+                    DiscussionHours = 0,
+                    PracticeHours = 27,
+                    PeriodicExamHours = 3,
+                    SelfStudyHours = 90,
+                    FinalExamType = "Thực hành",
+                    HomeFailBanThresholdPercent = 30.0
                 },
                 new Subject
                 {
                     Id = 2,
                     Code = "AI402",
                     Name = "Trí tuệ nhân tạo và Ứng dụng",
-                    Description = "Nghiên cứu về RAG, Large Language Models và các tác tử AI Agent thông minh."
+                    Description = "Nghiên cứu về RAG, Large Language Models và các tác tử AI Agent thông minh.",
+                    TotalCredits = 3,
+                    PracticeCredits = 1,
+                    Department = "Bộ môn Khoa học dữ liệu",
+                    Faculty = "Khoa Công nghệ thông tin",
+                    ExamFormat = "Thực hành",
+                    TotalHours = 150,
+                    TheoryHours = 30,
+                    DiscussionHours = 0,
+                    PracticeHours = 27,
+                    PeriodicExamHours = 3,
+                    SelfStudyHours = 90,
+                    FinalExamType = "Thực hành",
+                    HomeFailBanThresholdPercent = 30.0
                 }
             );
 

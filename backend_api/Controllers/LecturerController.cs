@@ -4,9 +4,14 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
+using System.Security.Cryptography;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using backend_api.Data;
+using backend_api.Hubs;
 using backend_api.Models;
 using backend_api.Services;
 
@@ -14,30 +19,103 @@ namespace backend_api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class LecturerController : ControllerBase
+    [Authorize(Roles = "Lecturer")]
+    public partial class LecturerController : ControllerBase
     {
         private readonly ApplicationDbContext _db;
         private readonly IAiServiceClient _aiClient;
+        private readonly IHubContext<ExamHub> _hub;
 
-        public LecturerController(ApplicationDbContext db, IAiServiceClient aiClient)
+        public LecturerController(ApplicationDbContext db, IAiServiceClient aiClient, IHubContext<ExamHub> hub)
         {
             _db = db;
             _aiClient = aiClient;
+            _hub = hub;
         }
+
+        private string? LecturerEmailKey => User.FindFirstValue(ClaimTypes.Email)?.Trim().ToUpperInvariant();
+
+        private Task<bool> CanManageExam(int examId)
+        {
+            var email = LecturerEmailKey;
+            return _db.Exams.AnyAsync(exam => exam.Id == examId &&
+                exam.CourseClassId != null && exam.CourseClass != null &&
+                exam.CourseClass.LecturerEmail.ToUpper() == email);
+        }
+
+        private Task<bool> CanManageClass(int classId)
+        {
+            var email = LecturerEmailKey;
+            return _db.CourseClasses.AnyAsync(c => c.Id == classId && c.LecturerEmail.ToUpper() == email);
+        }
+
+        private Task<bool> CanManageSubject(int subjectId)
+        {
+            var email = LecturerEmailKey;
+            return _db.CourseClasses.AnyAsync(c => c.SubjectId == subjectId && c.LecturerEmail.ToUpper() == email);
+        }
+
+        private async Task<bool> CanUseQuestionScope(int subjectId, int? classId)
+        {
+            if (!classId.HasValue) return await CanManageSubject(subjectId);
+            var email = LecturerEmailKey;
+            return await _db.CourseClasses.AnyAsync(c => c.Id == classId.Value &&
+                c.SubjectId == subjectId && c.LecturerEmail.ToUpper() == email);
+        }
+
+        private static string GenerateExamAccessCode() =>
+            Convert.ToHexString(RandomNumberGenerator.GetBytes(6));
+
+        private static string SnapshotExamSession(ExamSession session, bool includeAnswers = true) =>
+            System.Text.Json.JsonSerializer.Serialize(new
+            {
+                session.Id,
+                session.Status,
+                session.GradingStatus,
+                session.Score,
+                session.OriginalScore,
+                session.StartTime,
+                session.EndTime,
+                session.AiFeedback,
+                session.LecturerFeedback,
+                session.ReviewedBy,
+                session.ReviewedAt,
+                Answers = includeAnswers ? session.Answers.Select(a => new
+                {
+                    a.Id, a.QuestionId, a.SelectedOption, a.EssayAnswer, a.CodeAnswer,
+                    a.Score, a.GradingStatus, a.LecturerScore, a.LecturerComment, a.AiFeedback
+                }).ToList() : null
+            });
 
         [HttpGet("subjects")]
         public async Task<IActionResult> GetSubjects()
         {
+            var lecturerEmail = LecturerEmailKey;
             var subjects = await _db.Subjects
-                .Include(s => s.Documents)
-                .Include(s => s.Questions)
-                .Include(s => s.Exams)
+                .AsNoTracking()
+                .Where(s => _db.CourseClasses.Any(c => c.SubjectId == s.Id &&
+                    EF.Functions.Collate(c.LecturerEmail, "NOCASE") == lecturerEmail))
                 .Select(s => new
                 {
                     s.Id,
                     s.Code,
+                    SubjectCode = s.Code,
                     s.Name,
+                    SubjectName = s.Name,
                     s.Description,
+                    s.TotalCredits,
+                    s.PracticeCredits,
+                    s.Department,
+                    s.Faculty,
+                    s.ExamFormat,
+                    s.TotalHours,
+                    s.TheoryHours,
+                    s.DiscussionHours,
+                    s.PracticeHours,
+                    s.PeriodicExamHours,
+                    s.SelfStudyHours,
+                    s.FinalExamType,
+                    s.HomeFailBanThresholdPercent,
                     DocumentsCount = s.Documents.Count,
                     QuestionsCount = s.Questions.Count,
                     ExamsCount = s.Exams.Count
@@ -47,9 +125,236 @@ namespace backend_api.Controllers
             return Ok(subjects);
         }
 
+        [HttpPut("subjects/{id}/lcms-profile")]
+        public async Task<IActionResult> UpdateSubjectLcmsProfile(int id, [FromBody] UpdateLcmsProfileDto dto)
+        {
+            if (!await CanManageSubject(id)) return Forbid();
+            var subject = await _db.Subjects.FindAsync(id);
+            if (subject == null)
+                return NotFound(new { success = false, code = "NOT_FOUND", message = "Không tìm thấy môn học." });
+
+            if (!string.IsNullOrWhiteSpace(dto.FinalExamType))
+            {
+                var validTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    "Trắc nghiệm", "Thực hành", "Tự luận", "Vấn đáp", "Đồ án", "Dự án", "Báo cáo", "Tiểu luận"
+                };
+                if (!validTypes.Contains(dto.FinalExamType.Trim()))
+                {
+                    return BadRequest(new { success = false, code = "INVALID_EXAM_TYPE", message = "Hình thức thi kết thúc học phần không hợp lệ." });
+                }
+            }
+
+            if (dto.TotalCredits.HasValue)
+            {
+                if (dto.TotalCredits.Value <= 0)
+                    return BadRequest(new { success = false, code = "VALIDATION", message = "Số tín chỉ phải lớn hơn 0." });
+
+                // D5: Đổi TotalCredits bị từ chối nếu đã có bài trên lớp
+                if (dto.TotalCredits.Value != subject.TotalCredits)
+                {
+                    var hasInClass = await _db.InClassAssessments.AnyAsync(a => a.SubjectId == id);
+                    if (hasInClass)
+                    {
+                        return StatusCode(409, new { success = false, code = "CREDITS_LOCKED", message = "Không thể thay đổi số tín chỉ khi môn học đã có bài kiểm tra trên lớp." });
+                    }
+                    subject.TotalCredits = dto.TotalCredits.Value;
+                }
+            }
+
+            if (dto.PracticeCredits.HasValue)
+            {
+                if (dto.PracticeCredits.Value < 0)
+                    return BadRequest(new { success = false, code = "VALIDATION", message = "Số tín chỉ thực hành không được âm." });
+                subject.PracticeCredits = dto.PracticeCredits.Value;
+            }
+
+            if (dto.HomeFailBanThresholdPercent.HasValue)
+            {
+                if (dto.HomeFailBanThresholdPercent.Value < 0 || dto.HomeFailBanThresholdPercent.Value > 100)
+                    return BadRequest(new { success = false, code = "VALIDATION", message = "Ngưỡng cấm thi bài ở nhà phải từ 0 đến 100%." });
+                subject.HomeFailBanThresholdPercent = dto.HomeFailBanThresholdPercent.Value;
+            }
+
+            if (dto.Department != null) subject.Department = dto.Department.Trim();
+            if (dto.Faculty != null) subject.Faculty = dto.Faculty.Trim();
+            if (dto.ExamFormat != null) subject.ExamFormat = dto.ExamFormat.Trim();
+            if (dto.TotalHours.HasValue) subject.TotalHours = dto.TotalHours.Value;
+            if (dto.TheoryHours.HasValue) subject.TheoryHours = dto.TheoryHours.Value;
+            if (dto.DiscussionHours.HasValue) subject.DiscussionHours = dto.DiscussionHours.Value;
+            if (dto.PracticeHours.HasValue) subject.PracticeHours = dto.PracticeHours.Value;
+            if (dto.PeriodicExamHours.HasValue) subject.PeriodicExamHours = dto.PeriodicExamHours.Value;
+            if (dto.SelfStudyHours.HasValue) subject.SelfStudyHours = dto.SelfStudyHours.Value;
+            if (!string.IsNullOrWhiteSpace(dto.FinalExamType)) subject.FinalExamType = dto.FinalExamType.Trim();
+
+            await _db.SaveChangesAsync();
+
+            return Ok(new
+            {
+                success = true,
+                message = "Cập nhật thông tin học phần LCMS thành công.",
+                subject = new
+                {
+                    subject.Id,
+                    subject.Code,
+                    subject.Name,
+                    subject.TotalCredits,
+                    subject.PracticeCredits,
+                    subject.Department,
+                    subject.Faculty,
+                    subject.ExamFormat,
+                    subject.TotalHours,
+                    subject.TheoryHours,
+                    subject.DiscussionHours,
+                    subject.PracticeHours,
+                    subject.PeriodicExamHours,
+                    subject.SelfStudyHours,
+                    subject.FinalExamType,
+                    subject.HomeFailBanThresholdPercent
+                }
+            });
+        }
+
+        [HttpGet("subjects/{id}/in-class-assessments")]
+        public async Task<IActionResult> GetInClassAssessments(int id)
+        {
+            if (!await CanManageSubject(id)) return Forbid();
+            var subject = await _db.Subjects.FindAsync(id);
+            if (subject == null)
+                return NotFound(new { success = false, code = "NOT_FOUND", message = "Không tìm thấy môn học." });
+
+            var assessments = await _db.InClassAssessments
+                .Where(a => a.SubjectId == id)
+                .OrderBy(a => a.AssessmentOrder)
+                .Select(a => new
+                {
+                    a.Id,
+                    a.SubjectId,
+                    a.AssessmentOrder,
+                    a.Title,
+                    a.AssessmentType,
+                    a.DurationMinutes,
+                    a.MaxScore,
+                    a.WeightPercentage,
+                    a.IsActive
+                })
+                .ToListAsync();
+
+            return Ok(new
+            {
+                success = true,
+                subjectId = id,
+                totalCredits = subject.TotalCredits,
+                count = assessments.Count,
+                assessments
+            });
+        }
+
+        [HttpPost("subjects/{id}/in-class-assessments")]
+        public async Task<IActionResult> CreateInClassAssessment(int id, [FromBody] CreateInClassAssessmentDto dto)
+        {
+            if (!await CanManageSubject(id)) return Forbid();
+            var subject = await _db.Subjects.FindAsync(id);
+            if (subject == null)
+                return NotFound(new { success = false, code = "NOT_FOUND", message = "Không tìm thấy môn học." });
+
+            if (string.IsNullOrWhiteSpace(dto.Title))
+                return BadRequest(new { success = false, code = "VALIDATION", message = "Tiêu đề bài kiểm tra không được để trống." });
+
+            // D1 & D2: Đếm số bài hiện tại. Tạo bài thứ N+1 -> 409 ASSESSMENT_LIMIT
+            var existingCount = await _db.InClassAssessments.CountAsync(a => a.SubjectId == id);
+            if (existingCount >= subject.TotalCredits)
+            {
+                return StatusCode(409, new
+                {
+                    success = false,
+                    code = "ASSESSMENT_LIMIT",
+                    message = $"Số bài kiểm tra trên lớp không được vượt quá số tín chỉ của học phần ({subject.TotalCredits} bài)."
+                });
+            }
+
+            var validTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Theory", "CodingPractice", "Hybrid" };
+            var type = string.IsNullOrWhiteSpace(dto.AssessmentType) ? "Theory" : dto.AssessmentType.Trim();
+            if (!validTypes.Contains(type))
+                return BadRequest(new { success = false, code = "VALIDATION", message = "AssessmentType phải là Theory, CodingPractice hoặc Hybrid." });
+
+            if (dto.WeightPercentage <= 0 || dto.WeightPercentage > 100)
+                return BadRequest(new { success = false, code = "VALIDATION", message = "Trọng số phải lớn hơn 0 và không vượt quá 100%." });
+
+            var duration = dto.DurationMinutes > 0 && dto.DurationMinutes <= 180 ? dto.DurationMinutes : 45;
+
+            var assessment = new InClassAssessment
+            {
+                SubjectId = id,
+                AssessmentOrder = existingCount + 1,
+                Title = dto.Title.Trim(),
+                AssessmentType = type,
+                DurationMinutes = duration,
+                MaxScore = 10.0,
+                WeightPercentage = Math.Round(dto.WeightPercentage, 1),
+                IsActive = dto.IsActive ?? true
+            };
+
+            _db.InClassAssessments.Add(assessment);
+            await _db.SaveChangesAsync();
+
+            return Ok(new
+            {
+                success = true,
+                message = $"Đã tạo bài kiểm tra trên lớp #{assessment.AssessmentOrder} thành công.",
+                assessment = new
+                {
+                    assessment.Id,
+                    assessment.SubjectId,
+                    assessment.AssessmentOrder,
+                    assessment.Title,
+                    assessment.AssessmentType,
+                    assessment.DurationMinutes,
+                    assessment.MaxScore,
+                    assessment.WeightPercentage,
+                    assessment.IsActive
+                }
+            });
+        }
+
+        [HttpDelete("in-class-assessments/{id}")]
+        public async Task<IActionResult> DeleteInClassAssessment(int id)
+        {
+            var assessment = await _db.InClassAssessments.FindAsync(id);
+            if (assessment == null)
+                return NotFound(new { success = false, code = "NOT_FOUND", message = "Không tìm thấy bài kiểm tra trên lớp." });
+            if (!await CanManageSubject(assessment.SubjectId)) return Forbid();
+
+            // D4: Xóa bài trên lớp chỉ khi chưa có ca Published, InProgress hoặc Closed
+            var hasActiveSessions = await _db.ExamRoomSessions
+                .AnyAsync(s => s.InClassAssessmentId == id && (s.Status == "Published" || s.Status == "InProgress" || s.Status == "Closed"));
+            if (hasActiveSessions)
+            {
+                return StatusCode(409, new
+                {
+                    success = false,
+                    code = "ASSESSMENT_LOCKED",
+                    message = "Không thể xóa bài kiểm tra khi đã có ca thi phát hành hoặc đã diễn ra."
+                });
+            }
+
+            // Xóa các tiêu chí rubric kèm theo
+            var rubrics = await _db.RubricCriteria.Where(r => r.InClassAssessmentId == id).ToListAsync();
+            if (rubrics.Any())
+            {
+                _db.RubricCriteria.RemoveRange(rubrics);
+            }
+
+            _db.InClassAssessments.Remove(assessment);
+            await _db.SaveChangesAsync();
+
+            return Ok(new { success = true, message = "Đã xóa bài kiểm tra trên lớp thành công." });
+        }
+
         [HttpPost("upload-document")]
         public async Task<IActionResult> UploadDocument([FromForm] int subjectId, IFormFile file)
         {
+            if (!await CanManageSubject(subjectId)) return Forbid();
             if (file == null || file.Length == 0)
                 return BadRequest(new { success = false, message = "Vui lòng đính kèm tệp tài liệu." });
 
@@ -84,6 +389,7 @@ namespace backend_api.Controllers
         [HttpPost("generate-questions")]
         public async Task<IActionResult> GenerateQuestions([FromBody] GenerateMatrixDto dto)
         {
+            if (!await CanManageSubject(dto.SubjectId)) return Forbid();
             var subject = await _db.Subjects.FindAsync(dto.SubjectId);
             if (subject == null)
                 return NotFound(new { success = false, message = "Môn học không tồn tại." });
@@ -139,6 +445,7 @@ namespace backend_api.Controllers
         [HttpPost("approve-questions")]
         public async Task<IActionResult> ApproveQuestions([FromBody] ApproveQuestionsDto dto)
         {
+            if (!await CanUseQuestionScope(dto.SubjectId, dto.CourseClassId)) return Forbid();
             var questionsToAdd = new List<Question>();
 
             foreach (var q in dto.Questions)
@@ -178,6 +485,10 @@ namespace backend_api.Controllers
         {
             if (string.IsNullOrWhiteSpace(dto.Title))
                 return BadRequest(new { success = false, message = "Tiêu đề ca thi không được để trống." });
+            if (!dto.CourseClassId.HasValue || !await CanManageClass(dto.CourseClassId.Value))
+                return Forbid();
+
+            if (!await CanUseQuestionScope(dto.SubjectId, dto.CourseClassId)) return Forbid();
 
             var subject = await _db.Subjects.FindAsync(dto.SubjectId);
             if (subject == null)
@@ -189,7 +500,8 @@ namespace backend_api.Controllers
                 CourseClassId = dto.CourseClassId,
                 Title = dto.Title.Trim(),
                 DurationMinutes = dto.DurationMinutes > 0 ? dto.DurationMinutes : 30,
-                AccessCode = string.IsNullOrWhiteSpace(dto.AccessCode) ? "ICTU" + new Random().Next(1000, 9999) : dto.AccessCode.Trim().ToUpper(),
+                AccessCode = string.IsNullOrWhiteSpace(dto.AccessCode) ? GenerateExamAccessCode() : dto.AccessCode.Trim().ToUpperInvariant(),
+                IsFinalExam = dto.IsFinalExam,
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow
             };
@@ -251,8 +563,8 @@ namespace backend_api.Controllers
         public async Task<IActionResult> GenerateExamVariants(int id, [FromBody] GenerateVariantsDto dto)
         {
             // Vá M3: Bắt buộc có body hợp lệ — chặn fuzz rỗng tạo đề rác
-            if (dto == null || dto.VariantCount <= 0)
-                return BadRequest(new { success = false, message = "Vui lòng chỉ định số lượng mã đề hợp lệ (variantCount >= 2)." });
+            if (dto == null || !dto.VariantCount.HasValue || dto.VariantCount.Value < 2)
+                return BadRequest(new { success = false, message = "Vui lòng chỉ định số lượng mã đề hợp lệ trong request body (variantCount >= 2)." });
 
             var sourceExam = await _db.Exams
                 .Include(e => e.ExamQuestions)
@@ -261,16 +573,21 @@ namespace backend_api.Controllers
 
             if (sourceExam == null)
                 return NotFound(new { success = false, message = "Không tìm thấy đề thi gốc." });
+            if (!await CanManageExam(id)) return Forbid();
+            if (string.IsNullOrWhiteSpace(sourceExam.AccessCode))
+                return BadRequest(new { success = false, message = "Đề thi gốc chưa có mã truy cập hợp lệ." });
 
             var sourceQuestions = sourceExam.ExamQuestions.Where(eq => eq.Question != null).Select(eq => eq.Question!).ToList();
             if (sourceQuestions.Count == 0)
                 return BadRequest(new { success = false, message = "Đề thi gốc chưa có câu hỏi nào để tạo biến thể." });
 
-            int count = Math.Clamp(dto.VariantCount, 2, 8);
+            int count = Math.Clamp(dto.VariantCount.Value, 2, 8);
 
             // Vá M3: Idempotent — nếu đã có các biến thể con thì trả về danh sách cũ thay vì tạo thêm
             var existingVariants = await _db.Exams
-                .Where(e => e.AccessCode != null && e.AccessCode.StartsWith($"{sourceExam.AccessCode}_") && e.Id != id)
+                .Where(e => e.CourseClassId == sourceExam.CourseClassId &&
+                    e.SubjectId == sourceExam.SubjectId && e.AccessCode != null &&
+                    e.AccessCode.StartsWith($"{sourceExam.AccessCode}_") && e.Id != id)
                 .OrderBy(e => e.AccessCode)
                 .ToListAsync();
 
@@ -308,6 +625,7 @@ namespace backend_api.Controllers
                     Title = variantTitle,
                     DurationMinutes = sourceExam.DurationMinutes,
                     AccessCode = $"{sourceExam.AccessCode}_{variantCode}",
+                    IsFinalExam = sourceExam.IsFinalExam,
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow
                 };
@@ -504,7 +822,11 @@ namespace backend_api.Controllers
         [HttpGet("questions")]
         public async Task<IActionResult> GetQuestions([FromQuery] int? subjectId, [FromQuery] int? courseClassId)
         {
-            var query = _db.Questions.AsQueryable();
+            var email = LecturerEmailKey;
+            var query = _db.Questions.Where(q =>
+                q.CourseClassId.HasValue
+                    ? _db.CourseClasses.Any(c => c.Id == q.CourseClassId.Value && c.LecturerEmail.ToUpper() == email)
+                    : _db.CourseClasses.Any(c => c.SubjectId == q.SubjectId && c.LecturerEmail.ToUpper() == email));
             if (subjectId.HasValue)
                 query = query.Where(q => q.SubjectId == subjectId.Value);
             if (courseClassId.HasValue)
@@ -517,6 +839,7 @@ namespace backend_api.Controllers
         [HttpPost("create-question")]
         public async Task<IActionResult> CreateManualQuestion([FromBody] CreateManualQuestionDto dto)
         {
+            if (!await CanUseQuestionScope(dto.SubjectId, dto.CourseClassId)) return Forbid();
             if (string.IsNullOrWhiteSpace(dto.QuestionText))
                 return BadRequest(new { success = false, message = "Nội dung câu hỏi không được để trống." });
 
@@ -552,9 +875,14 @@ namespace backend_api.Controllers
         [HttpGet("question-bank-grouped")]
         public async Task<IActionResult> GetQuestionBankGrouped()
         {
+            var email = LecturerEmailKey;
             var subjects = await _db.Subjects
-                .Include(s => s.CourseClasses)
-                .Include(s => s.Questions)
+                .AsNoTracking()
+                .AsSplitQuery()
+                .Where(s => s.CourseClasses.Any(c => EF.Functions.Collate(c.LecturerEmail, "NOCASE") == email))
+                .Include(s => s.CourseClasses.Where(c => EF.Functions.Collate(c.LecturerEmail, "NOCASE") == email))
+                .Include(s => s.Questions.Where(q => q.CourseClassId == null ||
+                    q.CourseClass != null && EF.Functions.Collate(q.CourseClass.LecturerEmail, "NOCASE") == email))
                 .ToListAsync();
 
             var result = subjects.Select(s => new
@@ -594,9 +922,12 @@ namespace backend_api.Controllers
             var targetClass = await _db.CourseClasses.FindAsync(dto.TargetCourseClassId);
             if (targetClass == null)
                 return NotFound(new { success = false, message = "Không tìm thấy lớp học phần đích." });
+            if (!await CanManageClass(targetClass.Id)) return Forbid();
 
             var questionsToCopy = await _db.Questions
-                .Where(q => dto.QuestionIds.Contains(q.Id))
+                .Where(q => dto.QuestionIds.Contains(q.Id) && q.SubjectId == targetClass.SubjectId &&
+                    (q.CourseClassId == null || q.CourseClass != null &&
+                     q.CourseClass.LecturerEmail.ToUpper() == LecturerEmailKey))
                 .ToListAsync();
 
             var newQuestions = new List<Question>();
@@ -639,13 +970,31 @@ namespace backend_api.Controllers
             {
                 return BadRequest(new { success = false, message = "Vui lòng nhập tên đề thi và chọn học phần hợp lệ." });
             }
+            if (!dto.CourseClassId.HasValue || !await CanManageClass(dto.CourseClassId.Value))
+                return Forbid();
 
-            int subjectId = dto.SubjectId;
-            if (subjectId <= 0 && dto.CourseClassId.HasValue)
+            var courseClass = await _db.CourseClasses.FindAsync(dto.CourseClassId.Value);
+            if (courseClass == null) return NotFound();
+            if (dto.SubjectId > 0 && dto.SubjectId != courseClass.SubjectId)
+                return BadRequest(new { success = false, message = "Môn học của đề thi không trùng với lớp học phần." });
+
+            var subjectId = courseClass.SubjectId;
+            var availableQuestions = _db.Questions.Where(q => q.SubjectId == subjectId && q.IsApproved &&
+                (q.CourseClassId == null || q.CourseClassId == courseClass.Id));
+            List<int> questionIds;
+            if (dto.QuestionIds != null && dto.QuestionIds.Count > 0)
             {
-                var cc = await _db.CourseClasses.FindAsync(dto.CourseClassId.Value);
-                if (cc != null) subjectId = cc.SubjectId;
+                questionIds = dto.QuestionIds.Distinct().ToList();
+                var validIds = await availableQuestions.Where(q => questionIds.Contains(q.Id)).Select(q => q.Id).ToListAsync();
+                if (validIds.Count != questionIds.Count)
+                    return BadRequest(new { success = false, message = "Đề thi chứa câu hỏi chưa duyệt hoặc không thuộc lớp học phần." });
             }
+            else
+            {
+                questionIds = await availableQuestions.OrderBy(q => q.Id).Select(q => q.Id).Take(15).ToListAsync();
+            }
+            if (questionIds.Count == 0)
+                return BadRequest(new { success = false, message = "Không có câu hỏi hợp lệ để tạo đề thi." });
 
             var exam = new Exam
             {
@@ -653,7 +1002,8 @@ namespace backend_api.Controllers
                 CourseClassId = dto.CourseClassId,
                 Title = dto.Title,
                 DurationMinutes = dto.DurationMinutes,
-                AccessCode = dto.AccessCode,
+                AccessCode = string.IsNullOrWhiteSpace(dto.AccessCode) ? GenerateExamAccessCode() : dto.AccessCode.Trim().ToUpperInvariant(),
+                IsFinalExam = dto.IsFinalExam,
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow
             };
@@ -661,35 +1011,8 @@ namespace backend_api.Controllers
             _db.Exams.Add(exam);
             await _db.SaveChangesAsync();
 
-            // Link selected questions
-            if (dto.QuestionIds != null && dto.QuestionIds.Any())
-            {
-                foreach (var qId in dto.QuestionIds)
-                {
-                    _db.ExamQuestions.Add(new ExamQuestion
-                    {
-                        ExamId = exam.Id,
-                        QuestionId = qId
-                    });
-                }
-            }
-            else
-            {
-                // Auto pick all approved questions for this subject
-                var subjectQuestions = await _db.Questions
-                    .Where(q => q.SubjectId == subjectId && q.IsApproved)
-                    .Take(15)
-                    .ToListAsync();
-
-                foreach (var q in subjectQuestions)
-                {
-                    _db.ExamQuestions.Add(new ExamQuestion
-                    {
-                        ExamId = exam.Id,
-                        QuestionId = q.Id
-                    });
-                }
-            }
+            foreach (var questionId in questionIds)
+                _db.ExamQuestions.Add(new ExamQuestion { ExamId = exam.Id, QuestionId = questionId });
 
             await _db.SaveChangesAsync();
             return Ok(new { Success = true, ExamId = exam.Id, Title = exam.Title });
@@ -699,6 +1022,8 @@ namespace backend_api.Controllers
         public async Task<IActionResult> GetExams()
         {
             var exams = await _db.Exams
+                .Where(e => e.CourseClass != null &&
+                    e.CourseClass.LecturerEmail.ToUpper() == LecturerEmailKey)
                 .Include(e => e.Subject)
                 .Include(e => e.CourseClass)
                 .Include(e => e.ExamQuestions)
@@ -716,6 +1041,7 @@ namespace backend_api.Controllers
                     CourseClassName = e.CourseClass != null ? e.CourseClass.ClassName : null,
                     e.DurationMinutes,
                     e.AccessCode,
+                    e.IsFinalExam,
                     e.IsActive,
                     e.CreatedAt,
                     TotalQuestions = e.ExamQuestions.Count,
@@ -730,6 +1056,7 @@ namespace backend_api.Controllers
         [HttpGet("exams/{id}/preview")]
         public async Task<IActionResult> GetExamPreview(int id)
         {
+            if (!await CanManageExam(id)) return Forbid();
             var exam = await _db.Exams
                 .Include(e => e.Subject)
                 .Include(e => e.CourseClass)
@@ -782,17 +1109,11 @@ namespace backend_api.Controllers
         [HttpGet("classes")]
         public async Task<IActionResult> GetClasses([FromQuery] string? lecturerEmail)
         {
-            var query = _db.CourseClasses.AsQueryable();
-            if (!string.IsNullOrWhiteSpace(lecturerEmail))
-            {
-                var email = lecturerEmail.Trim().ToLower();
-                query = query.Where(c => c.LecturerEmail.ToLower() == email);
-            }
+            var identityEmail = LecturerEmailKey;
+            var query = _db.CourseClasses.AsNoTracking()
+                .Where(c => EF.Functions.Collate(c.LecturerEmail, "NOCASE") == identityEmail);
 
             var classes = await query
-                .Include(c => c.Subject)
-                .Include(c => c.Enrollments)
-                .Include(c => c.Exams)
                 .OrderByDescending(c => c.Id)
                 .Select(c => new
                 {
@@ -819,9 +1140,14 @@ namespace backend_api.Controllers
         [HttpPost("sync-training-portal")]
         public async Task<IActionResult> SyncTrainingPortal([FromBody] SyncPortalDto? dto)
         {
+            // This endpoint creates synthetic classes and students; never expose it outside local development.
+            if (!HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>().IsDevelopment() ||
+                HttpContext.Connection.RemoteIpAddress is not { } remoteIp ||
+                !System.Net.IPAddress.IsLoopback(remoteIp))
+                return NotFound();
             dto ??= new SyncPortalDto();
-            string email = string.IsNullOrWhiteSpace(dto.LecturerEmail) ? "gv_nguyenvana@ictu.edu.vn" : dto.LecturerEmail.Trim();
-            string lecturerName = string.IsNullOrWhiteSpace(dto.LecturerName) ? "TS. Nguyễn Văn A" : dto.LecturerName.Trim();
+            string email = User.FindFirstValue(ClaimTypes.Email)!;
+            string lecturerName = User.FindFirstValue(ClaimTypes.Name) ?? "Giảng viên";
 
             // Verify or seed official academic classes for this lecturer
             var existingClasses = await _db.CourseClasses.Where(c => c.LecturerEmail.ToLower() == email.ToLower()).ToListAsync();
@@ -910,15 +1236,19 @@ namespace backend_api.Controllers
         [HttpGet("classes/{id}")]
         public async Task<IActionResult> GetClassDetails(int id)
         {
+            var email = LecturerEmailKey;
             var cls = await _db.CourseClasses
+                .AsNoTracking()
+                .AsSplitQuery()
                 .Include(c => c.Subject)
                 .Include(c => c.Enrollments)
                 .Include(c => c.Exams)
                 .ThenInclude(e => e.Sessions)
-                .FirstOrDefaultAsync(c => c.Id == id);
+                .FirstOrDefaultAsync(c => c.Id == id && EF.Functions.Collate(c.LecturerEmail, "NOCASE") == email);
 
             if (cls == null)
                 return NotFound(new { success = false, message = "Không tìm thấy lớp học phần." });
+            if (!await CanManageClass(id)) return Forbid();
 
             var classExams = cls.Exams.ToList();
             var students = cls.Enrollments.Select(en =>
@@ -963,16 +1293,27 @@ namespace backend_api.Controllers
         [HttpPost("classes")]
         public async Task<IActionResult> CreateClass([FromBody] CreateCourseClassDto dto)
         {
-            if (string.IsNullOrWhiteSpace(dto.ClassCode) || string.IsNullOrWhiteSpace(dto.ClassName))
+            if (dto == null || string.IsNullOrWhiteSpace(dto.ClassCode) || string.IsNullOrWhiteSpace(dto.ClassName))
                 return BadRequest(new { success = false, message = "Mã lớp và tên lớp học phần không được để trống." });
+
+            if (!await _db.Subjects.AnyAsync(s => s.Id == dto.SubjectId))
+                return BadRequest(new { success = false, message = "Môn học không tồn tại." });
+
+            // Subject assignments are established by trusted provisioning, not by a lecturer choosing an arbitrary ID.
+            if (!await CanManageSubject(dto.SubjectId))
+                return Forbid();
+
+            var classCode = dto.ClassCode.Trim().ToUpperInvariant();
+            if (await _db.CourseClasses.AnyAsync(c => c.ClassCode.ToUpper() == classCode))
+                return Conflict(new { success = false, message = "Mã lớp học phần đã tồn tại." });
 
             var courseClass = new CourseClass
             {
-                ClassCode = dto.ClassCode.Trim().ToUpper(),
+                ClassCode = classCode,
                 ClassName = dto.ClassName.Trim(),
                 SubjectId = dto.SubjectId,
-                LecturerName = string.IsNullOrWhiteSpace(dto.LecturerName) ? "TS. Nguyễn Văn A" : dto.LecturerName.Trim(),
-                LecturerEmail = string.IsNullOrWhiteSpace(dto.LecturerEmail) ? "gv_nguyenvana@ictu.edu.vn" : dto.LecturerEmail.Trim(),
+                LecturerName = User.FindFirstValue(ClaimTypes.Name) ?? "Giảng viên",
+                LecturerEmail = User.FindFirstValue(ClaimTypes.Email)!,
                 Semester = dto.Semester ?? "Học kỳ 1",
                 AcademicYear = dto.AcademicYear ?? "2026-2027",
                 Room = dto.Room ?? "Phòng Lab 302 - C1",
@@ -988,22 +1329,35 @@ namespace backend_api.Controllers
         [HttpPost("classes/{id}/enroll")]
         public async Task<IActionResult> EnrollStudent(int id, [FromBody] EnrollStudentDto dto)
         {
+            if (dto == null || string.IsNullOrWhiteSpace(dto.StudentCode))
+                return BadRequest(new { success = false, message = "Mã sinh viên không hợp lệ." });
+
             var cls = await _db.CourseClasses.FindAsync(id);
             if (cls == null)
                 return NotFound(new { success = false, message = "Không tìm thấy lớp học phần." });
+            if (!await CanManageClass(id)) return Forbid();
 
             string studentCode = dto.StudentCode.Trim().ToUpper();
-            var existing = await _db.ClassEnrollments.FirstOrDefaultAsync(e => e.CourseClassId == id && e.StudentCode == studentCode);
+            var student = await _db.Students.FirstOrDefaultAsync(s => s.StudentCode.ToUpper() == studentCode);
+            if (student == null)
+                return BadRequest(new { success = false, message = "Sinh viên chưa có hồ sơ xác thực trong hệ thống." });
+
+            var existing = await _db.ClassEnrollments.FirstOrDefaultAsync(e => e.CourseClassId == id && e.StudentCode.ToUpper() == studentCode);
             if (existing != null)
                 return BadRequest(new { success = false, message = "Sinh viên đã có tên trong danh sách lớp này." });
+
+            var studentAccountEmail = await _db.Users
+                .Where(a => a.Role == "Student" && a.StudentCode != null && a.StudentCode.ToUpper() == studentCode)
+                .Select(a => a.Email)
+                .FirstOrDefaultAsync();
 
             var enrollment = new ClassEnrollment
             {
                 CourseClassId = id,
                 StudentCode = studentCode,
-                StudentName = dto.StudentName.Trim(),
-                AdministrativeClass = dto.AdministrativeClass?.Trim() ?? "K20-CNTT",
-                StudentEmail = string.IsNullOrWhiteSpace(dto.StudentEmail) ? $"{studentCode.ToLower()}@ictu.edu.vn" : dto.StudentEmail.Trim(),
+                StudentName = student.FullName,
+                AdministrativeClass = student.ClassCode,
+                StudentEmail = studentAccountEmail ?? string.Empty,
                 EnrolledAt = DateTime.UtcNow
             };
 
@@ -1016,11 +1370,17 @@ namespace backend_api.Controllers
         [HttpDelete("classes/{id}/students/{studentCode}")]
         public async Task<IActionResult> RemoveStudentFromClass(int id, string studentCode)
         {
+            if (!await CanManageClass(id)) return Forbid();
             var enrollment = await _db.ClassEnrollments.FirstOrDefaultAsync(e => e.CourseClassId == id && e.StudentCode.ToUpper() == studentCode.ToUpper());
             if (enrollment == null)
                 return NotFound(new { success = false, message = "Sinh viên không có trong lớp này." });
 
             _db.ClassEnrollments.Remove(enrollment);
+            // An old Allow/Deny decision must not survive removal and later re-enrollment.
+            var staleOverrides = await _db.EligibilityOverrides
+                .Where(o => o.CourseClassId == id && o.StudentCode.ToUpper() == enrollment.StudentCode.ToUpper())
+                .ToListAsync();
+            _db.EligibilityOverrides.RemoveRange(staleOverrides);
             await _db.SaveChangesAsync();
             return Ok(new { success = true, message = "Đã xóa sinh viên khỏi lớp học phần." });
         }
@@ -1028,6 +1388,7 @@ namespace backend_api.Controllers
         [HttpGet("monitoring/{examId}")]
         public async Task<IActionResult> GetExamMonitoring(int examId)
         {
+            if (!await CanManageExam(examId)) return Forbid();
             var sessions = await _db.ExamSessions
                 .Where(s => s.ExamId == examId)
                 .Include(s => s.Violations)
@@ -1058,7 +1419,10 @@ namespace backend_api.Controllers
         [HttpGet("report/{examId}")]
         public async Task<IActionResult> GetExamReport(int examId)
         {
+            if (!await CanManageExam(examId)) return Forbid();
             var exam = await _db.Exams
+                .AsNoTracking()
+                .AsSplitQuery()
                 .Include(e => e.Subject)
                 .Include(e => e.CourseClass)
                 .ThenInclude(c => c!.Enrollments)
@@ -1070,6 +1434,8 @@ namespace backend_api.Controllers
                 return NotFound(new { success = false, message = "Đề thi không tồn tại." });
 
             var sessions = await _db.ExamSessions
+                .AsNoTracking()
+                .AsSplitQuery()
                 .Where(s => s.ExamId == examId && s.Status == "Submitted")
                 .Include(s => s.Violations)
                 .Include(s => s.Answers)
@@ -1077,9 +1443,10 @@ namespace backend_api.Controllers
                 .ToListAsync();
 
             var totalStudents = sessions.Count;
-            var avgScore = totalStudents > 0 ? sessions.Average(s => s.Score) : 0;
-            var maxScore = totalStudents > 0 ? sessions.Max(s => s.Score) : 0;
-            var minScore = totalStudents > 0 ? sessions.Min(s => s.Score) : 0;
+            var gradedSessions = sessions.Where(s => s.GradingStatus != "PendingReview").ToList();
+            double? avgScore = gradedSessions.Count > 0 ? gradedSessions.Average(s => s.Score) : null;
+            double? maxScore = gradedSessions.Count > 0 ? gradedSessions.Max(s => s.Score) : null;
+            double? minScore = gradedSessions.Count > 0 ? gradedSessions.Min(s => s.Score) : null;
             var totalCheatingEvents = sessions.Sum(s => s.Violations.Count);
 
             // Compute CLO achievement statistics
@@ -1091,15 +1458,15 @@ namespace backend_api.Controllers
             foreach (var group in cloGroups)
             {
                 var qIds = group.Select(eq => eq.QuestionId).ToHashSet();
-                var answers = sessions.SelectMany(s => s.Answers).Where(a => qIds.Contains(a.QuestionId)).ToList();
-                double cloAvg = answers.Any() ? answers.Average(a => a.Score) : 0;
-                double passRate = answers.Any() ? (double)answers.Count(a => a.Score >= 5.0) / answers.Count * 100 : 0;
+                var answers = gradedSessions.SelectMany(s => s.Answers).Where(a => qIds.Contains(a.QuestionId)).ToList();
+                double? cloAvg = answers.Any() ? answers.Average(a => a.LecturerScore ?? a.Score) : null;
+                double? passRate = answers.Any() ? (double)answers.Count(a => (a.LecturerScore ?? a.Score) >= 5.0) / answers.Count * 100 : null;
 
                 cloStats[group.Key] = new
                 {
                     CloCode = group.Key,
-                    AverageScore = Math.Round(cloAvg, 2),
-                    PassRate = Math.Round(passRate, 1),
+                    AverageScore = cloAvg.HasValue ? Math.Round(cloAvg.Value, 2) : (double?)null,
+                    PassRate = passRate.HasValue ? Math.Round(passRate.Value, 1) : (double?)null,
                     QuestionCount = group.Count()
                 };
             }
@@ -1158,16 +1525,18 @@ namespace backend_api.Controllers
                 SubjectName = exam.Subject?.Name,
                 CourseClass = classRosterInfo,
                 TotalSubmissions = totalStudents,
-                AverageScore = Math.Round(avgScore, 2),
-                MaxScore = Math.Round(maxScore, 2),
-                MinScore = Math.Round(minScore, 2),
+                GradedSubmissions = gradedSessions.Count,
+                PendingReviewCount = totalStudents - gradedSessions.Count,
+                AverageScore = avgScore.HasValue ? Math.Round(avgScore.Value, 2) : (double?)null,
+                MaxScore = maxScore.HasValue ? Math.Round(maxScore.Value, 2) : (double?)null,
+                MinScore = minScore.HasValue ? Math.Round(minScore.Value, 2) : (double?)null,
                 TotalCheatingAlerts = totalCheatingEvents,
                 ScoreDistribution = new
                 {
-                    Excellent = sessions.Count(s => s.Score >= 8.5),
-                    Good = sessions.Count(s => s.Score >= 7.0 && s.Score < 8.5),
-                    Average = sessions.Count(s => s.Score >= 5.0 && s.Score < 7.0),
-                    Weak = sessions.Count(s => s.Score < 5.0)
+                    Excellent = gradedSessions.Count(s => s.Score >= 8.5),
+                    Good = gradedSessions.Count(s => s.Score >= 7.0 && s.Score < 8.5),
+                    Average = gradedSessions.Count(s => s.Score >= 5.0 && s.Score < 7.0),
+                    Weak = gradedSessions.Count(s => s.Score < 5.0)
                 },
                 CloAchievement = cloStats,
                 Sessions = sessions.Select(s => new
@@ -1175,7 +1544,8 @@ namespace backend_api.Controllers
                     s.Id,
                     s.StudentCode,
                     s.StudentName,
-                    s.Score,
+                    Score = s.GradingStatus == "PendingReview" ? (double?)null : s.Score,
+                    s.GradingStatus,
                     s.AiFeedback,
                     CheatingCount = s.Violations.Count
                 })
@@ -1185,6 +1555,9 @@ namespace backend_api.Controllers
         [HttpPost("override-score")]
         public async Task<IActionResult> OverrideScore([FromBody] DetailedOverrideScoreDto dto)
         {
+            if (dto == null || !double.IsFinite(dto.NewScore) || dto.NewScore < 0 || dto.NewScore > 10)
+                return BadRequest(new { success = false, message = "Điểm tổng kết phải nằm trong khoảng 0–10." });
+
             var session = await _db.ExamSessions
                 .Include(s => s.Answers)
                 .FirstOrDefaultAsync(s => s.Id == dto.SessionId);
@@ -1192,35 +1565,87 @@ namespace backend_api.Controllers
             if (session == null)
                 return NotFound(new { success = false, message = "Không tìm thấy bài làm của sinh viên." });
 
+            if (!await CanManageExam(session.ExamId)) return Forbid();
+            if (session.Status != "Submitted")
+                return StatusCode(409, new { success = false, message = "Bài thi chưa được nộp." });
+
+            if (dto.QuestionScores != null)
+            {
+                if (dto.QuestionScores.GroupBy(q => q.AnswerId.HasValue ? $"a:{q.AnswerId}" : $"q:{q.QuestionId}").Any(g => g.Count() > 1))
+                    return BadRequest(new { success = false, message = "Danh sách câu hỏi chấm lại bị trùng." });
+
+                foreach (var qs in dto.QuestionScores)
+                {
+                    if (!session.Answers.Any(a => qs.AnswerId.HasValue ? a.Id == qs.AnswerId : a.QuestionId == qs.QuestionId) ||
+                        !double.IsFinite(qs.Score) || qs.Score < 0 || qs.Score > 10)
+                        return BadRequest(new { success = false, message = "Điểm từng câu phải thuộc bài thi và nằm trong khoảng 0–10." });
+                }
+            }
+
+            var proposedScores = new Dictionary<int, double>();
+            foreach (var qs in dto.QuestionScores ?? new List<QuestionScoreItemDto>())
+            {
+                var answer = session.Answers.First(a => qs.AnswerId.HasValue ? a.Id == qs.AnswerId : a.QuestionId == qs.QuestionId);
+                if (!proposedScores.TryAdd(answer.Id, qs.Score))
+                    return BadRequest(new { success = false, message = "Một câu trả lời chỉ được chấm lại một lần." });
+            }
+            if (session.Answers.Any(a => a.GradingStatus == "PendingReview" &&
+                !a.LecturerScore.HasValue && !proposedScores.ContainsKey(a.Id)))
+                return BadRequest(new { success = false, message = "Cần chấm đầy đủ các câu đang chờ giảng viên trước khi công bố điểm." });
+
+            var assignedCount = await _db.ExamQuestions.CountAsync(eq => eq.ExamId == session.ExamId);
+            if (assignedCount == 0) assignedCount = session.Answers.Count;
+            var calculatedScore = assignedCount > 0
+                ? Math.Round(session.Answers.Sum(a => proposedScores.GetValueOrDefault(a.Id, a.LecturerScore ?? a.Score)) / assignedCount, 1)
+                : 0.0;
+            if (Math.Abs(Math.Round(dto.NewScore, 1) - calculatedScore) > 0.001)
+                return BadRequest(new { success = false, message = $"Điểm tổng phải bằng trung bình điểm từng câu trên toàn bộ {assignedCount} câu được giao ({calculatedScore}/10)." });
+
+            await using var transaction = await _db.Database.BeginTransactionAsync();
+            var beforeJson = SnapshotExamSession(session);
+
             if (session.OriginalScore == null)
             {
                 session.OriginalScore = session.Score; // Lưu lại điểm AI ban đầu
             }
 
-            session.Score = Math.Round(dto.NewScore, 1);
             session.LecturerFeedback = dto.LecturerFeedback?.Trim();
-            session.ReviewedBy = string.IsNullOrWhiteSpace(dto.ReviewedBy) ? "Giảng viên phụ trách" : dto.ReviewedBy.Trim();
+            session.ReviewedBy = User.FindFirstValue(ClaimTypes.Email);
             session.ReviewedAt = DateTime.UtcNow;
 
             if (dto.QuestionScores != null && dto.QuestionScores.Any())
             {
                 foreach (var qs in dto.QuestionScores)
                 {
-                    var ans = session.Answers.FirstOrDefault(a => a.QuestionId == qs.QuestionId);
+                    var ans = session.Answers.FirstOrDefault(a => qs.AnswerId.HasValue ? a.Id == qs.AnswerId : a.QuestionId == qs.QuestionId);
                     if (ans != null)
                     {
                         ans.LecturerScore = qs.Score;
+                        ans.GradingStatus = "Final";
                         if (!string.IsNullOrWhiteSpace(qs.Comment))
                             ans.LecturerComment = qs.Comment.Trim();
                     }
                 }
             }
 
+            session.Score = calculatedScore;
+            session.GradingStatus = "Final";
+            _db.ExamSessionAudits.Add(new ExamSessionAudit
+            {
+                ExamSessionId = session.Id,
+                Action = "OverrideScore",
+                ActorEmail = LecturerEmailKey ?? string.Empty,
+                ChangedAtUtc = DateTime.UtcNow,
+                BeforeJson = beforeJson,
+                AfterJson = SnapshotExamSession(session)
+            });
             await _db.SaveChangesAsync();
+            await transaction.CommitAsync();
             return Ok(new
             {
                 success = true,
                 newScore = session.Score,
+                gradingStatus = session.GradingStatus,
                 originalScore = session.OriginalScore,
                 reviewedAt = session.ReviewedAt,
                 message = "Đã cập nhật kết quả phúc khảo và lưu lời phê của giảng viên thành công."
@@ -1230,17 +1655,14 @@ namespace backend_api.Controllers
         [HttpGet("schedule")]
         public async Task<IActionResult> GetTeachingSchedule([FromQuery] string? lecturerEmail = null)
         {
+            var identityEmail = LecturerEmailKey;
             var query = _db.CourseClasses
+                .AsNoTracking()
+                .AsSplitQuery()
                 .Include(c => c.Subject)
                 .Include(c => c.Enrollments)
                 .Include(c => c.Exams)
-                .AsQueryable();
-
-            if (!string.IsNullOrWhiteSpace(lecturerEmail))
-            {
-                string email = lecturerEmail.Trim().ToLower();
-                query = query.Where(c => c.LecturerEmail.ToLower() == email);
-            }
+                .Where(c => EF.Functions.Collate(c.LecturerEmail, "NOCASE") == identityEmail);
 
             var classes = await query.ToListAsync();
 
@@ -1287,6 +1709,8 @@ namespace backend_api.Controllers
         public async Task<IActionResult> GetSubmissionDetail(int sessionId)
         {
             var session = await _db.ExamSessions
+                .AsNoTracking()
+                .AsSplitQuery()
                 .Include(s => s.Exam)
                 .ThenInclude(e => e!.Subject)
                 .Include(s => s.Exam)
@@ -1298,6 +1722,7 @@ namespace backend_api.Controllers
 
             if (session == null)
                 return NotFound(new { success = false, message = "Không tìm thấy bài nộp của thí sinh." });
+            if (!await CanManageExam(session.ExamId)) return Forbid();
 
             var answers = session.Answers.Select(a => new
             {
@@ -1323,7 +1748,8 @@ namespace backend_api.Controllers
                 Score = a.Score,
                 LecturerScore = a.LecturerScore,
                 LecturerComment = a.LecturerComment,
-                AiFeedback = a.AiFeedback
+                AiFeedback = a.AiFeedback,
+                GradingStatus = a.GradingStatus
             }).ToList();
 
             return Ok(new
@@ -1342,6 +1768,8 @@ namespace backend_api.Controllers
                     session.StartTime,
                     session.EndTime,
                     session.Score,
+                    session.GradingStatus,
+                    OfficialScore = session.GradingStatus == "PendingReview" ? (double?)null : session.Score,
                     session.OriginalScore,
                     session.Status,
                     session.AiFeedback,
@@ -1350,6 +1778,7 @@ namespace backend_api.Controllers
                     session.ReviewedAt,
                     ViolationsCount = session.Violations.Count
                 },
+                AssignedQuestionCount = await _db.ExamQuestions.CountAsync(eq => eq.ExamId == session.ExamId),
                 Answers = answers,
                 Violations = session.Violations.OrderByDescending(v => v.Timestamp).Select(v => new
                 {
@@ -1364,7 +1793,10 @@ namespace backend_api.Controllers
         [HttpGet("export-scores/{examId}")]
         public async Task<IActionResult> ExportScores(int examId)
         {
+            if (!await CanManageExam(examId)) return Forbid();
             var exam = await _db.Exams
+                .AsNoTracking()
+                .AsSplitQuery()
                 .Include(e => e.Subject)
                 .Include(e => e.CourseClass)
                 .Include(e => e.Sessions)
@@ -1375,9 +1807,13 @@ namespace backend_api.Controllers
             if (exam == null)
                 return NotFound(new { success = false, message = "Không tìm thấy kỳ thi." });
 
-            var enrollments = exam.CourseClassId.HasValue
-                ? await _db.ClassEnrollments.Where(c => c.CourseClassId == exam.CourseClassId.Value).ToDictionaryAsync(c => c.StudentCode.ToUpper())
-                : new Dictionary<string, ClassEnrollment>();
+            var enrollmentRows = exam.CourseClassId.HasValue
+                ? await _db.ClassEnrollments.Where(c => c.CourseClassId == exam.CourseClassId.Value).ToListAsync()
+                : new List<ClassEnrollment>();
+            // Older databases may contain case-variant duplicates: exporting results must not fail.
+            var enrollments = enrollmentRows
+                .GroupBy(c => c.StudentCode.Trim(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.OrderByDescending(c => c.Id).First(), StringComparer.OrdinalIgnoreCase);
 
             var sb = new System.Text.StringBuilder();
             sb.Append('\uFEFF'); // UTF-8 BOM for Excel
@@ -1390,11 +1826,12 @@ namespace backend_api.Controllers
             sb.AppendLine("STT,Mã Sinh Viên,Họ và Tên,Lớp Hành Chính,Điểm Trắc Nghiệm,Điểm Tự Luận,Điểm Lập Trình,Điểm Tổng Kết (Thang 10),Điểm Thang 4,Điểm Chữ,Trạng Thái,Đánh Giá & Phúc Khảo Giảng Viên");
 
             int stt = 1;
-            var sessions = exam.Sessions.OrderBy(s => s.StudentCode).ToList();
+            var sessions = exam.Sessions.Where(s => s.Status == "Submitted")
+                .OrderBy(s => s.StudentCode).ToList();
 
             foreach (var s in sessions)
             {
-                enrollments.TryGetValue(s.StudentCode.ToUpper(), out var en);
+                enrollments.TryGetValue(s.StudentCode.Trim(), out var en);
                 string adminClass = en?.AdministrativeClass ?? "K20-CNTT";
 
                 double mcqScore = 0;
@@ -1428,6 +1865,7 @@ namespace backend_api.Controllers
                 double avgEssay = essayCount > 0 ? Math.Round(essayScore / essayCount, 1) : 0;
                 double avgCode = codeCount > 0 ? Math.Round(codeScore / codeCount, 1) : 0;
 
+                bool isPending = s.GradingStatus == "PendingReview";
                 double total = Math.Round(s.Score, 1);
                 double gpa4;
                 string letter;
@@ -1441,7 +1879,10 @@ namespace backend_api.Controllers
                 string note = s.LecturerFeedback ?? s.AiFeedback ?? "";
                 note = note.Replace(",", ";").Replace("\r", "").Replace("\n", " ");
 
-                sb.AppendLine($"{stt++},{s.StudentCode},\"{s.StudentName}\",{adminClass},{avgMcq},{avgEssay},{avgCode},{total},{gpa4},{letter},{s.Status},\"{note}\"");
+                sb.AppendLine($"{stt++},{s.StudentCode},\"{s.StudentName}\",{adminClass}," +
+                    $"{(isPending ? "" : avgMcq.ToString())},{(isPending ? "" : avgEssay.ToString())},{(isPending ? "" : avgCode.ToString())}," +
+                    $"{(isPending ? "" : total.ToString())},{(isPending ? "" : gpa4.ToString())},{(isPending ? "" : letter)}," +
+                    $"{(isPending ? "Chờ chấm" : s.GradingStatus)},\"{note}\"");
             }
 
             byte[] bytes = System.Text.Encoding.UTF8.GetBytes(sb.ToString());
@@ -1452,7 +1893,10 @@ namespace backend_api.Controllers
         [HttpGet("export-clo-report/{examId}")]
         public async Task<IActionResult> ExportCloReport(int examId)
         {
+            if (!await CanManageExam(examId)) return Forbid();
             var exam = await _db.Exams
+                .AsNoTracking()
+                .AsSplitQuery()
                 .Include(e => e.Subject)
                 .Include(e => e.CourseClass)
                 .Include(e => e.ExamQuestions)
@@ -1480,7 +1924,7 @@ namespace backend_api.Controllers
             foreach (var clo in clos)
             {
                 int qCount = exam.ExamQuestions.Count(eq => eq.Question != null && string.Equals(eq.Question.CloCode, clo, StringComparison.OrdinalIgnoreCase));
-                var cloScores = exam.Sessions.Select(s =>
+                var cloScores = exam.Sessions.Where(s => s.Status == "Submitted" && s.GradingStatus != "PendingReview").Select(s =>
                 {
                     var ans = s.Answers.Where(a => a.Question != null && string.Equals(a.Question.CloCode, clo, StringComparison.OrdinalIgnoreCase)).ToList();
                     return ans.Any() ? ans.Average(a => a.LecturerScore ?? a.Score) : (double?)null;
@@ -1488,7 +1932,7 @@ namespace backend_api.Controllers
 
                 int passCount = cloScores.Count(sc => sc >= 5.0);
                 double passRate = cloScores.Any() ? Math.Round((double)passCount / cloScores.Count * 100, 1) : 0;
-                string status = passRate >= 70 ? "ĐẠT CHUẨN" : "CẦN CẢI THIỆN";
+                string status = !cloScores.Any() ? "CHỜ CHẤM" : passRate >= 70 ? "ĐẠT CHUẨN" : "CẦN CẢI THIỆN";
                 string desc = clo switch
                 {
                     "CLO1" => "Nắm vững kiến thức nền tảng và nguyên lý lý thuyết",
@@ -1497,7 +1941,7 @@ namespace backend_api.Controllers
                     _ => "Kỹ năng tổng hợp và giải thích chuyên sâu"
                 };
 
-                sb.AppendLine($"{clo},\"{desc}\",{qCount},{passCount},{passRate}%,{status}");
+                sb.AppendLine($"{clo},\"{desc}\",{qCount},{(cloScores.Any() ? passCount.ToString() : "")},{(cloScores.Any() ? $"{passRate}%" : "")},{status}");
             }
 
             byte[] bytes = System.Text.Encoding.UTF8.GetBytes(sb.ToString());
@@ -1507,6 +1951,7 @@ namespace backend_api.Controllers
         [HttpPost("import-questions")]
         public async Task<IActionResult> ImportQuestions([FromBody] ImportQuestionsDto dto)
         {
+            if (!await CanUseQuestionScope(dto.SubjectId, dto.CourseClassId)) return Forbid();
             if (string.IsNullOrWhiteSpace(dto.RawText))
                 return BadRequest(new { success = false, message = "Nội dung đề thi không được để trống." });
 
@@ -1629,6 +2074,7 @@ namespace backend_api.Controllers
             var exam = await _db.Exams.FindAsync(id);
             if (exam == null)
                 return NotFound(new { success = false, message = "Không tìm thấy kỳ thi." });
+            if (!await CanManageExam(id)) return Forbid();
 
             int add = dto.AdditionalMinutes > 0 ? dto.AdditionalMinutes : 5;
             exam.DurationMinutes += add;
@@ -1648,6 +2094,7 @@ namespace backend_api.Controllers
             var exam = await _db.Exams.FindAsync(id);
             if (exam == null)
                 return NotFound(new { success = false, message = "Không tìm thấy kỳ thi." });
+            if (!await CanManageExam(id)) return Forbid();
 
             exam.IsActive = !exam.IsActive;
             await _db.SaveChangesAsync();
@@ -1663,41 +2110,159 @@ namespace backend_api.Controllers
         [HttpPost("sessions/{id}/force-submit")]
         public async Task<IActionResult> ForceSubmitSession(int id)
         {
-            var session = await _db.ExamSessions.FindAsync(id);
+            var session = await _db.ExamSessions
+                .Include(s => s.Answers)
+                .ThenInclude(a => a.Question)
+                .FirstOrDefaultAsync(s => s.Id == id);
+
             if (session == null)
                 return NotFound(new { success = false, message = "Không tìm thấy phiên làm bài." });
+            if (!await CanManageExam(session.ExamId)) return Forbid();
 
+            if (session.Status != "InExam" && session.Status != "Reopened")
+                return StatusCode(409, new { success = false, message = "Phiên thi này đã được kết thúc hoặc thu bài." });
+
+            await using var transaction = await _db.Database.BeginTransactionAsync();
+            var accepted = await _db.ExamSessions
+                .Where(s => s.Id == id && (s.Status == "InExam" || s.Status == "Reopened"))
+                .ExecuteUpdateAsync(update => update.SetProperty(s => s.Status, "Submitted"));
+            if (accepted != 1)
+            {
+                await transaction.RollbackAsync();
+                return StatusCode(409, new { success = false, message = "Phiên thi đã được nộp hoặc thu bài." });
+            }
+
+            bool needsReview = false;
+            foreach (var ans in session.Answers)
+            {
+                if (ans.Question?.Type == "mcq")
+                {
+                    ans.Score = string.Equals(ans.SelectedOption?.Trim(), ans.Question.CorrectOption?.Trim(), StringComparison.OrdinalIgnoreCase) ? 10.0 : 0.0;
+                    ans.GradingStatus = "AutoGraded";
+                }
+                else if ((ans.Question?.Type == "essay" && !string.IsNullOrWhiteSpace(ans.EssayAnswer)) ||
+                         (ans.Question?.Type == "code" && !string.IsNullOrWhiteSpace(ans.CodeAnswer ?? ans.EssayAnswer)))
+                {
+                    ans.GradingStatus = "PendingReview";
+                    needsReview = true;
+                }
+            }
+
+            var assignedQuestionCount = await _db.ExamQuestions.CountAsync(eq => eq.ExamId == session.ExamId);
+            session.Score = assignedQuestionCount > 0
+                ? Math.Round(session.Answers.Sum(a => a.LecturerScore ?? a.Score) / assignedQuestionCount, 1)
+                : 0.0;
             session.Status = "Submitted";
+            session.GradingStatus = needsReview ? "PendingReview" : "AutoGraded";
+            session.AiFeedback = needsReview
+                ? "Cán bộ coi thi đã cưỡng chế thu bài. Bài tự luận/lập trình đang chờ giảng viên chấm."
+                : "Cán bộ coi thi đã cưỡng chế thu bài.";
             session.EndTime = DateTime.UtcNow;
             await _db.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            // Notify the lecturer owning the class; never broadcast student data globally.
+            var ownerEmail = await _db.Exams.Where(e => e.Id == session.ExamId)
+                .Select(e => e.CourseClass != null ? e.CourseClass.LecturerEmail : null)
+                .FirstOrDefaultAsync();
+            if (!string.IsNullOrWhiteSpace(ownerEmail))
+            {
+                await _hub.Clients.Group(ExamHub.LecturerMonitorGroup(ownerEmail)).SendAsync("OnStudentSubmitted", new
+                {
+                    SessionId = session.Id,
+                    StudentCode = session.StudentCode,
+                    StudentName = session.StudentName,
+                    Score = needsReview ? (double?)null : session.Score,
+                    session.GradingStatus,
+                    AiFeedback = session.AiFeedback
+                });
+            }
 
             return Ok(new
             {
                 success = true,
-                message = $"Đã cưỡng chế thu bài của thí sinh {session.StudentName} ({session.StudentCode})."
+                score = needsReview ? (double?)null : session.Score,
+                gradingStatus = session.GradingStatus,
+                message = $"Đã cưỡng chế thu bài phiên thi của thí sinh {session.StudentName} ({session.StudentCode})."
             });
         }
 
         [HttpPost("sessions/{id}/reopen")]
         public async Task<IActionResult> ReopenSession(int id)
         {
-            var session = await _db.ExamSessions.FindAsync(id);
+            var session = await _db.ExamSessions
+                .Include(s => s.Answers)
+                .FirstOrDefaultAsync(s => s.Id == id);
+
             if (session == null)
                 return NotFound(new { success = false, message = "Không tìm thấy phiên làm bài." });
+            if (!await CanManageExam(session.ExamId)) return Forbid();
+
+            if (session.Status == "InExam" || session.Status == "Reopened")
+                return StatusCode(409, new { success = false, message = "Sinh viên vẫn đang trong ca thi. Không thể xóa bài và mở lại phiên đang hoạt động." });
+
+            await using var transaction = await _db.Database.BeginTransactionAsync();
+            var beforeJson = SnapshotExamSession(session);
+            // Keep the previous attempt in the audit record before clearing active answers.
+            if (session.Answers != null && session.Answers.Any())
+            {
+                _db.ExamAnswers.RemoveRange(session.Answers);
+            }
 
             session.Status = "InExam";
+            // A reopened attempt gets a fresh deadline instead of inheriting an expired clock.
+            session.StartTime = DateTime.UtcNow;
+            session.Score = 0;
+            session.GradingStatus = "AutoGraded";
+            session.OriginalScore = null;
+            session.EndTime = null;
+            session.AiFeedback = null;
+            session.LecturerFeedback = null;
+            session.ReviewedBy = null;
+            session.ReviewedAt = null;
+
+            _db.ExamSessionAudits.Add(new ExamSessionAudit
+            {
+                ExamSessionId = session.Id,
+                Action = "ReopenSession",
+                ActorEmail = LecturerEmailKey ?? string.Empty,
+                ChangedAtUtc = DateTime.UtcNow,
+                BeforeJson = beforeJson,
+                AfterJson = SnapshotExamSession(session, includeAnswers: false)
+            });
             await _db.SaveChangesAsync();
+            await transaction.CommitAsync();
 
             return Ok(new
             {
                 success = true,
-                message = $"Đã mở lại quyền thi cho thí sinh {session.StudentName} ({session.StudentCode}). Sinh viên có thể vào lại phòng thi."
+                message = $"Đã lưu lịch sử bài thi cũ và mở lại ca thi cho {session.StudentName} ({session.StudentCode})."
             });
+        }
+
+        [HttpGet("sessions/{id}/history")]
+        public async Task<IActionResult> GetSessionHistory(int id)
+        {
+            var examId = await _db.ExamSessions.Where(s => s.Id == id)
+                .Select(s => (int?)s.ExamId).FirstOrDefaultAsync();
+            if (!examId.HasValue) return NotFound();
+            if (!await CanManageExam(examId.Value)) return Forbid();
+
+            var history = await _db.ExamSessionAudits.AsNoTracking()
+                .Where(a => a.ExamSessionId == id)
+                .OrderByDescending(a => a.ChangedAtUtc).ThenByDescending(a => a.Id)
+                .Select(a => new { a.Id, a.Action, a.ActorEmail, a.ChangedAtUtc, a.BeforeJson, a.AfterJson })
+                .ToListAsync();
+            return Ok(history);
         }
 
         [HttpGet("violations/{sessionId}/timeline")]
         public async Task<IActionResult> GetViolationsTimeline(int sessionId)
         {
+            var examId = await _db.ExamSessions.Where(s => s.Id == sessionId)
+                .Select(s => (int?)s.ExamId).FirstOrDefaultAsync();
+            if (!examId.HasValue) return NotFound();
+            if (!await CanManageExam(examId.Value)) return Forbid();
             var logs = await _db.CheatingLogs
                 .Where(l => l.ExamSessionId == sessionId)
                 .OrderBy(l => l.Timestamp)
@@ -1719,14 +2284,18 @@ namespace backend_api.Controllers
     {
         public int SessionId { get; set; }
         public double NewScore { get; set; }
+        public double? FinalScore { get => NewScore; set { if (value.HasValue) NewScore = value.Value; } }
         public string? LecturerFeedback { get; set; }
         public string? ReviewedBy { get; set; }
+        public string? LecturerName { get => ReviewedBy; set => ReviewedBy = value; }
         public List<QuestionScoreItemDto>? QuestionScores { get; set; }
+        public List<QuestionScoreItemDto>? QuestionOverrides { get => QuestionScores; set => QuestionScores = value; }
     }
 
     public class QuestionScoreItemDto
     {
         public int QuestionId { get; set; }
+        public int? AnswerId { get; set; }
         public double Score { get; set; }
         public string? Comment { get; set; }
     }
@@ -1778,13 +2347,14 @@ namespace backend_api.Controllers
         public int? CourseClassId { get; set; }
         public string Title { get; set; } = string.Empty;
         public int DurationMinutes { get; set; } = 30;
-        public string AccessCode { get; set; } = "ICTU2026";
+        public string AccessCode { get; set; } = string.Empty;
+        public bool IsFinalExam { get; set; }
         public List<AiGeneratedQuestion> Questions { get; set; } = new();
     }
 
     public class GenerateVariantsDto
     {
-        public int VariantCount { get; set; } = 4;
+        public int? VariantCount { get; set; }
     }
 
     public class CreateExamDto
@@ -1793,7 +2363,8 @@ namespace backend_api.Controllers
         public int? CourseClassId { get; set; }
         public string Title { get; set; } = string.Empty;
         public int DurationMinutes { get; set; } = 30;
-        public string AccessCode { get; set; } = "ICTU2026";
+        public string AccessCode { get; set; } = string.Empty;
+        public bool IsFinalExam { get; set; }
         public List<int>? QuestionIds { get; set; }
     }
 
@@ -1848,6 +2419,32 @@ namespace backend_api.Controllers
     {
         public string? LecturerEmail { get; set; }
         public string? LecturerName { get; set; }
+    }
+
+    public class UpdateLcmsProfileDto
+    {
+        public int? TotalCredits { get; set; }
+        public int? PracticeCredits { get; set; }
+        public string? Department { get; set; }
+        public string? Faculty { get; set; }
+        public string? ExamFormat { get; set; }
+        public int? TotalHours { get; set; }
+        public int? TheoryHours { get; set; }
+        public int? DiscussionHours { get; set; }
+        public int? PracticeHours { get; set; }
+        public int? PeriodicExamHours { get; set; }
+        public int? SelfStudyHours { get; set; }
+        public string? FinalExamType { get; set; }
+        public double? HomeFailBanThresholdPercent { get; set; }
+    }
+
+    public class CreateInClassAssessmentDto
+    {
+        public string Title { get; set; } = string.Empty;
+        public string? AssessmentType { get; set; } = "Theory"; // Theory, CodingPractice, Hybrid
+        public int DurationMinutes { get; set; } = 45;
+        public double WeightPercentage { get; set; } = 30.0;
+        public bool? IsActive { get; set; } = true;
     }
 }
 

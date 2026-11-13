@@ -3,14 +3,19 @@ using backend_api.Data;
 using backend_api.Hubs;
 using backend_api.Services;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.Authentication;
+using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.DataProtection;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add Database Context (SQLite)
 var dbPath = Path.Combine(AppContext.BaseDirectory, "ictu_exam.db");
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlite($"Data Source={dbPath}"));
+    options.UseSqlite($"Data Source={dbPath};Default Timeout=30"));
 
 // Add AI Service Client
 builder.Services.AddHttpClient<IAiServiceClient, AiServiceClient>();
@@ -18,15 +23,94 @@ builder.Services.AddHttpClient<IAiServiceClient, AiServiceClient>();
 // Add SignalR
 builder.Services.AddSignalR();
 
+// Add MemoryCache for Rubric drafts (LCMS Section 8)
+builder.Services.AddMemoryCache();
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.Cookie.Name = "ICTU.Auth.Session";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Strict;
+        options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+            ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
+        options.ExpireTimeSpan = TimeSpan.FromHours(4);
+        options.Events.OnRedirectToLogin = context => { context.Response.StatusCode = 401; return Task.CompletedTask; };
+        options.Events.OnRedirectToAccessDenied = context => { context.Response.StatusCode = 403; return Task.CompletedTask; };
+    })
+    .AddOpenIdConnect("Google", options =>
+    {
+        options.Authority = "https://accounts.google.com";
+        options.ClientId = builder.Configuration["Authentication:Google:ClientId"] ?? "not-configured";
+        options.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"] ?? "not-configured";
+        options.CallbackPath = "/signin-google";
+        options.ResponseType = "code";
+        options.UsePkce = true;
+        options.SaveTokens = false;
+        options.Scope.Add("email");
+        options.TokenValidationParameters.ValidateIssuer = true;
+        options.Events = new OpenIdConnectEvents
+        {
+            OnTokenValidated = async context =>
+            {
+                if (!string.Equals(context.Principal?.FindFirst("email_verified")?.Value, "true", StringComparison.OrdinalIgnoreCase))
+                {
+                    context.Fail("Google email has not been verified.");
+                    return;
+                }
+                await backend_api.Services.SsoIdentityMapper.ValidateAndMapAsync(context, "Google", "@ictu.edu.vn");
+            },
+            OnRemoteFailure = context =>
+            {
+                context.Response.Redirect("/index.html?authError=sso");
+                context.HandleResponse();
+                return Task.CompletedTask;
+            }
+        };
+    })
+    .AddOpenIdConnect("Microsoft", options =>
+    {
+        var tenantId = builder.Configuration["Authentication:Microsoft:TenantId"];
+        options.Authority = $"https://login.microsoftonline.com/{(Guid.TryParse(tenantId, out _) ? tenantId : "00000000-0000-0000-0000-000000000000")}/v2.0";
+        options.ClientId = builder.Configuration["Authentication:Microsoft:ClientId"] ?? "not-configured";
+        options.ClientSecret = builder.Configuration["Authentication:Microsoft:ClientSecret"] ?? "not-configured";
+        options.CallbackPath = "/signin-microsoft";
+        options.ResponseType = "code";
+        options.UsePkce = true;
+        options.SaveTokens = false;
+        options.TokenValidationParameters.ValidateIssuer = true;
+        options.Events = new OpenIdConnectEvents
+        {
+            OnTokenValidated = async context =>
+            {
+                if (!string.Equals(context.Principal?.FindFirst("tid")?.Value, tenantId, StringComparison.OrdinalIgnoreCase))
+                {
+                    context.Fail("Microsoft tenant does not match configuration.");
+                    return;
+                }
+                await backend_api.Services.SsoIdentityMapper.ValidateAndMapAsync(context, "Microsoft", "@ms.ictu.edu.vn");
+            },
+            OnRemoteFailure = context =>
+            {
+                context.Response.Redirect("/student_web.html?authError=sso");
+                context.HandleResponse();
+                return Task.CompletedTask;
+            }
+        };
+    });
+builder.Services.AddAuthorization();
+
+// The disposable HTTP smoke server uses a writable keyring under its isolated publish directory.
+if (builder.Configuration["ICTU_HTTP_SMOKE"] == "1")
+    builder.Services.AddDataProtection().PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(AppContext.BaseDirectory, "smoke-keys")));
+
 // Add CORS
 builder.Services.AddCors(options =>
 {
+    var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
     options.AddDefaultPolicy(policy =>
     {
-        policy.AllowAnyHeader()
-              .AllowAnyMethod()
-              .SetIsOriginAllowed(origin => true)
-              .AllowCredentials();
+        if (allowedOrigins.Length > 0)
+            policy.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod().AllowCredentials();
     });
 });
 
@@ -38,6 +122,8 @@ builder.Services.AddControllers()
     });
 
 var app = builder.Build();
+if (builder.Configuration["ICTU_HTTP_SMOKE"] == "1")
+    Console.WriteLine($"HTTP smoke Data Protection: {app.Services.GetRequiredService<IDataProtectionProvider>().GetType().FullName}");
 
 // Global Exception Handler -> Guarantees JSON response, NEVER raw HTML or text
 app.UseExceptionHandler(errorApp =>
@@ -47,8 +133,8 @@ app.UseExceptionHandler(errorApp =>
         context.Response.StatusCode = 500;
         context.Response.ContentType = "application/json";
         var feature = context.Features.Get<IExceptionHandlerPathFeature>();
-        var errMsg = feature?.Error?.Message ?? "Lỗi xử lý yêu cầu hệ thống.";
-        await context.Response.WriteAsJsonAsync(new { success = false, message = errMsg });
+        app.Logger.LogError(feature?.Error, "Unhandled API error at {Path}", context.Request.Path);
+        await context.Response.WriteAsJsonAsync(new { success = false, message = "Lỗi xử lý yêu cầu hệ thống." });
     });
 });
 
@@ -58,8 +144,61 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     db.Database.EnsureCreated();
 
-    // Vá M7: Bật WAL mode để tránh lỗi "database is locked" khi GV+SV truy cập đồng thời
-    try { db.Database.ExecuteSqlRaw("PRAGMA journal_mode=WAL;"); }
+    // Existing SQLite installations were created without EF migrations.
+    // Add only missing grading columns, and keep pre-upgrade results as AutoGraded.
+    var schemaConnection = db.Database.GetDbConnection();
+    if (schemaConnection.State != System.Data.ConnectionState.Open)
+        schemaConnection.Open();
+    foreach (var table in new[] { "ExamSessions", "ExamAnswers" })
+    {
+        var columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        using (var check = schemaConnection.CreateCommand())
+        {
+            check.CommandText = $"PRAGMA table_info(\"{table}\");";
+            using var reader = check.ExecuteReader();
+            while (reader.Read()) columns.Add(reader.GetString(1));
+        }
+        if (!columns.Contains("GradingStatus"))
+        {
+            if (table == "ExamSessions")
+                db.Database.ExecuteSqlRaw("ALTER TABLE \"ExamSessions\" ADD COLUMN \"GradingStatus\" TEXT NOT NULL DEFAULT 'AutoGraded';");
+            else
+                db.Database.ExecuteSqlRaw("ALTER TABLE \"ExamAnswers\" ADD COLUMN \"GradingStatus\" TEXT NOT NULL DEFAULT 'AutoGraded';");
+        }
+    }
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS ""ExamSessionAudits"" (
+            ""Id"" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            ""ExamSessionId"" INTEGER NOT NULL,
+            ""Action"" TEXT NOT NULL,
+            ""ActorEmail"" TEXT NOT NULL,
+            ""ChangedAtUtc"" TEXT NOT NULL,
+            ""BeforeJson"" TEXT NOT NULL,
+            ""AfterJson"" TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS ""IX_ExamSessionAudits_ExamSessionId_ChangedAtUtc""
+            ON ""ExamSessionAudits"" (""ExamSessionId"", ""ChangedAtUtc"");
+    ");
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS ""RubricDrafts"" (
+            ""Id"" TEXT NOT NULL PRIMARY KEY,
+            ""OwnerEmail"" TEXT NOT NULL,
+            ""SubjectId"" INTEGER NOT NULL,
+            ""InClassAssessmentId"" INTEGER NULL,
+            ""HomeAssignmentId"" INTEGER NULL,
+            ""CriteriaJson"" TEXT NOT NULL,
+            ""QuestionsJson"" TEXT NOT NULL,
+            ""CreatedAtUtc"" TEXT NOT NULL,
+            ""ConsumedAtUtc"" TEXT NULL
+        );
+    ");
+
+    // Vá M7: Bật WAL mode và busy_timeout để tránh lỗi "database is locked" khi GV+SV truy cập đồng thời
+    try { 
+        db.Database.ExecuteSqlRaw("PRAGMA journal_mode=WAL;");
+        db.Database.ExecuteSqlRaw("PRAGMA busy_timeout=30000;");
+        db.Database.ExecuteSqlRaw("PRAGMA synchronous=NORMAL;");
+    }
     catch { /* WAL không hỗ trợ trên một số nền tảng — fallback journal_mode mặc định */ }
 
     // Auto-create Users table if DB existed before
@@ -262,6 +401,13 @@ using (var scope = app.Services.CreateScope())
                 alterCmd.ExecuteNonQuery();
             }
 
+            if (!examCols.Contains("IsFinalExam"))
+            {
+                using var alterCmd = conn.CreateCommand();
+                alterCmd.CommandText = "ALTER TABLE \"Exams\" ADD COLUMN \"IsFinalExam\" INTEGER NOT NULL DEFAULT 0;";
+                alterCmd.ExecuteNonQuery();
+            }
+
             // Safe migration for Users table (Title)
             var userCols = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             using (var cmd = conn.CreateCommand())
@@ -279,6 +425,229 @@ using (var scope = app.Services.CreateScope())
                 using var alterCmd = conn.CreateCommand();
                 alterCmd.CommandText = "ALTER TABLE \"Users\" ADD COLUMN \"Title\" TEXT DEFAULT 'Giảng viên';";
                 alterCmd.ExecuteNonQuery();
+            }
+
+            // Safe migration for Subjects table (LCMS columns - LCMS_BA_SPEC_FOR_DEVS.md Section 3.1)
+            var subjectCols = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = "PRAGMA table_info(\"Subjects\");";
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    subjectCols.Add(reader.GetString(1));
+                }
+            }
+
+            void AddSubjectCol(string colName, string def)
+            {
+                if (!subjectCols.Contains(colName))
+                {
+                    using var alterCmd = conn.CreateCommand();
+                    alterCmd.CommandText = $"ALTER TABLE \"Subjects\" ADD COLUMN \"{colName}\" {def};";
+                    alterCmd.ExecuteNonQuery();
+                }
+            }
+
+            AddSubjectCol("TotalCredits", "INTEGER DEFAULT 3");
+            AddSubjectCol("PracticeCredits", "INTEGER DEFAULT 1");
+            AddSubjectCol("Department", "TEXT DEFAULT 'Bộ môn Hệ thống thông tin'");
+            AddSubjectCol("Faculty", "TEXT DEFAULT 'Khoa Công nghệ thông tin'");
+            AddSubjectCol("ExamFormat", "TEXT DEFAULT 'Thực hành'");
+            AddSubjectCol("TotalHours", "INTEGER DEFAULT 150");
+            AddSubjectCol("TheoryHours", "INTEGER DEFAULT 30");
+            AddSubjectCol("DiscussionHours", "INTEGER DEFAULT 0");
+            AddSubjectCol("PracticeHours", "INTEGER DEFAULT 27");
+            AddSubjectCol("PeriodicExamHours", "INTEGER DEFAULT 3");
+            AddSubjectCol("SelfStudyHours", "INTEGER DEFAULT 90");
+            AddSubjectCol("FinalExamType", "TEXT DEFAULT 'Thực hành'");
+            AddSubjectCol("HomeFailBanThresholdPercent", "REAL DEFAULT 30.0");
+
+            // Safe migration for Documents table (LCMS storage - LCMS_BA_SPEC_FOR_DEVS.md Section 3.2)
+            var docCols = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = "PRAGMA table_info(\"Documents\");";
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    docCols.Add(reader.GetString(1));
+                }
+            }
+
+            void AddDocCol(string colName, string def)
+            {
+                if (!docCols.Contains(colName))
+                {
+                    using var alterCmd = conn.CreateCommand();
+                    alterCmd.CommandText = $"ALTER TABLE \"Documents\" ADD COLUMN \"{colName}\" {def};";
+                    alterCmd.ExecuteNonQuery();
+                }
+            }
+
+            AddDocCol("FilePath", "TEXT NULL");
+            AddDocCol("FileType", "TEXT DEFAULT 'txt'");
+            AddDocCol("FileSize", "INTEGER DEFAULT 0");
+            AddDocCol("ExtractedContentText", "TEXT NULL");
+            AddDocCol("ExtractStatus", "TEXT DEFAULT 'Pending'");
+
+            // Safe migration for Questions table (Rubric & Assessment FKs - Section 3.11)
+            if (!existingCols.Contains("RubricCriterionId"))
+            {
+                using var alterCmd = conn.CreateCommand();
+                alterCmd.CommandText = "ALTER TABLE \"Questions\" ADD COLUMN \"RubricCriterionId\" INTEGER NULL;";
+                alterCmd.ExecuteNonQuery();
+            }
+            if (!existingCols.Contains("InClassAssessmentId"))
+            {
+                using var alterCmd = conn.CreateCommand();
+                alterCmd.CommandText = "ALTER TABLE \"Questions\" ADD COLUMN \"InClassAssessmentId\" INTEGER NULL;";
+                alterCmd.ExecuteNonQuery();
+            }
+            if (!existingCols.Contains("HomeAssignmentId"))
+            {
+                using var alterCmd = conn.CreateCommand();
+                alterCmd.CommandText = "ALTER TABLE \"Questions\" ADD COLUMN \"HomeAssignmentId\" INTEGER NULL;";
+                alterCmd.ExecuteNonQuery();
+            }
+
+            // Create new LCMS tables (LCMS_BA_SPEC_FOR_DEVS.md Sections 3.3 - 3.10)
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = @"
+                    CREATE TABLE IF NOT EXISTS ""InClassAssessments"" (
+                        ""Id"" INTEGER NOT NULL CONSTRAINT ""PK_InClassAssessments"" PRIMARY KEY AUTOINCREMENT,
+                        ""SubjectId"" INTEGER NOT NULL,
+                        ""AssessmentOrder"" INTEGER NOT NULL,
+                        ""Title"" TEXT NOT NULL,
+                        ""AssessmentType"" TEXT NOT NULL DEFAULT 'Theory',
+                        ""DurationMinutes"" INTEGER NOT NULL DEFAULT 45,
+                        ""MaxScore"" REAL NOT NULL DEFAULT 10.0,
+                        ""WeightPercentage"" REAL NOT NULL DEFAULT 30.0,
+                        ""IsActive"" INTEGER NOT NULL DEFAULT 1,
+                        CONSTRAINT ""FK_InClassAssessments_Subjects_SubjectId"" FOREIGN KEY (""SubjectId"") REFERENCES ""Subjects"" (""Id"") ON DELETE CASCADE
+                    );
+                    CREATE UNIQUE INDEX IF NOT EXISTS ""IX_InClassAssessments_Subject_Order"" ON ""InClassAssessments"" (""SubjectId"", ""AssessmentOrder"");
+
+                    CREATE TABLE IF NOT EXISTS ""HomeAssignments"" (
+                        ""Id"" INTEGER NOT NULL CONSTRAINT ""PK_HomeAssignments"" PRIMARY KEY AUTOINCREMENT,
+                        ""SubjectId"" INTEGER NOT NULL,
+                        ""CourseClassId"" INTEGER NOT NULL,
+                        ""Title"" TEXT NOT NULL,
+                        ""Description"" TEXT NULL,
+                        ""Format"" TEXT NOT NULL DEFAULT 'Quiz',
+                        ""DeadlineUtc"" TEXT NOT NULL,
+                        ""PassThreshold"" REAL NOT NULL DEFAULT 60.0,
+                        ""MaxRetakeCount"" INTEGER NOT NULL DEFAULT 2,
+                        ""IsActive"" INTEGER NOT NULL DEFAULT 1,
+                        CONSTRAINT ""FK_HomeAssignments_Subjects_SubjectId"" FOREIGN KEY (""SubjectId"") REFERENCES ""Subjects"" (""Id"") ON DELETE CASCADE,
+                        CONSTRAINT ""FK_HomeAssignments_CourseClasses_CourseClassId"" FOREIGN KEY (""CourseClassId"") REFERENCES ""CourseClasses"" (""Id"") ON DELETE CASCADE
+                    );
+
+                    CREATE TABLE IF NOT EXISTS ""HomeSubmissions"" (
+                        ""Id"" INTEGER NOT NULL CONSTRAINT ""PK_HomeSubmissions"" PRIMARY KEY AUTOINCREMENT,
+                        ""HomeAssignmentId"" INTEGER NOT NULL,
+                        ""StudentCode"" TEXT NOT NULL,
+                        ""AttemptNumber"" INTEGER NOT NULL DEFAULT 1,
+                        ""Result"" TEXT NOT NULL DEFAULT 'Pending',
+                        ""RawPercent"" REAL NOT NULL DEFAULT 0.0,
+                        ""AnswerText"" TEXT NULL,
+                        ""FailReason"" TEXT NULL,
+                        ""Status"" TEXT NOT NULL DEFAULT 'Submitted',
+                        ""SubmittedAtUtc"" TEXT NOT NULL,
+                        ""LecturerNote"" TEXT NULL,
+                        CONSTRAINT ""FK_HomeSubmissions_HomeAssignments_HomeAssignmentId"" FOREIGN KEY (""HomeAssignmentId"") REFERENCES ""HomeAssignments"" (""Id"") ON DELETE CASCADE
+                    );
+                    CREATE TABLE IF NOT EXISTS ""ExamRoomSessions"" (
+                        ""Id"" INTEGER NOT NULL CONSTRAINT ""PK_ExamRoomSessions"" PRIMARY KEY AUTOINCREMENT,
+                        ""InClassAssessmentId"" INTEGER NOT NULL,
+                        ""CourseClassId"" INTEGER NOT NULL,
+                        ""SessionOtp"" TEXT NOT NULL,
+                        ""OtpExpiresAtUtc"" TEXT NOT NULL,
+                        ""AllowedIpSubnet"" TEXT NOT NULL DEFAULT 'ANY',
+                        ""Status"" TEXT NOT NULL DEFAULT 'Draft',
+                        ""PublishedAtUtc"" TEXT NULL,
+                        ""ClosedAtUtc"" TEXT NULL,
+                        CONSTRAINT ""FK_ExamRoomSessions_InClassAssessments_InClassAssessmentId"" FOREIGN KEY (""InClassAssessmentId"") REFERENCES ""InClassAssessments"" (""Id"") ON DELETE CASCADE,
+                        CONSTRAINT ""FK_ExamRoomSessions_CourseClasses_CourseClassId"" FOREIGN KEY (""CourseClassId"") REFERENCES ""CourseClasses"" (""Id"") ON DELETE CASCADE
+                    );
+
+                    CREATE TABLE IF NOT EXISTS ""ExamRoomJoins"" (
+                        ""Id"" INTEGER NOT NULL CONSTRAINT ""PK_ExamRoomJoins"" PRIMARY KEY AUTOINCREMENT,
+                        ""ExamRoomSessionId"" INTEGER NOT NULL,
+                        ""StudentCode"" TEXT NOT NULL,
+                        ""JoinedAtUtc"" TEXT NOT NULL,
+                        ""ClientIp"" TEXT NOT NULL,
+                        ""FailedOtpCount"" INTEGER NOT NULL DEFAULT 0,
+                        ""LockedUntilUtc"" TEXT NULL,
+                        ""IsAuthorized"" INTEGER NOT NULL DEFAULT 0,
+                        CONSTRAINT ""FK_ExamRoomJoins_ExamRoomSessions_ExamRoomSessionId"" FOREIGN KEY (""ExamRoomSessionId"") REFERENCES ""ExamRoomSessions"" (""Id"") ON DELETE CASCADE
+                    );
+                    CREATE UNIQUE INDEX IF NOT EXISTS ""IX_ExamRoomJoins_Session_Student"" ON ""ExamRoomJoins"" (""ExamRoomSessionId"", ""StudentCode"");
+
+                    CREATE TABLE IF NOT EXISTS ""CodeSubmissions"" (
+                        ""Id"" INTEGER NOT NULL CONSTRAINT ""PK_CodeSubmissions"" PRIMARY KEY AUTOINCREMENT,
+                        ""ExamRoomSessionId"" INTEGER NOT NULL,
+                        ""StudentCode"" TEXT NOT NULL,
+                        ""StoredPath"" TEXT NOT NULL,
+                        ""OriginalFileName"" TEXT NOT NULL,
+                        ""FileSize"" INTEGER NOT NULL DEFAULT 0,
+                        ""Language"" TEXT NOT NULL DEFAULT 'CSharp',
+                        ""Status"" TEXT NOT NULL DEFAULT 'PendingGrading',
+                        ""AiSuggestedScore"" REAL NULL,
+                        ""AiFeedback"" TEXT NULL,
+                        ""Score"" REAL NULL,
+                        ""FeedbackReport"" TEXT NULL,
+                        ""GradedAtUtc"" TEXT NULL,
+                        CONSTRAINT ""FK_CodeSubmissions_ExamRoomSessions_ExamRoomSessionId"" FOREIGN KEY (""ExamRoomSessionId"") REFERENCES ""ExamRoomSessions"" (""Id"") ON DELETE CASCADE
+                    );
+
+                    CREATE TABLE IF NOT EXISTS ""RubricCriteria"" (
+                        ""Id"" INTEGER NOT NULL CONSTRAINT ""PK_RubricCriteria"" PRIMARY KEY AUTOINCREMENT,
+                        ""InClassAssessmentId"" INTEGER NULL,
+                        ""HomeAssignmentId"" INTEGER NULL,
+                        ""Title"" TEXT NOT NULL,
+                        ""Points"" REAL NOT NULL,
+                        ""SortOrder"" INTEGER NOT NULL DEFAULT 0,
+                        CONSTRAINT ""FK_RubricCriteria_InClassAssessments"" FOREIGN KEY (""InClassAssessmentId"") REFERENCES ""InClassAssessments"" (""Id"") ON DELETE CASCADE,
+                        CONSTRAINT ""FK_RubricCriteria_HomeAssignments"" FOREIGN KEY (""HomeAssignmentId"") REFERENCES ""HomeAssignments"" (""Id"") ON DELETE CASCADE
+                    );
+
+                    CREATE TABLE IF NOT EXISTS ""EligibilityOverrides"" (
+                        ""Id"" INTEGER NOT NULL CONSTRAINT ""PK_EligibilityOverrides"" PRIMARY KEY AUTOINCREMENT,
+                        ""CourseClassId"" INTEGER NOT NULL,
+                        ""StudentCode"" TEXT NOT NULL,
+                        ""Decision"" TEXT NOT NULL DEFAULT 'Allow',
+                        ""Reason"" TEXT NOT NULL,
+                        ""DecidedByEmail"" TEXT NOT NULL,
+                        ""DecidedAtUtc"" TEXT NOT NULL,
+                        CONSTRAINT ""FK_EligibilityOverrides_CourseClasses"" FOREIGN KEY (""CourseClassId"") REFERENCES ""CourseClasses"" (""Id"") ON DELETE CASCADE
+                    );
+                    CREATE UNIQUE INDEX IF NOT EXISTS ""IX_EligibilityOverrides_Class_Student"" ON ""EligibilityOverrides"" (""CourseClassId"", ""StudentCode"");
+                ";
+                cmd.ExecuteNonQuery();
+            }
+
+            // Safe additive SQLite migrations for existing databases; never trust older OTP failures as joins.
+            foreach (var (table, column, definition) in new[]
+            {
+                ("HomeSubmissions", "AnswerText", "TEXT NULL"),
+                ("ExamRoomJoins", "IsAuthorized", "INTEGER NOT NULL DEFAULT 0")
+            })
+            {
+                var columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                using (var inspect = conn.CreateCommand())
+                {
+                    inspect.CommandText = $"PRAGMA table_info(\"{table}\");";
+                    using var reader = inspect.ExecuteReader();
+                    while (reader.Read()) columns.Add(reader.GetString(1));
+                }
+                if (!columns.Contains(column))
+                {
+                    using var alter = conn.CreateCommand();
+                    alter.CommandText = $"ALTER TABLE \"{table}\" ADD COLUMN \"{column}\" {definition};";
+                    alter.ExecuteNonQuery();
+                }
             }
 
             // Create CourseClasses table if not exists
@@ -311,11 +680,19 @@ using (var scope = app.Services.CreateScope())
                 ";
                 cmd.ExecuteNonQuery();
             }
-        }
-        catch { }
 
-        // Seed default course classes if empty
-        if (!db.CourseClasses.Any())
+            // EnsureCreated only builds indexes for a new DB. Upgrade older SQLite DBs in place,
+            // after all additive column/table migrations have completed.
+            SqlitePerformanceIndexes.EnsureCreated(conn);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"SQLite startup migration failed: {ex}");
+            throw;
+        }
+
+        // Demo enrollments must never be provisioned in a production database.
+        if (app.Environment.IsDevelopment() && !db.CourseClasses.Any())
         {
             var c1 = new backend_api.Models.CourseClass
             {
@@ -384,14 +761,31 @@ using (var scope = app.Services.CreateScope())
             }
         }
 
-        // Seed default user accounts if empty
-        if (!db.Users.Any())
+        // Provision missing demo identities on developer workstations, including older databases.
+        if (app.Environment.IsDevelopment())
         {
-            db.Users.AddRange(
+            var demoAccounts = new[]
+            {
                 new backend_api.Models.UserAccount
                 {
                     Email = "gv_nguyenvana@ictu.edu.vn",
                     FullName = "TS. Nguyễn Văn A (Giảng viên)",
+                    Role = "Lecturer",
+                    AuthProvider = "Google",
+                    Department = "Khoa Công nghệ Thông tin - ICTU"
+                },
+                new backend_api.Models.UserAccount
+                {
+                    Email = "gv_lethib@ictu.edu.vn",
+                    FullName = "ThS. Lê Thị B",
+                    Role = "Lecturer",
+                    AuthProvider = "Google",
+                    Department = "Khoa Công nghệ Thông tin - ICTU"
+                },
+                new backend_api.Models.UserAccount
+                {
+                    Email = "gv_tranvanc@ictu.edu.vn",
+                    FullName = "TS. Trần Văn C",
                     Role = "Lecturer",
                     AuthProvider = "Google",
                     Department = "Khoa Công nghệ Thông tin - ICTU"
@@ -414,8 +808,15 @@ using (var scope = app.Services.CreateScope())
                     AuthProvider = "Microsoft",
                     Department = "Lớp K20-CNTT"
                 }
-            );
-            db.SaveChanges();
+            };
+            var existingEmails = db.Users.Select(u => u.Email.ToUpper()).ToHashSet();
+            var missingAccounts = demoAccounts
+                .Where(u => !existingEmails.Contains(u.Email.ToUpperInvariant())).ToList();
+            if (missingAccounts.Count > 0)
+            {
+                db.Users.AddRange(missingAccounts);
+                db.SaveChanges();
+            }
         }
     }
     catch (Exception ex)
@@ -429,6 +830,7 @@ app.UseDefaultFiles();
 app.UseStaticFiles();
 
 app.UseRouting();
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
@@ -441,4 +843,8 @@ Console.WriteLine($" Database: {Path.GetFullPath(dbPath)}");
 Console.WriteLine(" SignalR Hub: /examHub                           ");
 Console.WriteLine("=================================================");
 
-app.Run("http://0.0.0.0:5000");
+// Keep the local Development default while honoring explicit test/deployment bindings.
+if (app.Environment.IsDevelopment() &&
+    string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("ASPNETCORE_URLS")))
+    app.Run("http://127.0.0.1:5000");
+else app.Run();

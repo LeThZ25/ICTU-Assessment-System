@@ -2,6 +2,10 @@ using System;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using backend_api.Data;
@@ -14,15 +18,70 @@ namespace backend_api.Controllers
     public class AuthController : ControllerBase
     {
         private readonly ApplicationDbContext _db;
+        private readonly IWebHostEnvironment _environment;
 
-        public AuthController(ApplicationDbContext db)
+        public AuthController(ApplicationDbContext db, IWebHostEnvironment environment)
         {
             _db = db;
+            _environment = environment;
+        }
+
+        private bool IsLocalDevelopment => _environment.IsDevelopment() &&
+            (HttpContext.Connection.RemoteIpAddress is { } ip && System.Net.IPAddress.IsLoopback(ip));
+
+        [Authorize]
+        [HttpGet("session")]
+        public IActionResult Session() => Ok(new { success = true, user = new {
+            email = User.FindFirstValue(ClaimTypes.Email),
+            fullName = User.FindFirstValue(ClaimTypes.Name),
+            role = User.FindFirstValue(ClaimTypes.Role),
+            studentCode = User.FindFirstValue("StudentCode")
+        }});
+
+        [Authorize]
+        [HttpPost("logout")]
+        public async Task<IActionResult> Logout()
+        {
+            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            return Ok(new { success = true });
+        }
+
+        /// <summary>Only provisioned users may sign in through a real identity provider.</summary>
+        [HttpGet("sso/{provider}")]
+        public IActionResult StartSso(string provider, [FromServices] IConfiguration configuration)
+        {
+            var scheme = provider.ToLowerInvariant() switch
+            {
+                "google" => "Google",
+                "microsoft" => "Microsoft",
+                _ => null
+            };
+            if (scheme == null) return NotFound();
+            var section = configuration.GetSection($"Authentication:{scheme}");
+            if (string.IsNullOrWhiteSpace(section["ClientId"]) ||
+                string.IsNullOrWhiteSpace(section["ClientSecret"]) ||
+                (scheme == "Google" && !Regex.IsMatch(section["ClientId"]!,
+                    @"^\d+-[a-z0-9]+\.apps\.googleusercontent\.com$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)) ||
+                (scheme == "Microsoft" && (!Guid.TryParse(section["TenantId"], out _) ||
+                    !Guid.TryParse(section["ClientId"], out _))))
+                return StatusCode(503, new { success = false, code = "SSO_NOT_CONFIGURED",
+                    message = "Quản trị viên chưa cấu hình thông tin SSO cho cổng đăng nhập." });
+
+            // Fixed destinations: do not accept arbitrary return URLs from a request.
+            var destination = scheme == "Google" ? "/index.html" : "/student_web.html";
+            if (scheme == "Google" && Request.Query["portal"] == "student")
+                destination = "/student_web.html";
+            return Challenge(new AuthenticationProperties { RedirectUri = destination }, scheme);
         }
 
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequestDto dto)
         {
+            // Email-only login is a development demo, never a production identity check.
+            if (!IsLocalDevelopment)
+                return StatusCode(403, new { success = false, message = "Đăng nhập demo chỉ khả dụng khi chạy Development trên localhost. Cần cấu hình SSO thực cho môi trường triển khai." });
+            if (dto == null)
+                return BadRequest(new { success = false, message = "Thiếu dữ liệu đăng nhập." });
             if (string.IsNullOrWhiteSpace(dto.Email))
             {
                 return BadRequest(new { Success = false, Message = "Vui lòng nhập Email hoặc Mã sinh viên." });
@@ -31,7 +90,6 @@ namespace backend_api.Controllers
             string input = dto.Email.Trim().ToLower();
             string email = input;
             string role = "Student";
-            string authProvider = "Google";
             string? studentCode = null;
             string fullName = dto.FullName?.Trim() ?? "";
 
@@ -41,19 +99,16 @@ namespace backend_api.Controllers
                 studentCode = input.ToUpper();
                 email = $"{input}@ictu.edu.vn";
                 role = "Student";
-                authProvider = "Google";
             }
             // Domain 1: Microsoft Office 365 (@ms.ictu.edu.vn)
             else if (input.EndsWith("@ms.ictu.edu.vn"))
             {
-                authProvider = "Microsoft";
                 role = "Student";
                 studentCode = input.Replace("@ms.ictu.edu.vn", "").ToUpper();
             }
             // Domain 2: Google Workspace (@ictu.edu.vn)
             else if (input.EndsWith("@ictu.edu.vn"))
             {
-                authProvider = "Google";
                 string prefix = input.Replace("@ictu.edu.vn", "");
 
                 // Lecturer pattern detection: begins with "gv" or doesn't have numeric student ID
@@ -100,46 +155,45 @@ namespace backend_api.Controllers
                 }
             }
 
-            // Find or create UserAccount
-            var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email);
-            if (user == null)
-            {
-                user = new UserAccount
-                {
-                    Email = email,
-                    FullName = string.IsNullOrEmpty(fullName) ? (studentCode != null ? $"Sinh viên {studentCode}" : email) : fullName,
-                    Role = role,
-                    StudentCode = studentCode,
-                    AuthProvider = authProvider,
-                    Department = role == "Lecturer" ? "Khoa Công nghệ Thông tin - ICTU" : "Khoa CNTT (Lớp K20)",
-                    CreatedAt = DateTime.UtcNow
-                };
-                _db.Users.Add(user);
+            // Demo accounts must be provisioned in advance. An arbitrary email cannot
+            // create a student identity and gain access to assigned assessments.
+            var emailKey = email.Trim().ToUpperInvariant();
+            var matchingUsers = await _db.Users
+                .Where(u => u.Email.Trim().ToUpper() == emailKey)
+                .Take(2).ToListAsync();
+            // Duplicate identities differing only by case must never select an arbitrary role.
+            if (matchingUsers.Count != 1)
+                return StatusCode(403, new { success = false, message = "Tài khoản chưa được cấp quyền trong hệ thống." });
+            var user = matchingUsers[0];
+            if (user.Role != role)
+                return StatusCode(403, new { success = false, message = "Vai trò tài khoản không khớp với cổng đăng nhập." });
+            if (role == "Student" &&
+                (string.IsNullOrWhiteSpace(user.StudentCode) ||
+                 !string.Equals(user.StudentCode.Trim(), studentCode, StringComparison.OrdinalIgnoreCase)))
+                return StatusCode(403, new { success = false, message = "Định danh sinh viên không khớp với hồ sơ tài khoản." });
+            // Do not grant lecturer privileges from an email pattern alone.
+            if (role == "Lecturer" && user.Role != "Lecturer")
+                return StatusCode(403, new { success = false, message = "Tài khoản giảng viên demo chưa được cấp quyền trong hệ thống." });
+            if (dto.RequireLecturer && user.Role != "Lecturer")
+                return Forbid();
+            if (role == "Student" && !await _db.Students.AnyAsync(s =>
+                    s.StudentCode.Trim().ToUpper() == studentCode))
+                return StatusCode(403, new { success = false, message = "Sinh viên chưa có hồ sơ được cấp phép." });
 
-                // If student, also ensure Student record exists
-                if (studentCode != null)
-                {
-                    var existingStudent = await _db.Students.FirstOrDefaultAsync(s => s.StudentCode == studentCode);
-                    if (existingStudent == null)
-                    {
-                        _db.Students.Add(new Student
-                        {
-                            StudentCode = studentCode,
-                            FullName = user.FullName,
-                            ClassCode = "K20-CNTT"
-                        });
-                    }
-                }
-                await _db.SaveChangesAsync();
-            }
-
-            // Mock signed token (compact JWT style)
-            string token = $"ictu_jwt_{Guid.NewGuid():N}_{user.Role.ToLower()}";
+            var claims = new System.Collections.Generic.List<Claim> {
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new Claim(ClaimTypes.Email, user.Email),
+                new Claim(ClaimTypes.Name, user.FullName),
+                new Claim(ClaimTypes.Role, user.Role)
+            };
+            if (user.Role == "Student" && !string.IsNullOrWhiteSpace(user.StudentCode))
+                claims.Add(new Claim("StudentCode", user.StudentCode.Trim().ToUpperInvariant()));
+            await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
+                new ClaimsPrincipal(new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme)));
 
             return Ok(new
             {
                 Success = true,
-                Token = token,
                 User = new
                 {
                     user.Id,
@@ -156,6 +210,7 @@ namespace backend_api.Controllers
         [HttpPost("sso-mock")]
         public async Task<IActionResult> SsoMock([FromBody] SsoMockDto dto)
         {
+            if (!IsLocalDevelopment) return NotFound();
             if (dto == null || string.IsNullOrWhiteSpace(dto.Provider))
             {
                 return BadRequest(new { success = false, message = "Vui lòng chọn cổng đăng nhập (Google hoặc Microsoft)." });
@@ -190,6 +245,7 @@ namespace backend_api.Controllers
         [HttpGet("sample-accounts")]
         public IActionResult GetSampleAccounts()
         {
+            if (!IsLocalDevelopment) return NotFound();
             return Ok(new[]
             {
                 new { Type = "Sinh viên (Google)", Email = "dtc205122001@ictu.edu.vn", Provider = "Google Workspace", Role = "Student" },
