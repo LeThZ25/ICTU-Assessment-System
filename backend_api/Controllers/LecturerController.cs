@@ -387,7 +387,8 @@ namespace backend_api.Controllers
         }
 
         [HttpPost("generate-questions")]
-        public async Task<IActionResult> GenerateQuestions([FromBody] GenerateMatrixDto dto)
+        public async Task<IActionResult> GenerateQuestions([FromBody] GenerateMatrixDto dto,
+            [FromServices] IModule3Client module3)
         {
             if (!await CanManageSubject(dto.SubjectId)) return Forbid();
             var subject = await _db.Subjects.FindAsync(dto.SubjectId);
@@ -395,7 +396,22 @@ namespace backend_api.Controllers
                 return NotFound(new { success = false, message = "Môn học không tồn tại." });
 
             List<AiGeneratedQuestion> questions = new();
+            var source = "fallback";
+            string? aiWarning = null;
 
+            // 1. Module 3 exam matrix: reference documents when chosen, otherwise the course information only.
+            var module3Result = await TryGenerateWithModule3Async(subject, dto, module3);
+            if (module3Result.Questions.Count > 0)
+            {
+                questions.AddRange(module3Result.Questions);
+                source = module3Result.Grounded ? "module3_documents" : "module3_course";
+            }
+            else
+            {
+                aiWarning = module3Result.Error;
+            }
+
+            if (questions.Count == 0 && dto.NumMcq + dto.NumEssay > 0)
             try
             {
                 var aiRes = await _aiClient.GenerateQuestionsAsync(
@@ -409,6 +425,7 @@ namespace backend_api.Controllers
                 if (aiRes != null && aiRes.Questions != null && aiRes.Questions.Count > 0)
                 {
                     questions.AddRange(aiRes.Questions);
+                    source = "legacy_ai";
                 }
             }
             catch (Exception ex)
@@ -424,6 +441,7 @@ namespace backend_api.Controllers
                 if (questions.Count == 0)
                 {
                     questions = fallbackQuestions;
+                    source = "template";
                 }
                 else
                 {
@@ -433,11 +451,24 @@ namespace backend_api.Controllers
                 }
             }
 
+            // The studio UI edits options / barem through `options` and `rubric`.
+            foreach (var q in questions)
+            {
+                if (q.Type == "mcq" && q.Options == null)
+                    q.Options = new List<string?> { q.Option_A, q.Option_B, q.Option_C, q.Option_D }
+                        .Where(o => o != null).Select(o => o!).ToList();
+                q.Rubric ??= q.Key_Points;
+            }
+
             return Ok(new
             {
                 Success = true,
                 SubjectName = subject.Name,
                 Total = questions.Count,
+                Source = source,
+                AiWarning = source == "template"
+                    ? $"Dịch vụ AI không phản hồi, đây là câu hỏi mẫu từ ngân hàng nội bộ. {aiWarning}".Trim()
+                    : null,
                 Questions = questions
             });
         }
@@ -2332,6 +2363,8 @@ namespace backend_api.Controllers
         public string? TopicFocus { get; set; }
         public string? CloDistribution { get; set; }
         public string? BloomDistribution { get; set; }
+        /// <summary>Local AcademicDocument ids used as reference material (empty = course information only).</summary>
+        public List<int>? DocumentIds { get; set; }
     }
 
     public class ApproveQuestionsDto

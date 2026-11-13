@@ -28,6 +28,7 @@
       btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Đang phân tích ma trận CLO...`;
 
       try {
+        const documentIds = Array.from(document.querySelectorAll('.matrix-doc:checked')).map(el => Number(el.value)).slice(0, 5);
         const payload = {
           subjectId,
           courseClassId,
@@ -35,6 +36,7 @@
           numEssay,
           numCode,
           difficulty,
+          documentIds,
           topicFocus: topicFocus || null,
           cloDistribution: clos.length ? clos.join(', ') : 'CLO1, CLO2'
         };
@@ -50,6 +52,17 @@
         if (data.success) {
           tempGeneratedQuestions = data.questions || [];
           renderGeneratedQuestions(tempGeneratedQuestions);
+          const note = document.getElementById('matrixSourceNote');
+          if (note) {
+            const labels = {
+              module3_documents: 'Câu hỏi do AI sinh, bám theo tài liệu đã chọn.',
+              module3_course: 'Câu hỏi do AI sinh từ thông tin học phần (không có tài liệu): kiểm tra kỹ nội dung trước khi lưu.',
+              legacy_ai: 'Câu hỏi do AI dự phòng sinh.',
+              template: data.aiWarning || 'Dịch vụ AI không phản hồi, đây là câu hỏi mẫu nội bộ.'
+            };
+            note.textContent = labels[data.source] || '';
+            note.className = `text-xs mt-1 ${data.source === 'template' || data.source === 'module3_course' ? 'text-amber-700' : 'text-emerald-700'}`;
+          }
         } else {
           alert("Lỗi tạo câu hỏi: " + (data.message || "Không xác định"));
         }
@@ -194,10 +207,20 @@
       btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1.5"></i> Đang lưu...`;
 
       try {
+        // Map the UI edit fields (options / rubric) back to the fields the approval endpoint stores.
+        const questions = tempGeneratedQuestions.map(q => {
+          const out = { ...q };
+          if (Array.isArray(q.options)) {
+            ['option_A', 'option_B', 'option_C', 'option_D'].forEach((k, i) => { if (q.options[i] != null) out[k] = q.options[i]; });
+          }
+          if (q.correct_option && !q.correct_Option) out.correct_Option = q.correct_option;
+          if (q.type === 'essay' && q.rubric) out.key_Points = q.rubric;
+          return out;
+        });
         const res = await fetch("/api/lecturer/approve-questions", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ subjectId, courseClassId, questions: tempGeneratedQuestions })
+          body: JSON.stringify({ subjectId, courseClassId, questions })
         });
         const data = await res.json();
         if (data.success) {
@@ -389,6 +412,27 @@
       const drawer = document.getElementById('studioMatrixDrawer');
       if (!drawer) return;
       drawer.classList.toggle('hidden');
+      if (!drawer.classList.contains('hidden')) loadMatrixSourceDocuments();
+    }
+
+    // Reference documents for AI question generation (none selected = course information only).
+    async function loadMatrixSourceDocuments() {
+      const box = document.getElementById('matrixDocBox');
+      const subjectId = parseInt(document.getElementById('matrixSubjectSelect')?.value);
+      if (!box) return;
+      if (!subjectId) { box.textContent = 'Chọn học phần trước.'; return; }
+      box.textContent = 'Đang tải tài liệu...';
+      try {
+        const res = await fetch(`/api/lecturer/subjects/${subjectId}/documents`);
+        const docs = res.ok ? await res.json() : [];
+        const usable = (Array.isArray(docs) ? docs : []).filter(d => d.aiReady || d.aiUploadable);
+        const esc = s => String(s ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
+        box.innerHTML = usable.length
+          ? usable.map(d => `<label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="matrix-doc w-3.5 h-3.5" value="${Number(d.id)}"> ${esc(d.filename)}</label>`).join('')
+          : '<span class="text-slate-500">Học phần chưa có tài liệu PDF/DOCX (tải lên ở tab Tài liệu).</span>';
+      } catch (err) {
+        box.textContent = 'Không tải được tài liệu: ' + err.message;
+      }
     }
 
     function onStudioSubjectChanged(subId) {
@@ -408,6 +452,7 @@
       // Sync legacy hidden inputs
       const mSub = document.getElementById('matrixSubjectSelect');
       if (mSub) mSub.value = subId;
+      if (!document.getElementById('studioMatrixDrawer')?.classList.contains('hidden')) loadMatrixSourceDocuments();
     }
 
     function onStudioClassChanged(classId) {

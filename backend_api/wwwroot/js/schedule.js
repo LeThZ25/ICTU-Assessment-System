@@ -155,20 +155,51 @@ async function loadHomeSubmissions(assignmentId) {
     const data = await response.json();
     if (!response.ok) throw new Error(data.message || 'Không thể tải bài nộp.');
     const submissions = data.submissions || [];
-    if (!submissions.length) { panel.textContent = 'Chưa có sinh viên nộp bài.'; return; }
-    panel.innerHTML = submissions.map(s => `
+    const aiBar = data.hasApprovedRubric
+      ? `<div class="flex flex-wrap items-center gap-2 p-2 bg-indigo-50 border border-indigo-200 rounded-lg">
+           <span class="text-indigo-900 font-semibold"><i class="fa-solid fa-robot mr-1"></i>Có rubric AI đã duyệt: bài nộp mới được AI chấm Đạt/Không đạt tự động, bài bị gắn cờ sẽ chờ giảng viên xem lại.</span>
+           <button type="button" data-home-ai-all class="px-2 py-1 bg-indigo-600 text-white rounded">AI chấm tất cả bài đang chờ</button>
+         </div>`
+      : `<div class="p-2 bg-slate-50 border border-dashed rounded-lg text-slate-500">Chưa có rubric AI đã duyệt cho bài này (tạo ở tab Tài liệu → Rubric AI). Bài nộp sẽ chờ giảng viên chấm tay.</div>`;
+    if (!submissions.length) { panel.innerHTML = aiBar + '<p>Chưa có sinh viên nộp bài.</p>'; bindHomeAiAll(panel, assignmentId); return; }
+    panel.innerHTML = aiBar + submissions.map(s => `
       <div class="p-3 bg-slate-50 border rounded-lg space-y-2">
-        <p class="font-semibold">${escapeScheduleHtml(s.studentCode)} · Lần ${Number(s.attemptNumber)} · ${escapeScheduleHtml(s.result)} · ${escapeScheduleHtml(s.status)}</p>
+        <p class="font-semibold">${escapeScheduleHtml(s.studentCode)} · Lần ${Number(s.attemptNumber)} · ${escapeScheduleHtml(s.result)} · ${escapeScheduleHtml(s.status)}
+          ${s.gradedBy === 'AI' ? '<span class="ml-1 px-1.5 py-0.5 bg-indigo-100 text-indigo-800 rounded text-[10px]">AI chấm</span>' : ''}
+          ${s.gradedBy === 'Lecturer' ? '<span class="ml-1 px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded text-[10px]">GV chấm</span>' : ''}</p>
         <p class="whitespace-pre-wrap max-h-36 overflow-y-auto">${escapeScheduleHtml(s.answerText || 'Không có nội dung bài làm.')}</p>
+        ${s.aiError && s.result === 'Pending' ? `<p class="text-rose-700">AI chưa chấm được: ${escapeScheduleHtml(s.aiError)}</p>` : ''}
+        ${s.aiFlags && s.result === 'Pending' ? `
+          <div class="p-2 bg-amber-50 border border-amber-300 rounded space-y-1">
+            <p class="text-amber-900"><i class="fa-solid fa-flag mr-1"></i><b>Cần xem lại:</b> AI đề xuất <b>${s.aiSuggestedResult === 'Pass' ? 'Đạt' : 'Không đạt'}</b> nhưng bài bị gắn cờ: ${escapeScheduleHtml(homeAiFlagLabels(s.aiFlags))}</p>
+            <div class="flex flex-wrap gap-2">
+              <button type="button" data-home-confirm-ai="${Number(s.id)}" data-result="${escapeScheduleHtml(s.aiSuggestedResult || '')}" class="px-2 py-1 bg-amber-600 text-white rounded">Chốt theo AI (${s.aiSuggestedResult === 'Pass' ? 'Đạt' : 'Không đạt'})</button>
+              <button type="button" data-home-confirm-ai="${Number(s.id)}" data-result="${s.aiSuggestedResult === 'Pass' ? 'Fail' : 'Pass'}" class="px-2 py-1 bg-white border rounded">Đổi thành ${s.aiSuggestedResult === 'Pass' ? 'Không đạt' : 'Đạt'}</button>
+            </div>
+          </div>` : ''}
+        ${s.aiFeedback ? `<p class="text-indigo-900"><b>Nhận xét AI:</b> ${escapeScheduleHtml(s.aiFeedback)}</p>` : ''}
+        ${renderHomeAiCriteria(s.aiCriteriaJson)}
         ${s.result === 'Pending' && s.status === 'Submitted' ? `
           <div class="flex flex-wrap gap-2 items-center">
+            ${data.hasApprovedRubric ? `<button type="button" data-home-ai="${Number(s.id)}" class="px-2 py-1 bg-indigo-100 text-indigo-900 rounded">AI chấm ngay</button>` : ''}
             <input type="number" data-home-percent min="0" max="100" step="0.1" placeholder="Điểm %" class="w-24 border rounded p-1">
             <input data-home-note placeholder="Nhận xét" class="border rounded p-1 flex-1">
             <button type="button" data-home-grade="${Number(s.id)}" class="px-2 py-1 bg-emerald-100 text-emerald-900 rounded">Chấm bài</button>
           </div>` : ''}
         ${s.status === 'RetakeRequested' ? `<button type="button" data-home-retake="${Number(s.id)}" class="px-2 py-1 bg-amber-100 rounded">Duyệt làm lại</button>` : ''}
-        ${s.result !== 'Pending' ? `<p>Điểm ${Number(s.rawPercent)}% · ${escapeScheduleHtml(s.lecturerNote || '')}</p>` : ''}
+        ${s.result !== 'Pending' ? `<p>${s.gradedBy === 'AI' ? `Tiêu chí đạt ${Number(s.rawPercent)}% (chỉ GV thấy)` : `Điểm ${Number(s.rawPercent)}%`} · ${escapeScheduleHtml(s.lecturerNote || '')}</p>` : ''}
       </div>`).join('');
+    bindHomeAiAll(panel, assignmentId);
+    panel.querySelectorAll('[data-home-ai]').forEach(button => button.addEventListener('click', async () => {
+      button.disabled = true;
+      button.textContent = 'AI đang chấm...';
+      await updateHomeSubmission(assignmentId, Number(button.dataset.homeAi), 'grade-by-ai');
+    }));
+    panel.querySelectorAll('[data-home-confirm-ai]').forEach(button => button.addEventListener('click', async () => {
+      const card = button.closest('.border.rounded-lg');
+      await updateHomeSubmission(assignmentId, Number(button.dataset.homeConfirmAi), 'confirm-ai',
+        { result: button.dataset.result, note: card?.querySelector('[data-home-note]')?.value || null });
+    }));
     panel.querySelectorAll('[data-home-grade]').forEach(button => button.addEventListener('click', async () => {
       const card = button.closest('.border.rounded-lg');
       const field = card.querySelector('[data-home-percent]');
@@ -186,6 +217,49 @@ async function loadHomeSubmissions(assignmentId) {
   } catch (error) {
     panel.textContent = `Lỗi tải bài nộp: ${error.message}`;
   }
+}
+
+// Per-criterion AI result (homework: met / not met + reason), lecturer view only.
+const HOME_AI_FLAG_LABELS = {
+  injection_suspected: 'nghi cố tình điều khiển AI chấm',
+  unreadable: 'không đọc được nội dung',
+  truncated: 'bài quá dài, AI chỉ đọc một phần',
+  grading_error: 'lỗi hệ thống khi chấm',
+  diagram_present: 'có hình vẽ cần chấm tay',
+  no_valid_files: 'không có tệp hợp lệ',
+  not_executed: 'chưa chạy được bài kiểm thử',
+  needs_review: 'AI yêu cầu xem lại'
+};
+function homeAiFlagLabels(raw) {
+  return String(raw || '').split(',').map(f => f.trim()).filter(Boolean)
+    .map(f => HOME_AI_FLAG_LABELS[f] || f).join(', ');
+}
+
+function renderHomeAiCriteria(raw) {
+  let items = [];
+  try { items = raw ? JSON.parse(raw) : []; } catch (_) { items = []; }
+  if (!Array.isArray(items) || !items.length) return '';
+  return `<ul class="space-y-1">${items.map(c => `
+    <li class="flex gap-2"><span class="${c.met ? 'text-emerald-700' : 'text-rose-700'} font-bold">${c.met ? '✓' : '✗'}</span>
+      <span><b>${escapeScheduleHtml(c.name || c.criterion_id)}</b> (${escapeScheduleHtml(c.level || '')}): ${escapeScheduleHtml(c.reason || '')}</span></li>`).join('')}</ul>`;
+}
+
+function bindHomeAiAll(panel, assignmentId) {
+  const button = panel.querySelector('[data-home-ai-all]');
+  if (!button) return;
+  button.addEventListener('click', async () => {
+    button.disabled = true;
+    try {
+      const response = await fetch(`/api/lecturer/home-assignments/${assignmentId}/grade-pending-by-ai`, { method: 'POST' });
+      const data = await response.json();
+      if (!response.ok || data.success === false) throw new Error(data.message || 'Không gửi được yêu cầu.');
+      alert(`${data.message} Bấm "Xem bài nộp" lại sau ít phút để xem kết quả.`);
+    } catch (error) {
+      alert(`Không gửi được yêu cầu AI chấm: ${error.message}`);
+    } finally {
+      button.disabled = false;
+    }
+  });
 }
 
 async function updateHomeSubmission(assignmentId, submissionId, action, body) {

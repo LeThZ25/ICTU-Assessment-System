@@ -276,6 +276,15 @@ namespace backend_api.Models
         public string Status { get; set; } = "Submitted"; // Submitted, RetakeRequested, RetakeApproved
         public DateTime SubmittedAtUtc { get; set; } = DateTime.UtcNow;
         public string? LecturerNote { get; set; }
+
+        // AI grading (Module 3). Homework is graded PASS/FAIL. A flagged result (suspected cheating, unreadable...)
+        // is NOT final: it stays Pending with the AI suggestion until the lecturer reviews it.
+        public string? GradedBy { get; set; } // null (not graded), "Lecturer", "AI"
+        public string? AiFeedback { get; set; }
+        public string? AiCriteriaJson { get; set; } // per-criterion met / reason, for the lecturer
+        public string? AiError { get; set; } // last AI grading failure (lecturer-facing only)
+        public string? AiSuggestedResult { get; set; } // "Pass" / "Fail" suggested by AI (also kept when flagged)
+        public string? AiFlags { get; set; } // comma-separated review flags from Module 3
     }
 
     public class ExamRoomSession
@@ -325,6 +334,34 @@ namespace backend_api.Models
         public double? Score { get; set; }
         public string? FeedbackReport { get; set; }
         public DateTime? GradedAtUtc { get; set; }
+
+        // AI rubric grading details (suggestion only; the lecturer confirms the score).
+        public string? AiCriteriaJson { get; set; }
+        public string? AiFlags { get; set; }
+    }
+
+    /// <summary>
+    /// Analytic rubric produced by Module 3 (criteria x levels), stored in Module 3's JSON schema.
+    /// Exactly one of InClassAssessmentId / HomeAssignmentId is set. Only an Approved rubric is used for grading.
+    /// </summary>
+    public class AiRubric
+    {
+        public int Id { get; set; }
+        public int SubjectId { get; set; }
+        public int? InClassAssessmentId { get; set; }
+        public int? HomeAssignmentId { get; set; }
+        public string AssessmentContext { get; set; } = "homework"; // homework, in_class
+        public string QuestionText { get; set; } = string.Empty;
+        public string ExpectedAnswer { get; set; } = string.Empty;
+        public string RubricJson { get; set; } = "{}";
+        public string Status { get; set; } = "Draft"; // Draft, Approved
+        public bool Grounded { get; set; }
+        public string? DocumentIdsJson { get; set; } // local AcademicDocument ids used
+        public string CreatedByEmail { get; set; } = string.Empty;
+        public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+        public string? ApprovedByEmail { get; set; }
+        public DateTime? ApprovedAtUtc { get; set; }
+        public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
     }
 
     public class RubricCriterion

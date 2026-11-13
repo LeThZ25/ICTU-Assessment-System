@@ -28,7 +28,8 @@ namespace backend_api.Services
         public AiServiceClient(HttpClient http, IConfiguration configuration)
         {
             _http = http;
-            _primaryUrl = (configuration["AiService:PrimaryUrl"] ?? "https://ictu-ai-module3.onrender.com").TrimEnd('/');
+            var configuredPrimary = configuration["AiService:PrimaryUrl"];
+            _primaryUrl = (string.IsNullOrWhiteSpace(configuredPrimary) ? "https://ictu-ai-module3.onrender.com" : configuredPrimary).TrimEnd('/');
             _fallbackUrl = (configuration["AiService:LocalFallbackUrl"] ?? "http://127.0.0.1:8000").TrimEnd('/');
             _timeoutSeconds = int.TryParse(configuration["AiService:TimeoutSeconds"], out int t) ? t : 20;
             _http.Timeout = TimeSpan.FromSeconds(_timeoutSeconds);
@@ -366,6 +367,11 @@ namespace backend_api.Services
         public string Difficulty { get; set; } = "Medium";
         public string Clo_Code { get; set; } = "CLO1";
         public string Bloom_Level { get; set; } = "Thông hiểu";
+        // UI helpers: editable option list and barem text (mapped back to Option_A..D / Key_Points on approval).
+        public List<string>? Options { get; set; }
+        public string? Rubric { get; set; }
+        /// <summary>false when generated from course information only (no reference document): review carefully.</summary>
+        public bool? Grounded { get; set; }
     }
 
     public class AiGradeResult

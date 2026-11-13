@@ -206,9 +206,13 @@ namespace backend_api.Controllers
                 {
                     s.Id, s.ExamRoomSessionId, s.StudentCode, s.OriginalFileName,
                     s.Language, s.Status, s.AiSuggestedScore, s.AiFeedback,
-                    s.Score, s.FeedbackReport, s.GradedAtUtc
+                    s.Score, s.FeedbackReport, s.GradedAtUtc, s.AiCriteriaJson, s.AiFlags
                 }).ToListAsync();
-            return Ok(new { success = true, submissions });
+            var assessmentId = await _db.ExamRoomSessions.Where(s => s.Id == id)
+                .Select(s => (int?)s.InClassAssessmentId).FirstOrDefaultAsync();
+            var hasApprovedRubric = assessmentId.HasValue &&
+                await _db.AiRubrics.AnyAsync(r => r.InClassAssessmentId == assessmentId && r.Status == "Approved");
+            return Ok(new { success = true, hasApprovedRubric, submissions });
         }
 
         private async Task<bool> CanManageExamRoomSession(int id) =>
@@ -314,7 +318,7 @@ namespace backend_api.Controllers
         }
 
         [HttpPost("code-submissions/{id}/grade-by-ai")]
-        public async Task<IActionResult> GradeCodeByAi(int id)
+        public async Task<IActionResult> GradeCodeByAi(int id, [FromServices] IModule3Client module3)
         {
             var sub = await _db.CodeSubmissions
                 .Include(s => s.ExamRoomSession)
@@ -363,6 +367,11 @@ namespace backend_api.Controllers
             }
 
             var assessment = sub.ExamRoomSession?.InClassAssessment;
+
+            // Preferred path: the assessment has an approved AI rubric -> per-criterion suggestion from Module 3.
+            var rubricGraded = await TryGradeCodeWithAiRubricAsync(sub, assessment, studentSource, module3);
+            if (rubricGraded != null) return rubricGraded;
+
             var criteria = assessment == null
                 ? new List<RubricCriterion>()
                 : await _db.RubricCriteria.AsNoTracking()
@@ -652,9 +661,11 @@ namespace backend_api.Controllers
                 .Where(s => s.HomeAssignmentId == id)
                 .OrderBy(s => s.StudentCode).ThenByDescending(s => s.AttemptNumber)
                 .Select(s => new { s.Id, s.StudentCode, s.AttemptNumber, s.AnswerText,
-                    s.Result, s.RawPercent, s.FailReason, s.Status, s.SubmittedAtUtc, s.LecturerNote })
+                    s.Result, s.RawPercent, s.FailReason, s.Status, s.SubmittedAtUtc, s.LecturerNote,
+                    s.GradedBy, s.AiFeedback, s.AiCriteriaJson, s.AiError, s.AiSuggestedResult, s.AiFlags })
                 .ToListAsync();
-            return Ok(new { success = true, assignmentId = id, submissions });
+            var hasApprovedRubric = await _db.AiRubrics.AnyAsync(r => r.HomeAssignmentId == id && r.Status == "Approved");
+            return Ok(new { success = true, assignmentId = id, hasApprovedRubric, submissions });
         }
 
         [HttpPost("home-submissions/{id}/grade")]
@@ -681,7 +692,8 @@ namespace backend_api.Controllers
                     .SetProperty(s => s.RawPercent, percent)
                     .SetProperty(s => s.Result, passed ? "Pass" : "Fail")
                     .SetProperty(s => s.FailReason, passed ? null : "BelowThreshold")
-                    .SetProperty(s => s.LecturerNote, note));
+                    .SetProperty(s => s.LecturerNote, note)
+                    .SetProperty(s => s.GradedBy, "Lecturer"));
             if (updated == 0)
                 return StatusCode(409, new { success = false, code = "ALREADY_GRADED", message = "Bài này đã được chấm hoặc thay đổi trạng thái." });
             await _db.Entry(submission).ReloadAsync();
@@ -887,9 +899,15 @@ namespace backend_api.Controllers
                 .Where(d => d.SubjectId == id)
                 .OrderByDescending(d => d.Id)
                 .Select(d => new { d.Id, d.SubjectId, d.Filename, d.FileType,
-                    d.FileSize, d.ExtractStatus, d.UploadedAt })
+                    d.FileSize, d.ExtractStatus, d.UploadedAt, d.AiDocId })
                 .ToListAsync();
-            return Ok(documents);
+            return Ok(documents.Select(d => new
+            {
+                d.Id, d.SubjectId, d.Filename, d.FileType, d.FileSize, d.ExtractStatus, d.UploadedAt,
+                // true when the document is indexed on Module 3 (or can be uploaded there on demand)
+                aiReady = Guid.TryParse(d.AiDocId, out _),
+                aiUploadable = d.FileType == "pdf" || d.FileType == "docx" || d.ExtractStatus == "Extracted"
+            }));
         }
 
         [HttpPost("upload-subject-document")]

@@ -67,6 +67,8 @@ namespace backend_api.Controllers
             var classes = enrollments.Select(en => new
             {
                 en.CourseClassId,
+                SubjectId = en.CourseClass?.SubjectId,
+                SubjectCode = en.CourseClass?.Subject?.Code,
                 ClassCode = en.CourseClass?.ClassCode,
                 ClassName = en.CourseClass?.ClassName,
                 SubjectName = en.CourseClass?.Subject?.Name,
@@ -470,7 +472,8 @@ namespace backend_api.Controllers
         }
 
         [HttpPost("oral-chat")]
-        public async Task<IActionResult> OralChat([FromBody] OralChatDto dto)
+        public async Task<IActionResult> OralChat([FromBody] OralChatDto dto,
+            [FromServices] IModule3Client module3)
         {
             if (dto == null || string.IsNullOrWhiteSpace(dto.Message))
             {
@@ -501,8 +504,23 @@ namespace backend_api.Controllers
                 return StatusCode(409, new { success = false, code = "SESSION_EXPIRED", message = "Đã hết thời gian làm bài, không thể tiếp tục trao đổi." });
             string context = exam?.Subject?.Name ?? "Hệ thống CNTT";
 
-            var reply = await _aiClient.OralChatAsync(AuthenticatedStudentCode!, dto.ExamId, dto.Message, context, dto.CurrentQuestion ?? "");
-            string cleanReply = (reply ?? "Hãy đối chiếu lại với các yêu cầu cốt lõi của đề bài để hoàn thiện câu trả lời nhé.")
+            var reply = await TryOralRagFromSubjectAsync(
+                exam?.SubjectId ?? 0, dto.Message, dto.CurrentQuestion ?? "", module3, HttpContext.RequestAborted);
+            if (string.IsNullOrWhiteSpace(reply))
+            {
+                reply = await _aiClient.OralChatAsync(AuthenticatedStudentCode!, dto.ExamId, dto.Message, context, dto.CurrentQuestion ?? "");
+            }
+            if (string.IsNullOrWhiteSpace(reply))
+            {
+                return StatusCode(503, new
+                {
+                    success = false,
+                    code = "AI_UNAVAILABLE",
+                    message = "Trợ lý AI hiện tạm thời không khả dụng, vui lòng thử lại sau."
+                });
+            }
+
+            string cleanReply = reply
                 .Replace("AI Giám Khảo:", "")
                 .Replace("AI Giám khảo:", "")
                 .Trim();
