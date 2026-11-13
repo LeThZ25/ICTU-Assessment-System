@@ -31,6 +31,7 @@ namespace backend_api.Data
         public DbSet<RubricCriterion> RubricCriteria => Set<RubricCriterion>();
         public DbSet<RubricDraft> RubricDrafts => Set<RubricDraft>();
         public DbSet<EligibilityOverride> EligibilityOverrides => Set<EligibilityOverride>();
+        public DbSet<AiRubric> AiRubrics => Set<AiRubric>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

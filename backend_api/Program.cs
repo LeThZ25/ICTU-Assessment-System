@@ -19,6 +19,11 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 // Add AI Service Client
 builder.Services.AddHttpClient<IAiServiceClient, AiServiceClient>();
+// Module 3 (Render): rubrics, rubric-based grading, question matrix. No local fallback for these.
+builder.Services.AddHttpClient<IModule3Client, Module3Client>();
+builder.Services.AddScoped<HomeworkAiGrader>();
+builder.Services.AddSingleton<HomeworkAiGradingQueue>();
+builder.Services.AddHostedService<HomeworkAiGradingWorker>();
 
 // Add SignalR
 builder.Services.AddSignalR();
@@ -624,6 +629,27 @@ using (var scope = app.Services.CreateScope())
                         CONSTRAINT ""FK_EligibilityOverrides_CourseClasses"" FOREIGN KEY (""CourseClassId"") REFERENCES ""CourseClasses"" (""Id"") ON DELETE CASCADE
                     );
                     CREATE UNIQUE INDEX IF NOT EXISTS ""IX_EligibilityOverrides_Class_Student"" ON ""EligibilityOverrides"" (""CourseClassId"", ""StudentCode"");
+
+                    CREATE TABLE IF NOT EXISTS ""AiRubrics"" (
+                        ""Id"" INTEGER NOT NULL CONSTRAINT ""PK_AiRubrics"" PRIMARY KEY AUTOINCREMENT,
+                        ""SubjectId"" INTEGER NOT NULL,
+                        ""InClassAssessmentId"" INTEGER NULL,
+                        ""HomeAssignmentId"" INTEGER NULL,
+                        ""AssessmentContext"" TEXT NOT NULL DEFAULT 'homework',
+                        ""QuestionText"" TEXT NOT NULL,
+                        ""ExpectedAnswer"" TEXT NOT NULL,
+                        ""RubricJson"" TEXT NOT NULL,
+                        ""Status"" TEXT NOT NULL DEFAULT 'Draft',
+                        ""Grounded"" INTEGER NOT NULL DEFAULT 0,
+                        ""DocumentIdsJson"" TEXT NULL,
+                        ""CreatedByEmail"" TEXT NOT NULL,
+                        ""CreatedAtUtc"" TEXT NOT NULL,
+                        ""ApprovedByEmail"" TEXT NULL,
+                        ""ApprovedAtUtc"" TEXT NULL,
+                        ""UpdatedAtUtc"" TEXT NOT NULL
+                    );
+                    CREATE INDEX IF NOT EXISTS ""IX_AiRubrics_HomeAssignmentId"" ON ""AiRubrics"" (""HomeAssignmentId"");
+                    CREATE INDEX IF NOT EXISTS ""IX_AiRubrics_InClassAssessmentId"" ON ""AiRubrics"" (""InClassAssessmentId"");
                 ";
                 cmd.ExecuteNonQuery();
             }
@@ -632,7 +658,15 @@ using (var scope = app.Services.CreateScope())
             foreach (var (table, column, definition) in new[]
             {
                 ("HomeSubmissions", "AnswerText", "TEXT NULL"),
-                ("ExamRoomJoins", "IsAuthorized", "INTEGER NOT NULL DEFAULT 0")
+                ("ExamRoomJoins", "IsAuthorized", "INTEGER NOT NULL DEFAULT 0"),
+                ("HomeSubmissions", "GradedBy", "TEXT NULL"),
+                ("HomeSubmissions", "AiFeedback", "TEXT NULL"),
+                ("HomeSubmissions", "AiCriteriaJson", "TEXT NULL"),
+                ("HomeSubmissions", "AiError", "TEXT NULL"),
+                ("HomeSubmissions", "AiSuggestedResult", "TEXT NULL"),
+                ("HomeSubmissions", "AiFlags", "TEXT NULL"),
+                ("CodeSubmissions", "AiCriteriaJson", "TEXT NULL"),
+                ("CodeSubmissions", "AiFlags", "TEXT NULL")
             })
             {
                 var columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);

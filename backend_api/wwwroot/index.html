@@ -729,6 +729,13 @@
               <input type="hidden" id="matrixSubjectSelect" value="1">
               <input type="hidden" id="matrixClassSelect" value="">
 
+              <div class="bg-white p-3 rounded-xl border border-slate-200 text-xs space-y-1.5">
+                <span class="font-bold text-slate-700"><i class="fa-solid fa-book-open mr-1.5 text-ictu"></i>Tài liệu tham khảo cho AI (không bắt buộc)</span>
+                <p class="text-[11px] text-slate-500">Chọn tài liệu để câu hỏi bám nội dung tài liệu. Không chọn: AI sinh câu hỏi từ tên học phần và chủ đề trọng tâm.</p>
+                <div id="matrixDocBox" class="flex flex-wrap gap-3 text-slate-700"></div>
+                <p id="matrixSourceNote" class="text-xs mt-1"></p>
+              </div>
+
               <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
                   <label class="block text-xs font-semibold text-slate-700 mb-1">Mức Độ Thang Bloom</label>
@@ -1077,6 +1084,43 @@
           <div id="rubricDraftStatus" class="text-xs" role="status"></div>
           <div id="rubricDraftQuestions" class="space-y-3"></div>
           <button id="rubricApproveButton" onclick="approveLcmsRubricDraft()" class="hidden px-4 py-2 bg-emerald-600 text-white text-xs font-semibold rounded">Duyệt và lưu câu hỏi</button>
+        </div>
+
+        <!-- RUBRIC AI (Module 3): generate -> edit -> validate -> approve. Used for AI grading. -->
+        <div id="aiRubricCard" class="bg-white p-6 rounded-xl border border-indigo-200 space-y-4">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <h3 class="text-base font-bold text-indigo-950"><i class="fa-solid fa-robot mr-1.5 text-indigo-600"></i>Rubric AI để chấm bài</h3>
+              <p class="text-xs text-slate-500 mt-1">AI sinh rubric chi tiết (tiêu chí × mức điểm) từ đề bài và đáp án mẫu, bám theo tài liệu nếu chọn. Giảng viên sửa, kiểm tra rồi duyệt. Bài về nhà có rubric đã duyệt sẽ được AI chấm Đạt/Không đạt tự động (bài bị gắn cờ chờ giảng viên xem lại); bài trên lớp được AI gợi ý điểm để giảng viên xác nhận.</p>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+            <label>Loại bài đánh giá
+              <select id="aiRubricTargetKind" onchange="aiRubricLoadTargets()" class="block w-full border rounded p-2 mt-1">
+                <option value="home">Bài tập về nhà (Đạt / Không đạt)</option>
+                <option value="assessment">Bài kiểm tra trên lớp (chấm điểm)</option>
+              </select>
+            </label>
+            <label>Bài đánh giá
+              <select id="aiRubricTargetSelect" onchange="aiRubricLoadList()" class="block w-full border rounded p-2 mt-1"></select>
+            </label>
+          </div>
+          <label class="block text-xs">Đề bài / câu hỏi
+            <textarea id="aiRubricQuestion" rows="3" maxlength="2000" class="block w-full border rounded p-2 mt-1" placeholder="VD: Trình bày khái niệm giao dịch và 4 tính chất ACID, cho ví dụ minh họa."></textarea>
+          </label>
+          <label class="block text-xs">Đáp án mẫu / các ý chính cần có
+            <textarea id="aiRubricExpected" rows="3" maxlength="10000" class="block w-full border rounded p-2 mt-1" placeholder="VD: Giao dịch là đơn vị công việc nguyên tử... Atomicity, Consistency, Isolation, Durability... ví dụ chuyển tiền."></textarea>
+          </label>
+          <div class="text-xs">
+            <span class="font-semibold">Tài liệu tham khảo (không bắt buộc, tối đa 5)</span>
+            <div id="aiRubricDocs" class="mt-1 flex flex-wrap gap-3 text-slate-700"></div>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <button type="button" id="aiRubricGenerateBtn" onclick="aiRubricGenerate()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i>AI sinh rubric</button>
+            <span id="aiRubricStatus" class="text-xs" role="status"></span>
+          </div>
+          <div id="aiRubricList" class="space-y-2 text-xs"></div>
+          <div id="aiRubricEditor" class="hidden space-y-3 border-t border-indigo-100 pt-4"></div>
         </div>
       </section>
 
@@ -2383,6 +2427,7 @@ CLO: CLO2
   <script src="/js/studio-creator.js"></script>
   <script src="/js/monitoring.js"></script>
   <script src="/js/lcms-flows.js"></script>
+  <script src="/js/ai-rubrics.js"></script>
   <script src="/js/reports.js"></script>
   <script src="/js/app-init.js"></script>
 

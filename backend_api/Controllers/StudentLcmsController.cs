@@ -401,7 +401,8 @@ namespace backend_api.Controllers
         [HttpPost("home-assignments/{id}/submit")]
         public async Task<IActionResult> SubmitHomeAssignment(
             int id, 
-            [FromBody] SubmitHomeAssignmentDto dto)
+            [FromBody] SubmitHomeAssignmentDto dto,
+            [FromServices] HomeworkAiGradingQueue aiQueue)
         {
             if (dto == null)
                 return BadRequest(new { success = false, code = "VALIDATION", message = "Dữ liệu bài nộp không hợp lệ." });
@@ -506,10 +507,17 @@ namespace backend_api.Controllers
                 return StatusCode(409, new { success = false, code = "ALREADY_SUBMITTED", message = "Lượt nộp này đã được ghi nhận." });
             }
 
+            // Homework with an approved AI rubric is graded automatically (PASS/FAIL) in the background.
+            var aiGrading = await _db.AiRubrics.AnyAsync(r => r.HomeAssignmentId == id && r.Status == "Approved") &&
+                            aiQueue.Enqueue(newSub.Id);
+
             return Ok(new
             {
                 success = true,
-                message = "Đã nhận bài làm. Vui lòng chờ giảng viên chấm điểm.",
+                aiGrading,
+                message = aiGrading
+                    ? "Đã nhận bài làm. AI đang chấm, kết quả Đạt/Không đạt sẽ có sau ít phút."
+                    : "Đã nhận bài làm. Vui lòng chờ giảng viên chấm điểm.",
                 submission = new
                 {
                     newSub.Id,

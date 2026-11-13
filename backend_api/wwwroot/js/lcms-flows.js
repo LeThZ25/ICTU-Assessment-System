@@ -16,6 +16,20 @@ async function lcmsJson(url, options) {
   return data;
 }
 
+// Per-criterion AI suggestion for an in-class submission (points per criterion + reason + evidence).
+function lcmsRenderAiCriteria(raw) {
+  let items = [];
+  try { items = raw ? JSON.parse(raw) : []; } catch (_) { items = []; }
+  if (!Array.isArray(items) || !items.length) return '';
+  return `<table class="w-full text-[11px] border"><thead class="bg-slate-50"><tr>
+      <th class="p-1 text-left">Tiêu chí</th><th class="p-1">Mức</th><th class="p-1">Điểm</th><th class="p-1 text-left">Lý do / trích dẫn</th></tr></thead>
+    <tbody>${items.map(c => `<tr class="border-t">
+      <td class="p-1">${lcmsEscape(c.name || c.criterion_id)}</td>
+      <td class="p-1 text-center">${lcmsEscape(c.level || '')}</td>
+      <td class="p-1 text-center">${c.points == null ? '—' : `${Number(c.points)}/${Number(c.max_points)}`}</td>
+      <td class="p-1">${lcmsEscape(c.reason || '')}${c.evidence ? `<div class="text-slate-500 italic">“${lcmsEscape(c.evidence)}”</div>` : ''}</td></tr>`).join('')}</tbody></table>`;
+}
+
 function lcmsFillSelect(select, items, placeholder, label) {
   if (!select) return;
   const previous = select.value;
@@ -93,7 +107,7 @@ async function generateLcmsRubricDraft() {
       return { title: parts[0].trim(), points: Number(parts[1]) };
     });
   if (!subjectId || !documentId || !targetId || !criteria.length ||
-      criteria.some(c => !c.title || !Number.isFinite(c.points) || c.points <= 0)) {
+    criteria.some(c => !c.title || !Number.isFinite(c.points) || c.points <= 0)) {
     status.textContent = 'Chọn tài liệu, bài đánh giá và nhập tiêu chí đúng mẫu Tên | Điểm.';
     return;
   }
@@ -112,7 +126,7 @@ async function generateLcmsRubricDraft() {
     list.innerHTML = data.questions.map(q => `
       <div class="border rounded-lg p-3 space-y-2 rubric-question text-xs" data-title="${lcmsEscape(q.criterionTitle)}" data-points="${Number(q.points)}">
         <div class="font-semibold">${lcmsEscape(q.criterionTitle)} — ${Number(q.points)} điểm</div>
-        <label>CLO<select class="rubric-clo border rounded p-1 ml-2">${['CLO1','CLO2','CLO3','CLO4'].map(code => `<option value="${code}" ${q.cloCode === code ? 'selected' : ''}>${code}</option>`).join('')}</select></label>
+        <label>CLO<select class="rubric-clo border rounded p-1 ml-2">${['CLO1', 'CLO2', 'CLO3', 'CLO4'].map(code => `<option value="${code}" ${q.cloCode === code ? 'selected' : ''}>${code}</option>`).join('')}</select></label>
         <textarea class="rubric-text w-full border rounded p-2" rows="3" maxlength="5000">${lcmsEscape(q.questionText)}</textarea>
       </div>`).join('');
     status.textContent = 'Kiểm tra và chỉnh sửa từng câu trước khi duyệt.';
@@ -168,11 +182,16 @@ async function loadLcmsCodeSubmissions() {
     const data = await lcmsJson(`/api/lecturer/exam-room-sessions/${sessionId}/code-submissions`);
     const submissions = data.submissions || [];
     if (!submissions.length) { list.textContent = 'Ca thi này chưa có bài lập trình được nộp.'; return; }
-    list.innerHTML = submissions.map(s => `
+    const rubricNote = data.hasApprovedRubric
+      ? '<div class="p-2 bg-indigo-50 border border-indigo-200 rounded text-indigo-900"><i class="fa-solid fa-robot mr-1"></i>Bài kiểm tra có rubric AI đã duyệt: "AI gợi ý" chấm theo từng tiêu chí. Điểm chỉ là gợi ý, giảng viên phải xác nhận.</div>'
+      : '<div class="p-2 bg-amber-50 border border-amber-200 rounded text-amber-900">Bài kiểm tra chưa có rubric AI đã duyệt (tạo ở tab Tài liệu → Rubric AI). "AI gợi ý" chỉ nhận xét sơ bộ.</div>';
+    list.innerHTML = rubricNote + submissions.map(s => `
       <div class="p-3 border rounded-lg space-y-2" data-code-submission="${Number(s.id)}">
         <div class="font-semibold text-slate-800">${lcmsEscape(s.studentCode)} · ${lcmsEscape(s.originalFileName)} · ${lcmsEscape(s.language)}</div>
         <div>Trạng thái: ${lcmsEscape(s.status)} · Điểm giảng viên: ${s.score == null ? 'Chờ chấm' : `${Number(s.score)}/10`}</div>
         <div class="text-amber-800">AI đề xuất chưa xác thực bằng test: ${s.aiSuggestedScore == null ? 'Chưa có' : `${Number(s.aiSuggestedScore)}/10`}. ${lcmsEscape(s.aiFeedback || '')}</div>
+        ${lcmsRenderAiCriteria(s.aiCriteriaJson)}
+        ${s.aiFlags ? `<div class="text-rose-700">Cờ cần xem lại: ${lcmsEscape(s.aiFlags)}</div>` : ''}
         ${s.feedbackReport ? `<p>Nhận xét giảng viên: ${lcmsEscape(s.feedbackReport)}</p>` : ''}
         <div class="flex flex-wrap items-center gap-2">
           <a class="text-ictu underline" href="/api/lecturer/code-submissions/${Number(s.id)}/file">Tải mã nguồn</a>
@@ -195,6 +214,10 @@ async function performLcmsCodeAction(row, action) {
   const id = Number(row.dataset.codeSubmission);
   const path = action === 'ai' ? 'grade-by-ai' : action === 'confirm' ? 'confirm' : 'reopen';
   const options = { method: 'POST' };
+  if (action === 'ai') {
+    const btn = row.querySelector('[data-code-action="ai"]');
+    if (btn) { btn.disabled = true; btn.textContent = 'AI đang chấm...'; }
+  }
   if (action === 'confirm') {
     const scoreField = row.querySelector('[data-code-score]');
     const score = Number(scoreField.value);

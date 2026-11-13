@@ -366,6 +366,11 @@ namespace backend_api.Services
         public string Difficulty { get; set; } = "Medium";
         public string Clo_Code { get; set; } = "CLO1";
         public string Bloom_Level { get; set; } = "Thông hiểu";
+        // UI helpers: editable option list and barem text (mapped back to Option_A..D / Key_Points on approval).
+        public List<string>? Options { get; set; }
+        public string? Rubric { get; set; }
+        /// <summary>false when generated from course information only (no reference document): review carefully.</summary>
+        public bool? Grounded { get; set; }
     }
 
     public class AiGradeResult
