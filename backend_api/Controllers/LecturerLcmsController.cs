@@ -904,9 +904,9 @@ namespace backend_api.Controllers
             return Ok(documents.Select(d => new
             {
                 d.Id, d.SubjectId, d.Filename, d.FileType, d.FileSize, d.ExtractStatus, d.UploadedAt,
-                // true when the document is indexed on Module 3 (or can be uploaded there on demand: PDF/DOCX)
+                // true when the document is indexed on Module 3 (or can be uploaded there on demand)
                 aiReady = Guid.TryParse(d.AiDocId, out _),
-                aiUploadable = d.FileType == "pdf" || d.FileType == "docx"
+                aiUploadable = d.FileType == "pdf" || d.FileType == "docx" || d.ExtractStatus == "Extracted"
             }));
         }
 

@@ -674,8 +674,13 @@
               <p class="text-xs text-slate-500 mt-0.5">Trao đổi trực tiếp về nội dung bài giảng, bài tập SQL/Lập trình và ôn tập chuẩn đầu ra (hỗ trợ phản hồi Streaming thời gian thực)</p>
             </div>
 
-            <!-- Cụm nút Góc trên bên phải: Icon Tạo cuộc trò chuyện mới + Icon Lịch sử trò chuyện + Streaming Realtime -->
-            <div class="flex items-center space-x-2 flex-shrink-0 relative">
+            <!-- Cụm nút Góc trên bên phải: Chọn học phần + Icon Tạo cuộc trò chuyện mới + Icon Lịch sử trò chuyện + Streaming Realtime -->
+            <div class="flex flex-wrap items-center gap-2 flex-shrink-0 relative">
+              <select id="aiChatSubjectSelect" title="Chọn học phần để trợ lý AI tra cứu giáo trình"
+                class="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-700 text-xs font-semibold focus:outline-none focus:border-ictu max-w-[230px] truncate">
+                <option value="">Tất cả học phần đang học</option>
+              </select>
+
               <button type="button" onclick="startNewAiChatSession()" title="Cuộc trò chuyện mới"
                 class="w-8 h-8 rounded-lg border border-slate-200 bg-slate-50 hover:bg-blue-50 hover:border-blue-200 text-slate-600 hover:text-ictu transition flex items-center justify-center cursor-pointer shadow-2xs">
                 <i class="fa-solid fa-plus text-xs"></i>
@@ -1646,6 +1651,7 @@
           }
         }
         updateStudentIdentityUI();
+        populateAiChatSubjects(data.classes || []);
 
         // 1. Render Course Classes Data
         const tbody = document.getElementById('bulletinClassesTableBody');
@@ -2875,65 +2881,81 @@
     }
 
     // -----------------------------------------------------------------------
-    // 7. REAL-TIME STREAMING AI ORAL CHAT (KẾT NỐI API MODULE 3: https://ictu-ai-module3.onrender.com)
+    // 7. REAL-TIME STREAMING AI CHAT (QUA BACKEND -> MODULE 3 RAG TRÊN RENDER)
     // -----------------------------------------------------------------------
-    const MODULE3_AI_BASE_URL = "https://ictu-ai-module3.onrender.com";
+    function populateAiChatSubjects(classes) {
+      const sel = document.getElementById('aiChatSubjectSelect');
+      if (!sel) return;
+      const prevVal = sel.value;
+      const seen = new Map();
+      (classes || []).forEach(c => {
+        const sid = Number(c.subjectId);
+        if (Number.isFinite(sid) && sid > 0 && !seen.has(sid)) {
+          const code = (c.subjectCode || '').trim();
+          const name = (c.subjectName || c.className || `Học phần #${sid}`).trim();
+          seen.set(sid, code ? `${code} - ${name}` : name);
+        }
+      });
+      let html = '<option value="">Tất cả học phần đang học</option>';
+      seen.forEach((label, sid) => {
+        html += `<option value="${sid}">${escapeHtmlText(label)}</option>`;
+      });
+      sel.innerHTML = html;
+      if (prevVal && seen.has(Number(prevVal))) {
+        sel.value = prevVal;
+      }
+    }
+
+    async function typewriterRenderText(targetSpan, text) {
+      if (!targetSpan) return;
+      targetSpan.innerText = "";
+      targetSpan.classList.add('typing-cursor');
+      const tokens = String(text || "").split(/( +)/);
+      const step = tokens.length > 160 ? 3 : 1;
+      for (let i = 0; i < tokens.length; i += step) {
+        targetSpan.innerText += tokens.slice(i, i + step).join("");
+        await new Promise(r => setTimeout(r, 12));
+      }
+      targetSpan.classList.remove('typing-cursor');
+    }
 
     async function streamAiReplyToElement(studentId, examId, message, currentQ, targetSpan) {
       let answerText = "";
+      let isError = false;
 
-      // 1. Ưu tiên gọi trực tiếp API Module 3 của Toản: https://ictu-ai-module3.onrender.com/api/rag/answer
+      // Vấn đáp trong ca thi đang mở -> gọi /api/student/oral-chat; hỏi đáp học tập tự do -> gọi /api/student/ai-chat
+      const useOralEndpoint = Boolean(isExamInProgress && Number(examId) > 0);
       try {
-        const resMod3 = await fetch(`${MODULE3_AI_BASE_URL}/api/rag/answer`, {
+        const res = await fetch(useOralEndpoint ? "/api/student/oral-chat" : "/api/student/ai-chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            document_id: "00000000-0000-0000-0000-000000000000",
-            question: message,
-            top_k: 2
+          body: JSON.stringify(useOralEndpoint ? {
+            studentId: studentId,
+            examId: examId,
+            message: message,
+            currentQuestion: currentQ
+          } : {
+            studentId: studentId,
+            message: message
           })
         });
-        if (resMod3.ok) {
-          const mod3Data = await resMod3.json();
-          if (mod3Data && mod3Data.answer) {
-            answerText = String(mod3Data.answer).trim();
-          }
+        let data = null;
+        try { data = await res.json(); } catch (_) {}
+        if (res.ok && data && data.reply) {
+          answerText = String(data.reply).trim();
+        } else {
+          isError = true;
+          answerText = "⚠️ " + (data?.message || "Trợ lý AI hiện tạm thời không khả dụng. Vui lòng thử lại sau.");
         }
-      } catch (e) {}
-
-      // 2. Nếu gọi từ trình duyệt bị chặn CORS hoặc đang khởi động, gọi qua /api/student/oral-chat (Backend cũng gọi https://ictu-ai-module3.onrender.com)
-      if (!answerText) {
-        try {
-          const res = await fetch("/api/student/oral-chat", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              studentId: studentId,
-              examId: examId,
-              message: message,
-              currentQuestion: currentQ
-            })
-          });
-          if (res.ok) {
-            const data = await res.json();
-            answerText = (data.reply || "").trim();
-          }
-        } catch (err) {}
+      } catch (err) {
+        isError = true;
+        answerText = "⚠️ Không kết nối được máy chủ trợ lý AI. Vui lòng kiểm tra mạng và thử lại.";
       }
 
-      if (!answerText) {
-        answerText = "Hãy đối chiếu lại với các yêu cầu cốt lõi của đề bài để hoàn thiện câu trả lời nhé.";
+      if (isError && targetSpan) {
+        targetSpan.classList.add('text-amber-700');
       }
-
-      // Hiển thị hiệu ứng Streaming thời gian thực từng từ lên giao diện
-      targetSpan.innerText = "";
-      targetSpan.classList.add('typing-cursor');
-      const words = answerText.split(" ");
-      for (let i = 0; i < words.length; i++) {
-        targetSpan.innerText += (i === 0 ? "" : " ") + words[i];
-        await new Promise(r => setTimeout(r, 20));
-      }
-      targetSpan.classList.remove('typing-cursor');
+      await typewriterRenderText(targetSpan, answerText);
     }
 
     async function sendOralMessage() {
@@ -2944,7 +2966,7 @@
 
       const currentQ = questionsList[currentIndex] ? questionsList[currentIndex].questionText : "";
       const box = document.getElementById('oralChatBox');
-      box.innerHTML += `<div class="bg-ictu-light p-2.5 rounded-lg text-ictu-dark text-right ml-4"><b>Bạn:</b> ${msg}</div>`;
+      box.innerHTML += `<div class="bg-ictu-light p-2.5 rounded-lg text-ictu-dark text-right ml-4"><b>Bạn:</b> ${escapeHtmlText(msg)}</div>`;
 
       const replyId = "oralReply_" + Date.now();
       box.innerHTML += `<div class="bg-slate-100 p-2.5 rounded-lg text-slate-800 mr-4 leading-relaxed"><b>Cán bộ khảo thí:</b> <span id="${replyId}" class="typing-cursor">Đang suy luận...</span></div>`;
@@ -3049,7 +3071,7 @@
     }
 
     function getAiHistoryStorageKey() {
-      return `ictu_ai_chat_sessions_${(currentStudentCode || 'anonymous').toUpperCase()}`;
+      return `ictu_ai_chat_sessions_v2_${(currentStudentCode || 'anonymous').toUpperCase()}`;
     }
 
     function saveAiChatSessionsToLocal() {
@@ -3277,11 +3299,24 @@
       renderAiHistoryDropdownList();
     }
 
+    let studyAiInFlight = false;
+
+    function formatRagSourcePages(sources) {
+      if (!Array.isArray(sources) || sources.length === 0) return "";
+      const pages = [...new Set(sources.map(s => s?.page).filter(p => Number.isFinite(p) && p > 0))];
+      return pages.length > 0 ? ` (Trang ${pages.join(", ")})` : "";
+    }
+
     async function sendStudyQuestion(presetMsg = null) {
+      if (studyAiInFlight) return;
       const inp = document.getElementById('qaForumInput');
-      const msg = presetMsg || inp.value.trim();
+      const sendBtn = document.getElementById('btnSendQaForum');
+      const msg = (presetMsg || inp?.value || "").trim();
       if (!msg) return;
-      if (!presetMsg) inp.value = "";
+      if (!presetMsg && inp) inp.value = "";
+
+      const selectedSubjectRaw = document.getElementById('aiChatSubjectSelect')?.value || "";
+      const selectedSubjectId = selectedSubjectRaw ? Number(selectedSubjectRaw) : null;
 
       const sess = getCurrentAiSession();
       const now = new Date();
@@ -3315,30 +3350,89 @@
       `;
 
       const replyId = "qaReply_" + Date.now();
+      const metaId = "qaMeta_" + Date.now();
       box.innerHTML += `
         <div class="bg-white p-3.5 rounded-xl border border-slate-200 max-w-2xl shadow-2xs">
-          <div class="flex items-center space-x-2 mb-1">
+          <div class="flex items-center flex-wrap gap-2 mb-1">
             <span class="px-2 py-0.5 bg-emerald-600 text-white text-[10px] font-bold rounded">Trợ lý Học tập AI</span>
-            <span class="text-[10px] text-emerald-600 font-semibold">● Đang phản hồi trực tiếp (${escapeHtmlText(sess.category)})</span>
+            <span id="${metaId}" class="text-[10px] text-emerald-600 font-semibold">● Đang tra cứu giáo trình học phần (${escapeHtmlText(sess.category)})...</span>
           </div>
-          <p id="${replyId}" class="text-slate-700 leading-relaxed whitespace-pre-line typing-cursor">...</p>
+          <p id="${replyId}" class="text-slate-700 leading-relaxed whitespace-pre-line typing-cursor">Đang phân tích câu hỏi và đối chiếu tài liệu...</p>
         </div>
       `;
       box.scrollTop = box.scrollHeight;
 
       const targetSpan = document.getElementById(replyId);
-      await streamAiReplyToElement(currentStudentCode, 1, msg, `Chuyên đề ${sess.category}: ${sess.title}`, targetSpan);
-      box.scrollTop = box.scrollHeight;
+      const metaSpan = document.getElementById(metaId);
+      studyAiInFlight = true;
+      if (sendBtn) sendBtn.disabled = true;
 
-      // Lưu nội dung phản hồi của AI vào lịch sử cuộc trò chuyện chuyên môn hiện tại
-      const finalReplyText = (targetSpan?.innerText || "").trim();
-      sess.messages.push({
-        role: "ai",
-        meta: `Chuyên đề ${sess.category}`,
-        text: finalReplyText || "Đã ghi nhận câu hỏi học thuật của bạn."
-      });
-      saveAiChatSessionsToLocal();
-      renderAiHistoryDropdownList();
+      try {
+        let replyText = "";
+        let metaLabel = `Chuyên đề ${sess.category}`;
+        let isError = false;
+
+        try {
+          const res = await fetch("/api/student/ai-chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              studentId: currentStudentCode,
+              subjectId: Number.isFinite(selectedSubjectId) && selectedSubjectId > 0 ? selectedSubjectId : null,
+              category: sess.category,
+              message: msg
+            })
+          });
+          let data = null;
+          try { data = await res.json(); } catch (_) {}
+
+          if (res.ok && data && data.success) {
+            replyText = String(data.reply || "").trim();
+            if (data.grounded) {
+              const subjPrefix = data.subjectCode ? `${data.subjectCode} - ${data.subjectName}` : (data.subjectName || sess.category);
+              const srcSuffix = data.documentName ? ` • Nguồn: ${data.documentName}${formatRagSourcePages(data.sources)}` : "";
+              metaLabel = `${subjPrefix}${srcSuffix}`;
+            } else {
+              metaLabel = `Thông báo tra cứu tài liệu • ${sess.category}`;
+            }
+          } else {
+            isError = true;
+            metaLabel = "⚠️ Trợ lý AI tạm gián đoạn";
+            replyText = "⚠️ " + (data?.message || "Trợ lý AI học thuật hiện tạm thời không khả dụng. Vui lòng thử lại sau.");
+          }
+        } catch (netErr) {
+          isError = true;
+          metaLabel = "⚠️ Mất kết nối máy chủ";
+          replyText = "⚠️ Không kết nối được máy chủ trợ lý AI. Vui lòng kiểm tra mạng và thử lại.";
+        }
+
+        if (metaSpan) {
+          metaSpan.innerText = metaLabel;
+          metaSpan.className = isError
+            ? "text-[10px] text-amber-700 font-semibold"
+            : "text-[10px] text-slate-500 font-semibold";
+        }
+        if (isError && targetSpan) {
+          targetSpan.classList.remove('text-slate-700');
+          targetSpan.classList.add('text-amber-700');
+        }
+
+        await typewriterRenderText(targetSpan, replyText);
+        box.scrollTop = box.scrollHeight;
+
+        if (!isError && replyText) {
+          sess.messages.push({
+            role: "ai",
+            meta: metaLabel,
+            text: replyText
+          });
+          saveAiChatSessionsToLocal();
+          renderAiHistoryDropdownList();
+        }
+      } finally {
+        studyAiInFlight = false;
+        if (sendBtn) sendBtn.disabled = false;
+      }
     }
 
     // -----------------------------------------------------------------------

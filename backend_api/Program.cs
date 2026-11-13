@@ -851,6 +851,81 @@ using (var scope = app.Services.CreateScope())
                 db.Users.AddRange(missingAccounts);
                 db.SaveChanges();
             }
+
+            if (builder.Configuration["ICTU_HTTP_SMOKE"] != "1" && !db.Documents.Any())
+            {
+                var demoDocs = new (int SubjectId, string Filename, string Content)[]
+                {
+                    (1, "Bai_giang_CS301_CSDL_va_He_phan_tan.txt", """
+                    BÀI GIẢNG HỌC PHẦN CS301: CƠ SỞ DỮ LIỆU & HỆ PHÂN TÁN (ICTU)
+
+                    1. Chuẩn đầu ra học phần (CLO) và lộ trình ôn tập
+                    - CLO1 (Kiến thức nền tảng & Thiết kế CSDL): Nắm vững mô hình thực thể - liên kết (ERD), đại số quan hệ, phụ thuộc hàm, khóa chính / siêu khóa và quy trình chuẩn hóa lược đồ quan hệ từ 1NF đến 2NF, 3NF và BCNF.
+                    - CLO2 (Ngôn ngữ SQL & Tối ưu hóa truy vấn): Thành thạo câu lệnh SELECT kết hợp JOIN nhiều bảng, GROUP BY - HAVING, truy vấn con (Subquery), chế độ xem (View) và kỹ thuật đánh chỉ mục B-Tree Index để giảm chi phí quét toàn bảng (Full Table Scan).
+                    - CLO3 (Giao dịch, Kiểm soát tương thời & CSDL phân tán): Hiểu và vận dụng 4 thuộc tính ACID của Transaction, các mức cô lập giao dịch (Isolation Levels), giao thức khóa hai pha (Two-Phase Locking - 2PL), phát hiện/xử lý khóa chết (Deadlock), phân mảnh dữ liệu (Sharding), nhân bản (Replication) và định lý CAP trong hệ phân tán.
+                    Lộ trình ôn tập đề xuất: Tuần 1-2 ôn ERD và bài tập chuẩn hóa 2NF/3NF; Tuần 3 luyện viết truy vấn SQL và phân tích Execution Plan với B-Tree Index; Tuần 4 ôn Transaction ACID, 2PL và kiến trúc CSDL phân tán.
+
+                    2. Chuẩn hóa cơ sở dữ liệu quan hệ (1NF, 2NF, 3NF, BCNF)
+                    - Dạng chuẩn 1 (1NF): Mọi thuộc tính trong bảng chỉ chứa giá trị nguyên tố (atomic), không có thuộc tính đa trị hay nhóm lặp.
+                    - Dạng chuẩn 2 (2NF): Lược đồ đã đạt 1NF và mọi thuộc tính không khóa đều phụ thuộc hàm ĐẦY ĐỦ vào khóa chính. Cách nhận biết vi phạm 2NF: xảy ra khi bảng có khóa chính ghép (ví dụ: MaSV, MaHP) mà một thuộc tính không khóa (ví dụ: TenSV) chỉ phụ thuộc vào một phần của khóa ghép (MaSV -> TenSV), gọi là phụ thuộc bộ phận (partial dependency).
+                    - Dạng chuẩn 3 (3NF): Lược đồ đã đạt 2NF và không có thuộc tính không khóa nào phụ thuộc hàm BẮC CẦU (transitive dependency) vào khóa chính. Nghĩa là không tồn tại chuỗi X -> Y -> Z trong đó X là khóa chính, Y không phải siêu khóa và Z là thuộc tính không khóa (ví dụ: MaSV -> MaLop và MaLop -> TenKhoa).
+                    - Điểm phân biệt cốt lõi giữa 2NF và 3NF: 2NF loại bỏ phụ thuộc hàm bộ phận vào một phần của khóa chính ghép, còn 3NF loại bỏ phụ thuộc hàm bắc cầu giữa các thuộc tính không khóa.
+                    - Dạng chuẩn Boyce-Codd (BCNF): Mạnh hơn 3NF; với mọi phụ thuộc hàm không tầm thường X -> Y thì vế trái X bắt buộc phải là một siêu khóa.
+
+                    3. Giao dịch (Transaction) và 4 thuộc tính ACID
+                    Giao dịch (Transaction) là một đơn vị công việc logic gồm một chuỗi các thao tác đọc/ghi CSDL. Để đảm bảo an toàn và toàn vẹn dữ liệu, mọi hệ quản trị CSDL quan hệ tuân thủ 4 thuộc tính ACID:
+                    - Atomicity (Tính nguyên tố): Giao dịch được thực hiện "tất cả hoặc không gì cả" (All-or-Nothing). Nếu bất kỳ bước nào gặp lỗi, toàn bộ thay đổi trước đó phải được hoàn tác (ROLLBACK); chỉ khi mọi bước thành công mới xác nhận (COMMIT). Ví dụ thực tế: Chuyển 500.000đ từ tài khoản A sang tài khoản B gồm 2 bước (trừ tiền A và cộng tiền B); nếu trừ A xong mà hệ thống lỗi trước khi cộng B thì phải ROLLBACK để A không bị mất tiền.
+                    - Consistency (Tính nhất quán): Giao dịch luôn đưa CSDL từ một trạng thái hợp lệ này sang một trạng thái hợp lệ khác, bảo toàn mọi ràng buộc toàn vẹn (khóa ngoại, CHECK số dư >= 0, tổng tiền bảo toàn). Ví dụ: Tổng số dư của A và B trước và sau giao dịch chuyển khoản không đổi.
+                    - Isolation (Tính cô lập): Nhiều giao dịch chạy đồng thời không được gây nhiễu loạn dữ liệu trung gian của nhau (tránh Dirty Read, Non-repeatable Read, Phantom Read). Các mức cô lập chuẩn SQL gồm: Read Uncommitted, Read Committed, Repeatable Read và Serializable.
+                    - Durability (Tính bền vững): Sau khi giao dịch đã COMMIT thành công, kết quả thay đổi được lưu trữ bền vững (nhờ cơ chế Write-Ahead Logging - WAL) ngay cả khi mất điện hay sập máy chủ ngay sau đó.
+
+                    4. Kiểm soát tương thời, SQL Index và Hệ CSDL phân tán
+                    - Giao thức khóa hai pha (Two-Phase Locking - 2PL): Gồm pha phát triển (Growing phase - chỉ xin thêm khóa S/X, không nhả khóa) và pha thu hẹp (Shrinking phase - bắt đầu nhả khóa và không được xin thêm khóa mới), đảm bảo tính khả tuần tự xung đột (conflict serializability).
+                    - Chỉ mục B-Tree Index trong SQL: Tăng tốc tìm kiếm điều kiện WHERE, JOIN và ORDER BY từ O(N) xuống O(log N), nhưng làm tăng chi phí ghi (INSERT/UPDATE/DELETE) nên ưu tiên đánh index trên các cột có độ chọn lọc (selectivity) cao.
+                    - Định lý CAP trong hệ phân tán: Một hệ thống phân tán khi xảy ra phân vùng mạng (Partition tolerance - P) cần cân nhắc đánh đổi giữa Tính nhất quán tức thời (Consistency - C) và Tính sẵn sàng cao (Availability - A).
+                    """),
+                    (2, "Bai_giang_AI402_Tri_tue_nhan_tao_va_RAG.txt", """
+                    BÀI GIẢNG HỌC PHẦN AI402: TRÍ TUỆ NHÂN TẠO VÀ ỨNG DỤNG (ICTU)
+
+                    1. Chuẩn đầu ra học phần (CLO)
+                    - CLO1: Trình bày được nền tảng Học máy, Mô hình ngôn ngữ lớn (Large Language Models - LLM), cơ chế biểu diễn văn bản bằng Vector Embedding và độ đo tương đồng Cosine.
+                    - CLO2: Thiết kế và triển khai quy trình Retrieval-Augmented Generation (RAG) gồm trích xuất văn bản, phân đoạn (chunking có gối chồng overlap), lập chỉ mục trên cơ sở dữ liệu vector ChromaDB và sinh câu trả lời bám ngữ cảnh.
+                    - CLO3: Xây dựng tác tử AI (AI Agent) phục vụ giáo dục (sinh câu hỏi theo thang Bloom, sinh Rubric đánh giá, chấm bài tự động kèm kiểm định đầu ra và phòng chống Prompt Injection).
+
+                    2. Kiến trúc RAG (Retrieval-Augmented Generation)
+                    - Vấn đề của LLM thuần túy: Dễ sinh ảo giác (hallucination - bịa thông tin nghe có vẻ hợp lý) và không nắm được tài liệu nội bộ/giáo trình riêng của từng học phần.
+                    - Giải pháp RAG: Trước khi gọi LLM, hệ thống chuyển câu hỏi của người dùng thành vector (embedding), truy vấn Top-K đoạn văn bản (chunks) gần nhất trong ChromaDB vượt ngưỡng tương đồng (similarity threshold), rồi ghép các đoạn đó làm ngữ cảnh tham chiếu (Reference Context) bắt buộc LLM chỉ trả lời dựa trên tài liệu được cung cấp.
+                    - Khi không có đoạn văn bản nào đạt ngưỡng tương đồng (insufficient context), hệ thống từ chối suy diễn và thông báo rõ tài liệu không đủ thông tin thay vì tự bịa câu trả lời.
+
+                    3. Tác tử AI Đánh giá Học tập và An toàn Hệ thống
+                    - Sinh Rubric và chấm bài: Rubric cần có các tiêu chí độc lập, mức điểm rõ ràng và mô tả quan sát được. Khi phát hiện dấu hiệu bất thường như nghi ngờ chèn lệnh (prompt injection) hoặc bài nộp không đọc được, AI gắn cờ (needs_review) để giảng viên xem xét quyết định cuối cùng.
+                    """)
+                };
+
+                foreach (var item in demoDocs)
+                {
+                    if (!db.Subjects.Any(s => s.Id == item.SubjectId)) continue;
+                    var storageDir = Path.Combine(app.Environment.ContentRootPath, "storage", "subjects", item.SubjectId.ToString());
+                    Directory.CreateDirectory(storageDir);
+                    var filePath = Path.Combine(storageDir, item.Filename);
+                    var cleanText = item.Content.Trim();
+                    File.WriteAllText(filePath, cleanText, System.Text.Encoding.UTF8);
+                    var fi = new FileInfo(filePath);
+                    db.Documents.Add(new backend_api.Models.AcademicDocument
+                    {
+                        SubjectId = item.SubjectId,
+                        Filename = item.Filename,
+                        FilePath = filePath,
+                        FileType = "txt",
+                        FileSize = fi.Length,
+                        WordCount = cleanText.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length,
+                        ExtractedContentText = cleanText,
+                        ExtractStatus = "Extracted",
+                        UploadedAt = DateTime.UtcNow
+                    });
+                }
+                db.SaveChanges();
+            }
         }
     }
     catch (Exception ex)

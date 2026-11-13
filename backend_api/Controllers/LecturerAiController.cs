@@ -430,22 +430,12 @@ namespace backend_api.Controllers
             return null;
         }
 
-        /// <summary>Returns Module 3 document ids, uploading PDF/DOCX files that were never indexed there.</summary>
+        /// <summary>Returns Module 3 document ids, uploading documents that were never indexed there.</summary>
         private async Task<List<string>> EnsureDocumentsOnModule3Async(List<AcademicDocument> docs, IModule3Client module3)
         {
             foreach (var doc in docs.Where(d => !Guid.TryParse(d.AiDocId, out _)))
             {
-                var ext = Path.GetExtension(doc.Filename).ToLowerInvariant();
-                if ((ext != ".pdf" && ext != ".docx") || string.IsNullOrWhiteSpace(doc.FilePath) || !System.IO.File.Exists(doc.FilePath))
-                    continue;
-                var bytes = await System.IO.File.ReadAllBytesAsync(doc.FilePath, HttpContext.RequestAborted);
-                var up = await module3.UploadDocumentAsync(doc.Filename, bytes, HttpContext.RequestAborted);
-                var newId = Module3Payloads.Str(up.Body?["document_id"]);
-                if (up.Ok && Guid.TryParse(newId, out _))
-                {
-                    doc.AiDocId = newId!;
-                    doc.ChunksCount = (int)(Module3Payloads.Num(up.Body?["chunks"]) ?? doc.ChunksCount);
-                }
+                await Module3Payloads.TryUploadAcademicDocumentAsync(doc, module3, forceReupload: false, HttpContext.RequestAborted);
             }
             await _db.SaveChangesAsync();
             return Module3Payloads.AiDocumentIds(docs);
