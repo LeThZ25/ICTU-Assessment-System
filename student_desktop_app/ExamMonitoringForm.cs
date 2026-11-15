@@ -829,8 +829,8 @@ namespace student_desktop_app
             {
                 MessageBox.Show(
                     this,
-                    "Đối với Bài tập về nhà / Kiểm tra thường xuyên ở nhà, hệ thống bắt buộc sử dụng Chế độ Kiosk để sinh viên tự nhập tay đáp án và vấn đáp với AI.",
-                    "Bắt buộc Chế độ Kiosk cho Bài tập về nhà",
+                    "Đối với Bài tập về nhà / Kiểm tra ở nhà, hệ thống không bật chống gian lận để sinh viên tự nhập tay đáp án và vấn đáp với AI.",
+                    "Chế độ Làm bài ở nhà",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
             }

@@ -494,6 +494,13 @@
             </div>
 
             <div>
+              <label class="block text-xs font-semibold text-slate-500 mb-1">Phương Thức Làm Bài (Do Giảng Viên Thiết Lập)</label>
+              <div id="lblPreExamExecutionMethod" class="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-sm font-semibold text-sky-600 flex items-center">
+                <i class="fa-solid fa-shield-halved mr-2 text-ictu"></i> Chế độ Kiosk (Khóa màn hình chống gian lận trên lớp)
+              </div>
+            </div>
+
+            <div>
               <label class="block text-xs font-semibold text-slate-500 mb-1">Ca Thi / Bài Kiểm Tra Học Phần</label>
               <div id="lblPreExamTitle" class="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-sm font-medium text-slate-800 leading-relaxed">
                 Đánh giá Kiểm tra Chuẩn đầu ra CSDL - Lớp CS301.01
@@ -1170,8 +1177,9 @@
         return;
       }
 
-      // Chỉ hiện thông báo Fullscreen & Anti-Cheat và nút Giám thị khi sinh viên thực sự bấm bắt đầu làm bài (isExamInProgress)
-      setExamSecurityMode(isExamInProgress);
+      // Chỉ hiện thông báo Fullscreen & Anti-Cheat và nút Giám thị khi sinh viên đang làm bài kiểm tra trên lớp ở chế độ Kiosk
+      const isHomework = (currentSelectedExamCategory === 'regular' || currentSelectedExamCategory === 'homework');
+      setExamSecurityMode(isExamInProgress && !isHomework && getEffectiveExamExecutionMode() === 'kiosk');
 
       document.querySelectorAll('#lmsSidebar .lms-nav-item').forEach(btn => btn.classList.remove('active'));
       if (sectionKey === 'bulletin' || sectionKey === 'projects') {
@@ -1940,7 +1948,7 @@
 
       if (category === 'regular') {
         heading.innerText = "Danh Sách Bài Kiểm Tra Ở Nhà";
-        sub.innerText = "Làm ở nhà: Bắt buộc sử dụng Chế độ Kiosk để sinh viên tự nhập tay đáp án và vấn đáp trực tiếp với Trợ lý AI";
+        sub.innerText = "Làm ở nhà: Không khóa chống gian lận, sinh viên tự nhập tay đáp án và vấn đáp trực tiếp với Trợ lý AI";
       } else {
         heading.innerText = "Danh Sách Bài Kiểm Tra Trên Lớp";
         sub.innerText = "Ở trên lớp: Chọn bài kiểm tra bên dưới để xem thông tin ca thi, học phần và bắt đầu làm bài";
@@ -1958,7 +1966,7 @@
         const effCat = category || ex.category || 'quiz15';
         const isHomework = effCat === 'regular';
         const modeTag = isHomework
-          ? `<span class="px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-bold rounded"><i class="fa-solid fa-house-laptop mr-1"></i>Ở nhà: Bắt buộc Kiosk + Vấn đáp AI</span>`
+          ? `<span class="px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-bold rounded"><i class="fa-solid fa-house-laptop mr-1"></i>Ở nhà: Nhập tay đáp án + Vấn đáp AI</span>`
           : `<span class="px-2 py-0.5 bg-sky-50 text-sky-700 border border-sky-200 text-[10px] font-bold rounded"><i class="fa-solid fa-chalkboard-user mr-1"></i>Trên lớp: GV chọn Kiosk / Monitoring</span>`;
         return `
         <div class="p-5 rounded-xl border border-slate-200 bg-slate-50/40 flex flex-col justify-between space-y-4">
@@ -2021,6 +2029,19 @@
         lecturerConfiguredClassroomMode = 'kiosk';
       } else if (found && found.examMode) {
         lecturerConfiguredClassroomMode = found.examMode;
+      }
+
+      const preMethodEl = document.getElementById('lblPreExamExecutionMethod');
+      if (preMethodEl) {
+        const effMode = getEffectiveExamExecutionMode();
+        const isHomework = (currentSelectedExamCategory === 'regular' || currentSelectedExamCategory === 'homework');
+        if (isHomework) {
+          preMethodEl.innerHTML = `<i class="fa-solid fa-house-laptop mr-2 text-indigo-500"></i> <span>Làm bài ở nhà (Không khóa chống gian lận • Tự nhập tay đáp án &amp; Vấn đáp với AI)</span>`;
+        } else if (effMode === 'monitoring') {
+          preMethodEl.innerHTML = `<i class="fa-solid fa-eye mr-2 text-sky-500"></i> <span>Chế độ Monitoring (Giám sát cửa sổ trên lớp &amp; Nộp file code về máy Giảng viên)</span>`;
+        } else {
+          preMethodEl.innerHTML = `<i class="fa-solid fa-shield-halved mr-2 text-ictu"></i> <span>Chế độ Kiosk (Khóa màn hình chống gian lận trên lớp)</span>`;
+        }
       }
     }
 
@@ -2848,18 +2869,24 @@
       }
     }
 
+    function isAntiCheatEnforced() {
+      const isHomework = (currentSelectedExamCategory === 'regular' || currentSelectedExamCategory === 'homework');
+      if (isHomework) return false; // Bài tập về nhà không bật tính năng chống gian lận
+      return isExamSecurityActive || isExamInProgress;
+    }
+
     function setupAntiCheat() {
       if (antiCheatInitialized) return;
       antiCheatInitialized = true;
 
       window.addEventListener('blur', () => {
-        if ((isExamSecurityActive || isExamInProgress) && currentSessionId > 0) {
+        if (isAntiCheatEnforced() && currentSessionId > 0) {
           logViolation("WindowBlur / Alt+Tab", "Thí sinh rời khỏi cửa sổ làm bài hoặc bấm phím chuyển đổi ứng dụng");
         }
       });
 
       document.addEventListener('contextmenu', (e) => {
-        if (isExamSecurityActive || isExamInProgress) {
+        if (isAntiCheatEnforced()) {
           e.preventDefault();
           if (isExamInProgress) {
             logViolation("RightClickForbidden", "Cố ý mở chuột phải trong phòng thi");
@@ -2868,7 +2895,7 @@
       });
 
       document.addEventListener('copy', (e) => {
-        if (isExamSecurityActive || isExamInProgress) {
+        if (isAntiCheatEnforced()) {
           e.preventDefault();
           if (isExamInProgress) {
             logViolation("ClipboardCopy", "Cố ý sao chép nội dung đề thi");
@@ -2877,7 +2904,7 @@
       });
 
       document.addEventListener('cut', (e) => {
-        if (isExamSecurityActive || isExamInProgress) {
+        if (isAntiCheatEnforced()) {
           e.preventDefault();
           if (isExamInProgress) {
             logViolation("ClipboardCut", "Cố ý cắt văn bản đề thi");
@@ -2886,7 +2913,7 @@
       });
 
       document.addEventListener('paste', (e) => {
-        if (isExamSecurityActive || isExamInProgress) {
+        if (isAntiCheatEnforced()) {
           e.preventDefault();
           if (isExamInProgress) {
             logViolation("ClipboardPaste", "Cố ý dán văn bản từ bên ngoài vào bài thi");
@@ -2895,7 +2922,7 @@
       });
 
       document.addEventListener('keydown', (e) => {
-        if (!isExamSecurityActive && !isExamInProgress) return;
+        if (!isAntiCheatEnforced()) return;
         if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J')) || (e.ctrlKey && e.key === 'u')) {
           e.preventDefault();
           if (isExamInProgress) {
@@ -2983,16 +3010,25 @@
           const effectiveMode = getEffectiveExamExecutionMode();
           const isHomework = currentSelectedExamCategory === 'regular' || currentSelectedExamCategory === 'homework';
 
-          // Nếu là Kiosk hoặc Bài tập về nhà -> bật khóa cứng Kiosk. Nếu ở trên lớp chế độ Monitoring -> bật giám sát Monitoring
-          setExamSecurityMode(effectiveMode === 'kiosk' || isHomework);
-          document.getElementById('antiCheatWarnCount').innerText = "0 Lần Cảnh Báo";
+          // Bài tập về nhà (isHomework): KHÔNG bật khóa chống gian lận.
+          // Chỉ khi kiểm tra trên lớp ở chế độ Kiosk mới bật khóa chống gian lận.
+          setExamSecurityMode(!isHomework && effectiveMode === 'kiosk');
+          const warnBadgeEl = document.getElementById('antiCheatWarnCount');
+          if (warnBadgeEl) {
+            warnBadgeEl.innerText = "0 Lần Cảnh Báo";
+            if (isHomework) {
+              warnBadgeEl.classList.add('hidden');
+            } else {
+              warnBadgeEl.classList.remove('hidden');
+            }
+          }
 
           const bannerEl = document.getElementById('activeExamModeBannerText');
           if (bannerEl) {
             if (!isHomework && effectiveMode === 'monitoring') {
               bannerEl.innerHTML = `<i class="fa-solid fa-eye mr-2 text-sky-600"></i> Chế độ Monitoring trên lớp: Đang giám sát cửa sổ &amp; tiến trình làm bài`;
             } else if (isHomework) {
-              bannerEl.innerHTML = `<i class="fa-solid fa-shield-halved mr-2 text-indigo-600"></i> Chế độ Kiosk Bài tập về nhà: Bắt buộc nhập tay đáp án &amp; vấn đáp với AI`;
+              bannerEl.innerHTML = `<i class="fa-solid fa-house-laptop mr-2 text-indigo-600"></i> Bài tập về nhà: Tự nhập tay đáp án &amp; vấn đáp với AI (Không khóa chống gian lận)`;
             } else {
               bannerEl.innerHTML = `<i class="fa-solid fa-shield-halved mr-2 text-ictu"></i> Chế độ Kiosk Chống Gian Lận đang khóa màn hình`;
             }

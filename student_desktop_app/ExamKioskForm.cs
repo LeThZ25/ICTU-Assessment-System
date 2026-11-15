@@ -386,15 +386,15 @@ namespace student_desktop_app
                         bool isHomework = string.Equals(examCategory, "regular", StringComparison.OrdinalIgnoreCase) ||
                                           string.Equals(examCategory, "homework", StringComparison.OrdinalIgnoreCase);
 
-                        // Ở trên lớp: nếu GV đã thiết lập chế độ Monitoring trước khi mở bài thi -> không khóa cứng Kiosk
-                        if (!isHomework && string.Equals(examMode, "monitoring", StringComparison.OrdinalIgnoreCase))
+                        // Ở nhà làm bài tập về nhà (isHomework) hoặc ở trên lớp chế độ Monitoring -> KHÔNG khóa chống gian lận
+                        if (isHomework || string.Equals(examMode, "monitoring", StringComparison.OrdinalIgnoreCase))
                         {
                             _violationCount = 0;
                             SetExamSecurityMode(false);
                             return;
                         }
 
-                        // Bài tập về nhà hoặc Kiểm tra trên lớp chế độ Kiosk -> Khóa màn hình Kiosk
+                        // Kiểm tra trên lớp chế độ Kiosk -> Khóa màn hình Kiosk & bật chống gian lận
                         _violationCount = 0;
                         SetExamSecurityMode(true);
                     }
