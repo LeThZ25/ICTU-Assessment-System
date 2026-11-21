@@ -194,6 +194,49 @@
       color: #f8fafc !important;
       border-color: #475569 !important;
     }
+
+    /* Hoạt ảnh trượt thu phóng (slide in/out) thanh điều hướng bên trái mượt mà */
+    #lmsSidebar {
+      width: 15rem;
+      min-width: 15rem;
+      max-width: 15rem;
+      opacity: 1;
+      transform: translateX(0);
+      transition:
+        width 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+        min-width 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+        max-width 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+        opacity 0.26s ease,
+        transform 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+        border-color 0.26s ease;
+      will-change: width, transform, opacity;
+    }
+    #lmsSidebar > div {
+      width: 15rem;
+      min-width: 15rem;
+    }
+    #lmsSidebar.sidebar-collapsed {
+      width: 0 !important;
+      min-width: 0 !important;
+      max-width: 0 !important;
+      opacity: 0;
+      transform: translateX(-18px);
+      overflow: hidden !important;
+      border-right-width: 0 !important;
+      pointer-events: none;
+    }
+    #btnToggleSidebar svg {
+      transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease;
+    }
+    #btnToggleSidebar:hover svg {
+      transform: scale(1.12);
+    }
+    #btnToggleSidebar:active svg {
+      transform: scale(0.92);
+    }
+    #weeklyScheduleGrid {
+      transition: all 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+    }
   </style>
 </head>
 <body class="text-slate-800 h-screen flex overflow-hidden bg-white">
@@ -311,8 +354,17 @@
     <!-- TOP HEADER BAR -->
     <header id="topHeaderBar" class="bg-white px-5 py-2.5 flex items-center justify-between flex-shrink-0 z-20 relative border-b border-slate-200">
       <div class="flex items-center gap-3.5">
-        <button id="btnToggleSidebar" onclick="toggleSidebar()" class="w-9 h-9 rounded-lg bg-[#f1f3f4] hover:bg-slate-200 text-slate-700 flex items-center justify-center transition">
-          <i class="fa-solid fa-bars text-sm"></i>
+        <button id="btnToggleSidebar" onclick="toggleSidebar()" title="Thu gọn thanh điều hướng để mở rộng Thời khóa biểu" class="w-9 h-9 rounded-lg bg-[#f1f3f4] hover:bg-slate-200 text-slate-700 flex items-center justify-center transition cursor-pointer">
+          <!-- Icon Mũi tên sang trái (≪) để thu gọn thanh menu sang trái & mở rộng TKB khi Sidebar đang hiện -->
+          <svg id="iconTimetableExpand" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M11 17l-5-5 5-5" />
+            <path d="M18 17l-5-5 5-5" />
+          </svg>
+          <!-- Icon Mũi tên sang phải (≫) để mở lại thanh menu từ bên trái khi Sidebar đang ẩn -->
+          <svg id="iconTimetableCollapse" class="w-4 h-4 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M13 17l5-5-5-5" />
+            <path d="M6 17l5-5-5-5" />
+          </svg>
         </button>
         <div>
           <h1 id="headerExamTitle" class="text-[15px] font-medium text-slate-800 uppercase tracking-normal">THỜI KHÓA BIỂU</h1>
@@ -1161,14 +1213,50 @@
       }
     }
 
+    function isSidebarCollapsed() {
+      const sb = document.getElementById('lmsSidebar');
+      return Boolean(sb && (sb.classList.contains('sidebar-collapsed') || sb.classList.contains('hidden')));
+    }
+
+    function updateTimetableZoomButtonIcon() {
+      const sb = document.getElementById('lmsSidebar');
+      const iconExpand = document.getElementById('iconTimetableExpand');
+      const iconCollapse = document.getElementById('iconTimetableCollapse');
+      const btn = document.getElementById('btnToggleSidebar');
+      if (!sb || !iconExpand || !iconCollapse) return;
+
+      const isExpanded = isSidebarCollapsed();
+      if (isExpanded) {
+        // Đang mở rộng TKB (ẩn sidebar) -> hiện mũi tên sang phải (≫) để kéo mở thanh menu ra
+        iconExpand.classList.add('hidden');
+        iconCollapse.classList.remove('hidden');
+        if (btn) btn.title = "Mở lại thanh điều hướng bên trái";
+      } else {
+        // Đang hiện sidebar -> hiện mũi tên sang trái (≪) để thu gọn thanh menu sang trái & mở rộng TKB
+        iconExpand.classList.remove('hidden');
+        iconCollapse.classList.add('hidden');
+        if (btn) btn.title = "Thu gọn thanh điều hướng để mở rộng Thời khóa biểu";
+      }
+    }
+
+    let sidebarRenderTimer = null;
     function toggleSidebar() {
       if (isExamInProgress) {
         alert("Thanh điều hướng đang bị khóa trong suốt thời gian làm bài thi!");
         return;
       }
       const sb = document.getElementById('lmsSidebar');
-      sb.classList.toggle('hidden');
+      if (!sb) return;
+      sb.classList.remove('hidden');
+      sb.classList.toggle('sidebar-collapsed');
+      updateTimetableZoomButtonIcon();
+
+      // Cập nhật nội dung thẻ lịch học mượt mà khớp với hoạt ảnh trượt
+      if (sidebarRenderTimer) clearTimeout(sidebarRenderTimer);
       renderWeeklyScheduleGrid();
+      sidebarRenderTimer = setTimeout(() => {
+        renderWeeklyScheduleGrid();
+      }, 340);
     }
 
     function switchLmsSection(sectionKey) {
@@ -1215,8 +1303,13 @@
         }
       }
       if (sectionKey !== 'timetable' && !isExamInProgress) {
-        document.getElementById('lmsSidebar')?.classList.remove('hidden');
+        const sb = document.getElementById('lmsSidebar');
+        if (sb) {
+          sb.classList.remove('hidden');
+          sb.classList.remove('sidebar-collapsed');
+        }
       }
+      updateTimetableZoomButtonIcon();
 
       if (sectionKey === 'timetable') {
         titleEl.innerText = "THỜI KHÓA BIỂU";
@@ -1521,7 +1614,7 @@
         return 'Phòng C5.302 - Nhà C5';
       };
 
-      const isScheduleExpanded = document.getElementById('lmsSidebar')?.classList.contains('hidden');
+      const isScheduleExpanded = isSidebarCollapsed();
 
       const renderScheduleCard = (c) => {
         const fullRoom = c.room || 'Học trên lớp';
@@ -3036,7 +3129,7 @@
 
           restoreDraftFromLocal(currentSessionId);
 
-          document.getElementById('lmsSidebar').classList.add('hidden');
+          document.getElementById('lmsSidebar').classList.add('sidebar-collapsed');
 
           document.getElementById('headerExamTitle').innerText = data.examTitle;
           document.getElementById('headerStudentInfo').innerText = `Thí sinh: ${currentStudentName} (${currentStudentCode})`;
@@ -3397,7 +3490,11 @@
             window.chrome.webview.postMessage(JSON.stringify({ action: 'examEnded' }));
           }
 
-          document.getElementById('lmsSidebar').classList.remove('hidden');
+          const sbAfterExam = document.getElementById('lmsSidebar');
+          if (sbAfterExam) {
+            sbAfterExam.classList.remove('hidden');
+            sbAfterExam.classList.remove('sidebar-collapsed');
+          }
           document.getElementById('stepExam').classList.add('hidden');
           document.getElementById('examTimerBox').classList.add('hidden');
           document.getElementById('stepResult').classList.remove('hidden');
