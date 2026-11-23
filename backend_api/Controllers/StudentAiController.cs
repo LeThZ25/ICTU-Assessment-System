@@ -28,13 +28,23 @@ namespace backend_api.Controllers
             if (!string.IsNullOrWhiteSpace(dto?.StudentId) && !IsCurrentStudent(dto.StudentId))
                 return Forbid();
 
+            var studentCode = AuthenticatedStudentCode!;
+            if (await IsStudentInClassroomExamAsync(studentCode, HttpContext.RequestAborted))
+            {
+                return StatusCode(403, new
+                {
+                    success = false,
+                    code = "ASSESSMENT_MODE_FORBIDDEN",
+                    assessmentMode = "classroom_exam",
+                    message = "Không được phép sử dụng trợ lý AI trong thời gian bạn đang tham gia bài kiểm tra / phòng thi trên lớp."
+                });
+            }
+
             var question = dto?.Message?.Trim() ?? string.Empty;
             if (question.Length == 0)
                 return BadRequest(new { success = false, code = "VALIDATION", message = "Vui lòng nhập nội dung câu hỏi." });
             if (question.Length > MaxStudentQuestionChars)
                 return BadRequest(new { success = false, code = "VALIDATION", message = $"Câu hỏi không được vượt quá {MaxStudentQuestionChars} ký tự." });
-
-            var studentCode = AuthenticatedStudentCode!;
             var enrolledSubjects = await _db.ClassEnrollments
                 .AsNoTracking()
                 .Where(e => e.StudentCode.Trim().ToUpper() == studentCode && e.CourseClass != null && e.CourseClass.Subject != null)
@@ -148,37 +158,35 @@ namespace backend_api.Controllers
             });
         }
 
-        private async Task<string?> TryOralRagFromSubjectAsync(int subjectId, string message, string currentQuestion,
-            IModule3Client module3, CancellationToken ct)
+        private async Task<bool> IsStudentInClassroomExamAsync(string studentCode, CancellationToken ct)
         {
-            if (subjectId <= 0) return null;
-            var docs = await _db.Documents
-                .Where(d => d.SubjectId == subjectId)
-                .OrderByDescending(d => d.Id)
+            var code = studentCode.Trim().ToUpperInvariant();
+            var nowUtc = DateTime.UtcNow;
+
+            var openExamSessions = await _db.ExamSessions
+                .AsNoTracking()
+                .Where(s => s.StudentCode.Trim().ToUpper() == code &&
+                            (s.Status == "InExam" || s.Status == "Reopened"))
+                .Select(s => new
+                {
+                    s.StartTime,
+                    DurationMinutes = s.Exam != null ? s.Exam.DurationMinutes : 0
+                })
                 .ToListAsync(ct);
-            var usable = docs
-                .Where(d => Guid.TryParse(d.AiDocId, out _) || Module3Payloads.CanUploadToModule3(d))
-                .Take(3)
-                .ToList();
-            if (usable.Count == 0) return null;
 
-            bool dirty = false;
-            foreach (var doc in usable.Where(d => !Guid.TryParse(d.AiDocId, out _)))
+            if (openExamSessions.Any(s =>
+                s.DurationMinutes <= 0 ||
+                nowUtc <= s.StartTime.AddMinutes(s.DurationMinutes).AddSeconds(60)))
             {
-                var up = await Module3Payloads.TryUploadAcademicDocumentAsync(doc, module3, forceReupload: false, ct);
-                if (up != null && up.Ok) dirty = true;
+                return true;
             }
-            if (dirty) await _db.SaveChangesAsync(ct);
 
-            var indexed = usable.Where(d => Guid.TryParse(d.AiDocId, out _)).ToList();
-            if (indexed.Count == 0) return null;
-
-            var combinedQuery = string.IsNullOrWhiteSpace(currentQuestion)
-                ? message.Trim()
-                : Module3Payloads.Trim($"{message.Trim()}\n(Câu hỏi đề thi: {currentQuestion.Trim()})", MaxStudentQuestionChars);
-
-            var outcome = await AnswerAcrossDocumentsAsync(indexed, combinedQuery, module3, ct);
-            return !outcome.InsufficientContext && !string.IsNullOrWhiteSpace(outcome.Answer) ? outcome.Answer : null;
+            return await _db.ExamRoomJoins
+                .AsNoTracking()
+                .AnyAsync(j => j.StudentCode.Trim().ToUpper() == code &&
+                               j.IsAuthorized &&
+                               j.ExamRoomSession != null &&
+                               j.ExamRoomSession.Status == "InProgress", ct);
         }
 
         private async Task<RagMultiDocOutcome> AnswerAcrossDocumentsAsync(

@@ -583,16 +583,16 @@ namespace student_desktop_app
 
             var lblAiTitle = new Label
             {
-                Text = "TRỢ LÝ KHẢO THÍ TRỰC TUYẾN",
+                Text = "CHẾ ĐỘ THI AN TOÀN — ĐÃ KHÓA AI",
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(0, 74, 153), // ICTU Blue
+                ForeColor = Color.FromArgb(185, 28, 28),
                 Dock = DockStyle.Top,
                 Height = 25
             };
 
             var lblAiDesc = new Label
             {
-                Text = "Trao đổi, vấn đáp trực tuyến để làm rõ các ý chính trong câu hỏi tự luận.",
+                Text = "Trợ lý AI bị vô hiệu hóa hoàn toàn trong suốt thời gian làm bài thi trên lớp.",
                 Font = new Font("Segoe UI", 8.5F),
                 ForeColor = Color.FromArgb(100, 116, 139),
                 Dock = DockStyle.Top,
@@ -603,11 +603,11 @@ namespace student_desktop_app
             {
                 Dock = DockStyle.Fill,
                 ReadOnly = true,
-                BackColor = Color.FromArgb(248, 250, 252),
+                BackColor = Color.FromArgb(254, 242, 242),
                 BorderStyle = BorderStyle.None,
                 Font = new Font("Segoe UI", 9.5F)
             };
-            rtbAiChat.AppendText("[Cán bộ khảo thí]: Chào bạn! Hãy tập trung làm bài thi nghiêm túc. Nếu có thắc mắc lý thuyết hoặc cần trao đổi thêm về câu hỏi tự luận, hãy nhắn tại đây.\n\n");
+            rtbAiChat.AppendText("[Quy chế thi]: Chế độ thi có kiểm soát (classroom_exam) không cho phép sử dụng trợ lý AI trong thời gian làm bài thi.\n\n");
 
             var bottomChat = new Panel
             {
@@ -619,18 +619,20 @@ namespace student_desktop_app
             txtAiInput = new TextBox
             {
                 Dock = DockStyle.Fill,
-                Font = new Font("Segoe UI", 10F)
+                Font = new Font("Segoe UI", 10F),
+                Enabled = false,
+                PlaceholderText = "Trợ lý AI đã bị khóa trong giờ thi..."
             };
-            txtAiInput.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) BtnAiSend_Click(s, e); };
 
             btnAiSend = new Button
             {
-                Text = "Gửi",
+                Text = "Đã khóa",
                 Dock = DockStyle.Right,
-                Width = 65,
-                BackColor = Color.FromArgb(124, 58, 237),
+                Width = 75,
+                BackColor = Color.FromArgb(148, 163, 184),
                 ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat
+                FlatStyle = FlatStyle.Flat,
+                Enabled = false
             };
             btnAiSend.FlatAppearance.BorderSize = 0;
             btnAiSend.Click += BtnAiSend_Click;
@@ -1107,28 +1109,11 @@ namespace student_desktop_app
             _examTimer.Start();
         }
 
-        private async void BtnAiSend_Click(object? sender, EventArgs e)
+        private void BtnAiSend_Click(object? sender, EventArgs e)
         {
-            var msg = txtAiInput.Text.Trim();
-            if (string.IsNullOrEmpty(msg)) return;
             txtAiInput.Text = "";
-
-            rtbAiChat.AppendText($"[Bạn]: {msg}\n");
+            rtbAiChat.AppendText("[Quy chế thi]: Chế độ thi có kiểm soát (classroom_exam) không cho phép sử dụng trợ lý AI trong thời gian làm bài.\n\n");
             rtbAiChat.ScrollToCaret();
-
-            btnAiSend.Enabled = false;
-            var currentQ = _examData.Questions.Count > _currentIndex ? _examData.Questions[_currentIndex].QuestionText : "";
-            int examId = _examData.ExamId > 0 ? _examData.ExamId : 1;
-
-            var reply = await _api.SendOralChatAsync(_studentCode, examId, msg, currentQ);
-            string cleanReply = (reply ?? "Hãy tiếp tục hoàn thiện câu trả lời của bạn.")
-                .Replace("AI Giám Khảo:", "")
-                .Replace("AI Giám khảo:", "")
-                .Replace("Cán bộ khảo thí:", "")
-                .Trim();
-            rtbAiChat.AppendText($"[Cán bộ khảo thí]: {cleanReply}\n\n");
-            rtbAiChat.ScrollToCaret();
-            btnAiSend.Enabled = true;
         }
 
         private void BtnSubmit_Click(object? sender, EventArgs e)

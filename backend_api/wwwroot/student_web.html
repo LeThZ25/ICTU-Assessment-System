@@ -591,24 +591,26 @@
                 </button>
               </div>
 
-              <div class="bg-white p-4 rounded-xl border border-slate-200 flex flex-col h-[310px] shadow-2xs">
+              <div class="bg-white p-4 rounded-xl border border-rose-200 flex flex-col h-[310px] shadow-2xs">
                 <div class="flex items-center justify-between pb-2.5 border-b border-slate-100 mb-2">
                   <div class="flex items-center space-x-2">
-                    <div class="w-6 h-6 rounded-md bg-ictu text-white flex items-center justify-center text-[10px] font-bold">AI</div>
+                    <div class="w-6 h-6 rounded-md bg-rose-600 text-white flex items-center justify-center text-[10px] font-bold">
+                      <i class="fa-solid fa-lock"></i>
+                    </div>
                     <div>
-                      <h5 class="text-xs font-bold text-slate-800 leading-none">Vấn Đáp &amp; Gợi Mở Socratic</h5>
-                      <span class="text-[10px] text-emerald-600 font-medium">● Trực tuyến (Streaming)</span>
+                      <h5 class="text-xs font-bold text-slate-800 leading-none">Chế Độ Thi An Toàn</h5>
+                      <span class="text-[10px] text-rose-600 font-semibold">● Đã khóa trợ lý AI (classroom_exam)</span>
                     </div>
                   </div>
                 </div>
                 <div id="oralChatBox" class="flex-1 overflow-y-auto space-y-2 text-xs p-1">
-                  <div class="bg-slate-100 p-2.5 rounded-lg text-slate-700 leading-relaxed">
-                    <b>Cán bộ khảo thí:</b> Chào bạn, hãy làm bài nghiêm túc. Nếu cần gợi ý định hướng câu hỏi tự luận hoặc kiểm tra lập luận, hãy nhắn trao đổi trực tiếp tại đây.
+                  <div class="bg-rose-50 border border-rose-200 p-3 rounded-lg text-rose-800 leading-relaxed">
+                    <b>Quy chế phòng thi:</b> Trợ lý AI và tính năng gợi mở đáp án bị vô hiệu hóa hoàn toàn trong suốt thời gian làm bài thi trên lớp. Mọi yêu cầu truy vấn AI sẽ bị hệ thống từ chối.
                   </div>
                 </div>
                 <div class="flex space-x-1.5 pt-2">
-                  <input type="text" id="oralInput" onkeydown="if(event.key==='Enter') sendOralMessage()" placeholder="Nhập câu trả lời vấn đáp / hỏi gợi ý..." class="flex-1 px-3 py-1.5 rounded-lg border border-slate-300 text-xs focus:outline-none focus:border-ictu">
-                  <button onclick="sendOralMessage()" id="btnSendOral" class="bg-ictu hover:bg-ictu-dark text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition">Gửi</button>
+                  <input type="text" id="oralInput" disabled placeholder="Trợ lý AI bị khóa trong thời gian thi..." class="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-100 text-slate-400 text-xs cursor-not-allowed">
+                  <button type="button" disabled id="btnSendOral" class="bg-slate-300 text-slate-500 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-not-allowed">Đã khóa</button>
                 </div>
               </div>
             </div>
@@ -2920,21 +2922,23 @@
     }
 
     async function streamAiReplyToElement(studentId, examId, message, currentQ, targetSpan) {
+      if (Boolean(isExamInProgress && Number(examId) > 0)) {
+        if (targetSpan) targetSpan.classList.add('text-rose-700');
+        await typewriterRenderText(
+          targetSpan,
+          "⛔ Chế độ thi có kiểm soát (classroom_exam): Không được phép sử dụng trợ lý AI trong thời gian làm bài thi."
+        );
+        return;
+      }
+
       let answerText = "";
       let isError = false;
 
-      // Vấn đáp trong ca thi đang mở -> gọi /api/student/oral-chat; hỏi đáp học tập tự do -> gọi /api/student/ai-chat
-      const useOralEndpoint = Boolean(isExamInProgress && Number(examId) > 0);
       try {
-        const res = await fetch(useOralEndpoint ? "/api/student/oral-chat" : "/api/student/ai-chat", {
+        const res = await fetch("/api/student/ai-chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(useOralEndpoint ? {
-            studentId: studentId,
-            examId: examId,
-            message: message,
-            currentQuestion: currentQ
-          } : {
+          body: JSON.stringify({
             studentId: studentId,
             message: message
           })
@@ -2960,20 +2964,13 @@
 
     async function sendOralMessage() {
       const inp = document.getElementById('oralInput');
-      const msg = inp.value.trim();
+      const msg = (inp?.value || "").trim();
       if (!msg) return;
-      inp.value = "";
+      if (inp) inp.value = "";
 
-      const currentQ = questionsList[currentIndex] ? questionsList[currentIndex].questionText : "";
       const box = document.getElementById('oralChatBox');
-      box.innerHTML += `<div class="bg-ictu-light p-2.5 rounded-lg text-ictu-dark text-right ml-4"><b>Bạn:</b> ${escapeHtmlText(msg)}</div>`;
-
-      const replyId = "oralReply_" + Date.now();
-      box.innerHTML += `<div class="bg-slate-100 p-2.5 rounded-lg text-slate-800 mr-4 leading-relaxed"><b>Cán bộ khảo thí:</b> <span id="${replyId}" class="typing-cursor">Đang suy luận...</span></div>`;
-      box.scrollTop = box.scrollHeight;
-
-      const targetSpan = document.getElementById(replyId);
-      await streamAiReplyToElement(currentStudentCode, currentExamId, msg, currentQ, targetSpan);
+      if (!box) return;
+      box.innerHTML += `<div class="bg-rose-50 border border-rose-200 p-2.5 rounded-lg text-rose-700 mr-2 leading-relaxed"><b>Hệ thống:</b> Chế độ thi trên lớp (classroom_exam) không cho phép sử dụng trợ lý AI trong thời gian làm bài.</div>`;
       box.scrollTop = box.scrollHeight;
     }
 

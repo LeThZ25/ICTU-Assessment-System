@@ -472,62 +472,19 @@ namespace backend_api.Controllers
         }
 
         [HttpPost("oral-chat")]
-        public async Task<IActionResult> OralChat([FromBody] OralChatDto dto,
-            [FromServices] IModule3Client module3)
+        public IActionResult OralChat([FromBody] OralChatDto? dto)
         {
-            if (dto == null || string.IsNullOrWhiteSpace(dto.Message))
+            if (string.IsNullOrWhiteSpace(AuthenticatedStudentCode)) return Forbid();
+            if (!string.IsNullOrWhiteSpace(dto?.StudentId) && !IsCurrentStudent(dto.StudentId)) return Forbid();
+
+            // Theo quy chế thi trên lớp & đặc tả H12 (PI 1.1, PI 1.2, PI 3.4):
+            // Tuyệt đối không cung cấp trợ lý AI hoặc tương tác vấn đáp AI trong thời gian thi trên lớp.
+            return StatusCode(403, new
             {
-                return BadRequest(new { success = false, message = "Nội dung tin nhắn không được để trống." });
-            }
-
-            if (dto.Message.Length > 4000 || (dto.CurrentQuestion?.Length ?? 0) > 4000)
-                return BadRequest(new { success = false, code = "VALIDATION", message = "Nội dung trao đổi vượt quá 4.000 ký tự." });
-
-            if (!IsCurrentStudent(dto.StudentId)) return Forbid();
-
-            var activeSession = await _db.ExamSessions
-                .Where(s => s.ExamId == dto.ExamId &&
-                    s.StudentCode.Trim().ToUpper() == AuthenticatedStudentCode &&
-                    (s.Status == "InExam" || s.Status == "Reopened"))
-                .OrderByDescending(s => s.Id)
-                .Select(s => new { s.StartTime })
-                .FirstOrDefaultAsync();
-            if (activeSession == null) return Forbid();
-
-            var exam = await _db.Exams.Include(e => e.Subject).FirstOrDefaultAsync(e => e.Id == dto.ExamId && e.IsActive);
-            if (exam == null) return NotFound();
-            if (exam.CourseClassId is not int courseClassId ||
-                !await _db.ClassEnrollments.AnyAsync(e => e.CourseClassId == courseClassId &&
-                    e.StudentCode.Trim().ToUpper() == AuthenticatedStudentCode))
-                return Forbid();
-            if (exam.DurationMinutes > 0 && DateTime.UtcNow >= activeSession.StartTime.AddMinutes(exam.DurationMinutes))
-                return StatusCode(409, new { success = false, code = "SESSION_EXPIRED", message = "Đã hết thời gian làm bài, không thể tiếp tục trao đổi." });
-            string context = exam?.Subject?.Name ?? "Hệ thống CNTT";
-
-            var reply = await TryOralRagFromSubjectAsync(
-                exam?.SubjectId ?? 0, dto.Message, dto.CurrentQuestion ?? "", module3, HttpContext.RequestAborted);
-            if (string.IsNullOrWhiteSpace(reply))
-            {
-                reply = await _aiClient.OralChatAsync(AuthenticatedStudentCode!, dto.ExamId, dto.Message, context, dto.CurrentQuestion ?? "");
-            }
-            if (string.IsNullOrWhiteSpace(reply))
-            {
-                return StatusCode(503, new
-                {
-                    success = false,
-                    code = "AI_UNAVAILABLE",
-                    message = "Trợ lý AI hiện tạm thời không khả dụng, vui lòng thử lại sau."
-                });
-            }
-
-            string cleanReply = reply
-                .Replace("AI Giám Khảo:", "")
-                .Replace("AI Giám khảo:", "")
-                .Trim();
-            return Ok(new
-            {
-                Success = true,
-                Reply = cleanReply
+                success = false,
+                code = "ASSESSMENT_MODE_FORBIDDEN",
+                assessmentMode = "classroom_exam",
+                message = "Chế độ thi trên lớp (classroom_exam): không được phép sử dụng trợ lý AI trong thời gian làm bài thi."
             });
         }
 

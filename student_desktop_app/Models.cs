@@ -51,6 +51,7 @@ namespace student_desktop_app
     {
         public bool Success { get; set; }
         public string Reply { get; set; } = string.Empty;
+        public string Message { get; set; } = string.Empty;
     }
 }
 

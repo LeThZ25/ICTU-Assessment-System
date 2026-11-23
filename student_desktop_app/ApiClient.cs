@@ -136,18 +136,17 @@ namespace student_desktop_app
                     currentQuestion = currentQuestion
                 };
                 var res = await _http.PostAsJsonAsync("/api/student/oral-chat", payload);
+                var opt = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                var data = await res.Content.ReadFromJsonAsync<OralChatResponse>(opt);
                 if (res.IsSuccessStatusCode)
-                {
-                    var opt = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                    var data = await res.Content.ReadFromJsonAsync<OralChatResponse>(opt);
                     return data?.Reply ?? "AI đã nhận tin nhắn.";
-                }
+                return data?.Message ?? "Chế độ thi trên lớp (classroom_exam): không được phép sử dụng trợ lý AI trong thời gian làm bài thi.";
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"SendOralChat error: {ex.Message}");
+                return "Không thể kết nối máy chủ hoặc trợ lý AI đang bị khóa trong giờ thi.";
             }
-            return "AI Giám Khảo: Hãy tiếp tục làm bài cẩn thận!";
         }
     }
 }
