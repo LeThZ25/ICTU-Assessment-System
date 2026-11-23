@@ -32,13 +32,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PATH="/opt/venv/bin:$PATH" \
     APP_HOST=0.0.0.0 \
     APP_PORT=8003 \
-    CHROMA_PERSIST_DIRECTORY=/app/data/chroma
+    CHROMA_PERSIST_DIRECTORY=/app/data/chroma \
+    AGENT_SESSION_DB_PATH=/app/data/sessions/h12_sessions.db
 
 WORKDIR /app
 
 RUN groupadd --system --gid 10001 app \
     && useradd --system --uid 10001 --gid app --home-dir /app --no-create-home app \
-    && mkdir -p /app/data/chroma /app/uploads \
+    && mkdir -p /app/data/chroma /app/data/sessions /app/uploads \
     && chown -R app:app /app
 
 COPY --from=builder /opt/venv /opt/venv

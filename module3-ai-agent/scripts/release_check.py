@@ -32,6 +32,13 @@ CONTRACT = {
     ("post", "/api/rubrics/generate"), ("post", "/api/rubrics/validate"),
     ("post", "/api/grading/grade"), ("post", "/api/grading/batch"),
     ("post", "/api/submissions/handwritten/transcribe"),
+    ("get", "/api/agent/capabilities"), ("post", "/api/agent/execute-skeleton"),
+    ("post", "/api/agent/knowledge/index"), ("post", "/api/agent/knowledge/retrieve"),
+    ("post", "/api/agent/sessions"), ("get", "/api/agent/sessions/{session_id}"),
+    ("post", "/api/agent/questions/draft"), ("post", "/api/agent/knowing/grade-suggestion"),
+    ("post", "/api/agent/understanding/sessions/start"),
+    ("post", "/api/agent/understanding/sessions/{session_id}/turns"),
+    ("post", "/api/agent/understanding/sessions/{session_id}/close"),
 }
 
 

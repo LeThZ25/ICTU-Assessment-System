@@ -29,7 +29,7 @@ Requirements: Python 3.11+, a Gemini API key from <https://aistudio.google.com/a
 cd module3-ai-agent
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1           # Linux/macOS: source .venv/bin/activate
-pip install -r requirements.txt        # runtime only; for development/tests: pip install -r requirements-dev.txt
+pip install -r requirements.txt
 copy .env.example .env                 # Linux/macOS: cp .env.example .env
 # edit .env and set GEMINI_API_KEY=...   (never commit .env)
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8003
@@ -151,7 +151,6 @@ python -m agent export -c D:\BT03\agent.yaml          # re-export from saved pro
 ## 7. Tests and checks
 
 ```powershell
-pip install -r requirements-dev.txt  # runtime deps + pytest, pytest-asyncio, pytest-mock
 pytest -q                          # offline suite, Gemini is faked (no network)
 pytest -m integration              # optional: needs a real GEMINI_API_KEY
 ruff check --select E9,F app scripts tests agent
@@ -161,3 +160,21 @@ python scripts/prompt_eval.py --repeat 2   # REAL Gemini: grading golden cases (
 ```
 
 Backups of the Chroma directory: `python scripts/backup.py` / `python scripts/restore.py` (stop the API first).
+
+## 8. H12 AI Agent Module (Blended Learning)
+
+Implemented under `app/h12_agent/` and exposed at `/api/agent/*` (built on `langgraph==1.2.24`):
+
+- **3 Controlled LangGraph Workflows:**
+  1. `POST /api/agent/questions/draft` — teacher lesson-grounded essay question drafting (`question_drafting.py`, `draft_suggestion` handoff).
+  2. `POST /api/agent/knowing/grade-suggestion` — Knowing fixed essay rubric scoring suggestion (`knowing_grading.py`, `pending_teacher_review` / `needs_teacher_escalation`, never silent grade publication).
+  3. `POST /api/agent/understanding/sessions/{start,turns,close}` — Understanding adaptive text chat (`understanding_dialogue.py` + `dialogue_guards.py`, `student_safe` retrieval, PI 3.4 adversarial attack guards, live `classroom_exam` lock).
+- **H12 Environment Variables (`.env.example`):**
+  - `AGENT_MODEL_ADAPTER` (`gemini` | `mock`), `AGENT_LCMS_MODE` (`mock` | `http`), `AGENT_LCMS_BASE_URL`
+  - `AGENT_LCMS_TIMEOUT_S`, `AGENT_AUTH_REQUIRED`, `AGENT_SERVICE_SECRET`
+  - `AGENT_MAX_DIALOGUE_TURNS`, `AGENT_IDEMPOTENCY_TTL_S`
+  - `AGENT_SESSION_DB_PATH`, `AGENT_SESSION_RETENTION_DAYS`, `AGENT_CONTEXT_WINDOW_TURNS`, `AGENT_SESSION_MAX_CONTEXT_CHARS`
+- **LCMS HTTP Simulator & 6-Criteria Evaluator:**
+  - Standalone C#-compatible LCMS HTTP simulator: `python -m app.h12_agent.lcms_simulator` (sync guide in [docs/INTEGRATION_SYNC_LCMS_DESKTOP.md](docs/INTEGRATION_SYNC_LCMS_DESKTOP.md)).
+  - 6-criteria benchmark evaluator (PI 4.1):
+    `python scripts/evaluate_h12.py --mode mock --output-md reports/h12_evaluation_offline.md` (`--mode gemini` for live API evaluation when `GEMINI_API_KEY` is configured).
